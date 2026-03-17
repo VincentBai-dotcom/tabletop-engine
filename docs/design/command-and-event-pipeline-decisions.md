@@ -6,7 +6,463 @@ Update this file whenever a command/event-pipeline design decision is agreed dur
 
 ## Agreed So Far
 
-No command and event pipeline decisions have been finalized yet.
+### Command and event separation
+
+Commands and events should be treated as two distinct first-class concepts from the beginning.
+
+Definition:
+
+- a command is an attempted intentional input
+- an event is a fact that has already happened
+
+Implication:
+
+- commands can be validated, accepted, or rejected
+- events represent accepted past-tense state changes or engine facts
+- triggers should generally react to events rather than to attempted commands
+
+Rationale:
+
+- keeps request/validation separate from factual outcomes
+- makes trigger design clearer
+- improves replay/history semantics
+
+External command vs internal engine-step distinction
+
+Commands should remain distinct from engine-internal scheduled work.
+
+Boundary:
+
+- command = intent submitted into the engine from outside
+- internal engine step = follow-up work scheduled by the engine while processing accepted execution
+
+Important clarification:
+
+- the consumer may define the rules or policies that cause internal engine work to be scheduled
+- but once scheduled during execution, that work is still engine-internal rather than an external command
+
+Examples:
+
+- external command: `PlayCard`, `Pass`, `EndTurn`, `ChooseOption`
+- internal engine step: advance progression, resolve pending trigger, apply automatic end-turn, continue queued resolution
+
+Rationale:
+
+- preserves a clearer API and audit boundary
+- avoids treating engine housekeeping as if it were external intent
+- improves replay readability and debugging
+
+Committed-fact event decision:
+
+- canonical events should represent accepted or committed facts only
+
+Implication:
+
+- rejected or invalid attempts should not become part of the canonical event stream by default
+- rejection information should be returned through execution results or diagnostics instead of committed game events
+
+Legality boundary:
+
+- legality rules are consumer-defined rather than inferred generically by the kernel
+- the kernel enforces legality by calling consumer-provided rule logic rather than deducing all legal moves from first principles
+- action discovery may be supported later if exposed through consumer-defined contracts, but it should not be assumed as something the kernel can infer automatically for every game
+
+Rationale:
+
+- keeps the canonical event stream focused on committed game facts
+- respects the boundary that game legality belongs to consumer-defined rules
+- avoids overpromising generic legal-action deduction that may not exist for all games
+
+Primary committed-event direction:
+
+- a successful external command should produce one primary committed event by default
+
+Implication:
+
+- the event layer should stay simple and readable
+- events are currently being treated more as visibility, debugging, and replay-facing facts than as a complex gameplay-mechanics substrate
+- if richer multi-event behavior is needed later, it can be added deliberately rather than assumed from the start
+
+Status:
+
+- direction chosen for simplicity
+- may be revisited later if trigger/resolution design creates a strong need for richer committed-event fan-out
+
+Rationale:
+
+- keeps the event model easier to understand
+- makes history/debug output easier to read
+- avoids unnecessary complexity in the first pipeline design
+
+Internal engine-step event direction:
+
+- internal engine steps should also emit committed events by default
+
+Implication:
+
+- visibility, debugging, and testing should be able to observe important engine-driven state changes, not only externally initiated command results
+- committed history should reflect meaningful automatic progression and resolution steps as well as player-initiated outcomes
+
+Rationale:
+
+- improves observability of automatic engine behavior
+- makes replay/debug traces easier to inspect
+- helps explain why state changed even when no new external command was submitted
+
+Hybrid event-functionality direction:
+
+- committed events should be meaningful engine facts that can support actual engine functionality such as triggers
+- events should not become the sole mutation mechanism of the engine
+
+Implication:
+
+- the engine should not rely on a second hidden trigger substrate separate from committed facts
+- triggers and automatic reactions may respond to committed events
+- events should still remain lighter-weight than a fully event-sourced architecture
+
+Rationale:
+
+- purely observational events are too weak for event-triggered tabletop rules
+- a fully event-sourced design is likely too heavy for the first kernel version
+- the hybrid model keeps one meaningful notion of “what happened” without over-engineering the execution model
+
+Hybrid event-emission direction:
+
+- event emission should use a hybrid model of kernel-emitted runtime events plus consumer-declared explicit event emission
+
+Implication:
+
+- the kernel should emit important runtime facts on its own where the engine semantics require them
+- the consumer should also be able to declare meaningful domain-specific events as part of rule execution
+- the engine should not rely solely on kernel-detected generic state diffs to infer all meaningful events
+
+Consumer-facing use:
+
+- consumers may attach domain-specific event identities to rule actions so that later rules or triggered effects can react to those committed facts explicitly
+
+Rationale:
+
+- some events are intrinsic to kernel/runtime behavior
+- some events are domain-specific and can only be named meaningfully by the consumer
+- pure state-diff detection is too weak to recover full game semantics in a generic way
+
+Primary and secondary committed-event direction:
+
+- a successful execution may produce one primary committed event plus optional secondary committed events
+
+Important clarification:
+
+- primary versus secondary is about semantic importance within the execution outcome, not about whether the event came from the kernel or from consumer-defined rule logic
+- committed events should describe meaningful domain or runtime facts rather than raw state-diff fragments
+
+Implication:
+
+- secondary events should represent additional meaningful committed facts produced during the same execution
+- the event model should not devolve into automatically exposing arbitrary field-level state changes as events
+
+Rationale:
+
+- keeps events semantic rather than diff-shaped
+- preserves a readable history/debug trace
+- allows richer event output without collapsing into low-level state-change noise
+
+Atomic execution direction:
+
+- accepted execution should run atomically to quiescence before returning
+
+Implication:
+
+- once a command or internal engine step is accepted, the engine should continue processing resulting internal work until no further required immediate pipeline work remains
+- the caller should not receive control back while required committed follow-up work is still pending
+
+Rationale:
+
+- safer default for correctness
+- reduces partially-resolved engine states leaking to hosts or clients
+- keeps the first kernel version easier to reason about
+
+Sequential pipeline direction:
+
+- single-match pipeline execution should be strictly sequential for v1
+
+Implication:
+
+- one accepted command or internal engine step should be fully processed before the next begins
+- concurrency, if needed later, should be treated as a host-level concern across separate matches or simulations rather than as interleaved execution inside one match pipeline
+
+Rationale:
+
+- matches tabletop ordering expectations better
+- preserves deterministic ordering and replay clarity
+- avoids unnecessary ambiguity in trigger and resolution ordering
+
+Nested command submission decision:
+
+- rules should not submit nested commands during execution in v1
+
+Implication:
+
+- follow-up work should be modeled through shared rule helpers, committed events, and engine-scheduled internal steps rather than reentrant command submission
+- the pipeline should avoid reentrancy caused by command submission from inside active execution
+
+Rationale:
+
+- keeps audit boundaries clearer
+- reduces reentrancy complexity
+- makes validation and replay behavior easier to reason about
+
+Internal-step validation direction:
+
+- internal engine steps should bypass normal external-command validation
+
+Implication:
+
+- external commands remain the main place where legality and permission validation occurs
+- internal engine steps may still use engine invariants or assertions where needed, but should not be treated as untrusted requests going through the full external validation path
+
+Rationale:
+
+- internal steps are engine-scheduled trusted work
+- avoids unnecessary duplication of command-style validation
+- keeps the pipeline simpler while still allowing engine-safety checks
+
+Command representation decision:
+
+- commands should be plain serializable data objects
+
+Implication:
+
+- command behavior should live in separate command definitions or handlers rather than on behavior-bearing command instances
+- command payloads should remain portable across replay, test, host, and network boundaries
+
+Rationale:
+
+- keeps command payloads easy to serialize and inspect
+- preserves cleaner replay and transport boundaries
+- still allows interface enforcement at the command-definition layer
+
+Command-definition contract direction:
+
+- command definitions should require both `validate` and `execute`
+
+Implication:
+
+- every command type has an explicit legality gate
+- commands that do not need meaningful validation may still provide a trivial validation result rather than relying on an implicit default
+
+Rationale:
+
+- keeps the command-definition contract uniform
+- reduces ambiguity about whether validation was forgotten
+- improves consistency for both human and agent-authored command definitions
+
+Validation result direction:
+
+- `validate` should return a structured result with reasons and metadata, not only a simple pass/fail value
+- prefer an object-shaped result rather than a positional tuple
+
+Implication:
+
+- validation failures can carry debugging-oriented explanation and supporting metadata
+- hosts or apps are not required to treat that validation metadata as part of their user-facing product behavior
+
+Rationale:
+
+- improves debugging and development-time visibility
+- fits the existing boundary where diagnostics are returned out-of-band rather than stored in canonical state
+- keeps room for richer tooling without complicating canonical engine semantics
+
+Execute-surface direction:
+
+- `execute` should be allowed to directly mutate `game`
+- `execute` should also be allowed to request kernel actions through a controlled API
+
+Allowed kernel-facing requests may include:
+
+- emitting domain-specific committed events
+- requesting progression-related engine work
+- scheduling internal engine steps
+
+Boundary:
+
+- `execute` should not directly mutate `runtime`
+- engine-level effects should go through explicit kernel-controlled APIs rather than direct runtime writes
+
+Rationale:
+
+- some rule outcomes require engine-level follow-up beyond plain game-state mutation
+- preserves the runtime ownership boundary already chosen for the state model
+- gives consumers enough power to express real tabletop effects without exposing raw runtime mutation
+
+Ordered in-transaction kernel-request direction:
+
+- kernel-facing requests made during execution should preserve the order they are declared within the same atomic execution
+
+Implication:
+
+- kernel requests should not be treated as a vague later phase that runs only after all ordinary game mutations have already happened
+- rule logic should be able to express ordered sequences of game mutation and kernel-requested work within one execution transaction
+- the engine should mediate those requests through a controlled ordered trace rather than exposing direct raw runtime mutation
+
+Rationale:
+
+- preserves rule-authored ordering semantics
+- avoids accidental reordering between game mutation and engine-level work
+- keeps the benefits of controlled kernel mediation without breaking expected execution order
+
+Phase-specific context direction:
+
+- `validate` and `execute` should receive different context surfaces
+
+Implication:
+
+- `validate` should receive a read-oriented context appropriate for legality checks
+- `execute` should receive the richer execution context that allows game mutation and controlled kernel requests
+
+Rationale:
+
+- keeps phase boundaries clearer
+- reduces accidental misuse of mutation-capable APIs during validation
+- makes the pipeline easier to understand for both humans and agents
+
+Execution-metadata visibility direction:
+
+- both `validate` and `execute` should be able to inspect relevant current execution metadata, not just raw game state
+
+Examples of relevant metadata:
+
+- active actor
+- current progression context
+- current resolving source or origin
+- other kernel-provided execution metadata needed to interpret legality or apply effects correctly
+
+Boundary:
+
+- `validate` may inspect execution metadata through a read-oriented context
+- `execute` may also inspect the same kind of metadata, in addition to its mutation-capable and kernel-request APIs
+
+Rationale:
+
+- many games cannot validate legality without current actor or progression context
+- effect application often depends on execution metadata, not only raw game state
+- visibility of metadata does not require exposing direct runtime mutation
+
+Unified event-stream direction:
+
+- committed events should live in one unified ordered event stream
+- each event should carry explicit category and type fields
+
+Typing direction:
+
+- event typing should still use discriminated unions at the TypeScript level
+
+Implication:
+
+- replay, history, and debugging can reason about one ordered stream rather than multiple separate event collections
+- category fields keep kernel/runtime events and consumer/domain events distinguishable without splitting the stream itself
+
+Rationale:
+
+- preserves ordering clarity
+- keeps runtime structure simple
+- retains strong TypeScript typing and narrowing
+
+Pending-choice direction:
+
+- commands that require later user choices should be supported as a first-class pattern in v1
+
+Implication:
+
+- the kernel should be able to represent pending required choices as part of engine semantics rather than relying on UI-only orchestration
+- multi-step interactions such as modal choices, search/select flows, and other required follow-up decisions should not be treated as merely app-level concerns
+
+Rationale:
+
+- keeps important game sequencing and legality in the kernel
+- improves replay, multiplayer synchronization, and deterministic behavior
+- avoids pushing too much semantic workflow into ad hoc consumer UI code
+
+Pending-choice representation direction:
+
+- pending required choices should be represented as a distinct first-class choice/prompt concept
+
+Implication:
+
+- pending choices should not be treated merely as a special kind of internal engine step
+- the pipeline should acknowledge that some engine states wait for outside input rather than continuing automatic internal work
+
+Rationale:
+
+- pending choices are blocking interaction points with different semantics from normal internal steps
+- a dedicated concept makes the pipeline easier to reason about
+- avoids awkwardly modeling external input waits as if they were just more automatic engine work
+
+Choice-response input direction:
+
+- pending choices should be answered through normal external commands rather than through a separate external input channel
+
+Implication:
+
+- the engine has one unified external input pipeline for both ordinary actions and responses to pending choices
+- pending choice state remains a first-class engine concept, but responding to it does not require a second first-class input type
+
+Developer experience:
+
+- consumers define ordinary commands
+- command execution may create pending choices/prompts
+- later follow-up input such as `choose_option` or `choose_target` is submitted as normal command data and validated against the current pending choice state
+
+Rationale:
+
+- keeps the external input model simpler
+- preserves one validation and replay path
+- reduces cognitive overhead for consumers and hosts
+
+Pending-choice blocking direction:
+
+- pending choices should not impose a universal hard-coded blocking rule at the kernel level
+
+Implication:
+
+- the rules layer should be able to determine whether a given pending choice blocks all other external commands except answering it
+- the rules layer should also be able to define cases where other commands remain legal while a choice is pending
+
+Rationale:
+
+- some games require strict modal prompts
+- some games require response windows or other legal actions while a choice is pending
+- this is a legality/timing question, not a concurrency question
+
+Stable command-definition direction:
+
+- v1 command definitions should be registered up front as stable command definitions
+
+Implication:
+
+- the rules layer should not rely on creating ad hoc runtime command types in v1
+- the engine should still avoid architectural choices that would make future dynamic command registration impossible if later games genuinely need it
+
+Rationale:
+
+- most tabletop and card games can likely be modeled without runtime-created command types
+- keeps the first command pipeline simpler
+- preserves an escape hatch for future mechanics that may need more dynamic command registration
+
+Stable event-type direction:
+
+- v1 event types should be declared up front as stable event definitions
+
+Implication:
+
+- consumers should be able to define their own domain event types
+- the rules layer should not rely on inventing arbitrary brand-new event types during execution in v1
+- the engine should still avoid architectural choices that would make future runtime event-type registration impossible if later games genuinely need it
+
+Rationale:
+
+- keeps event typing and trigger registration simpler in v1
+- improves replay/debug expectations by keeping the event catalog more predictable
+- mirrors the same pragmatic approach already chosen for command definitions
 
 ## Current discussion
 
