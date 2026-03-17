@@ -480,6 +480,22 @@ Rationale:
 - avoids bloating the event stream with duplicated state data
 - keeps replay/history responsibilities separate from event payload design
 
+Execution-result shape direction:
+
+- command submission should return a rich execution result object rather than forcing consumers to reconstruct outcome details from separate channels
+
+Implication:
+
+- the engine should provide one authoritative result object for a single execution boundary
+- that result can include the updated state, success or failure, committed events, pending choices, and validation or diagnostic metadata
+- consumers can still ignore fields they do not care about, but they should not have to piece together one command's outcome from multiple sources
+
+Rationale:
+
+- gives tests, bots, agents, and hosts one coherent place to inspect what happened
+- preserves the atomic execution boundary already chosen for the pipeline
+- avoids ambiguity about which events, prompts, or diagnostics belong to a specific command submission
+
 ## Current discussion
 
 We are discussing the near-term design goals in strict order.
