@@ -689,6 +689,22 @@ Rationale:
 - preserves the shared execution feel between commands and steps inside the engine
 - makes debugging, replay explanation, and trigger handling more coherent
 
+Step-chaining direction:
+
+- consumer-defined internal steps may schedule further consumer-defined internal steps
+
+Implication:
+
+- consumers can compose larger automatic workflows out of smaller reusable steps
+- scheduled follow-up steps should still flow through the same engine sequencing and event-emission rules as other steps
+- this preserves reuse without forcing all continuation logic to be flattened into one large step body
+
+Rationale:
+
+- supports more modular game-specific continuation logic
+- keeps step behavior composable while preserving the same execution semantics already chosen for steps
+- aligns with the goal of letting consumers express richer automatic rule flows without exposing kernel-private runtime operations
+
 Helper-effect abstraction direction:
 
 - helpers or effects should remain consumer-owned implementation structure rather than a first-class kernel abstraction in v1
