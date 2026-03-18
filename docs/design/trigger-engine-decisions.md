@@ -28,6 +28,27 @@ Rationale:
 - effects like prevention, replacement, or cancellation need a pre-commit layer
 - effects like "after damage is dealt" need a committed post-fact layer
 
+### Trigger ownership
+
+Public trigger rules should be consumer-defined rather than built into the kernel as a game-facing trigger catalog.
+
+Current high-level direction:
+
+- consumer-defined rules own actual game triggers
+- the kernel may still use private trigger-like control-flow mechanics internally when needed
+- those kernel-private mechanics should not be exposed as the same public trigger abstraction used by game rules
+
+Implication:
+
+- the reusable trigger system exposed to game authors is consumer-defined
+- runtime continuation and bookkeeping remain kernel concerns rather than public built-in triggers
+
+Rationale:
+
+- keeps the public trigger model focused on game semantics rather than engine internals
+- avoids blurring game rules with private runtime control flow
+- matches the broader design choice that public abstractions should belong to the consumer while kernel-private mechanics stay internal
+
 ## Current discussion
 
 We are discussing the near-term design goals in strict order.
