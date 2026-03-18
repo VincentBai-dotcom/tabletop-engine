@@ -605,6 +605,22 @@ Rationale:
 - lets different hosts and interfaces present the same discovered options differently
 - keeps discovery aligned with engine semantics rather than presentation concerns
 
+Discovery-computation boundary direction:
+
+- `discover()` should remain side-effect-free with respect to canonical engine state, but consumers may use arbitrarily complex computation inside it
+
+Implication:
+
+- discovery should not mutate canonical `game` or `runtime` state and should not commit engine effects
+- consumers may still use expensive search, temporary analysis, local caching, or internal simulation inside discovery if they decide the performance tradeoff is worthwhile
+- discovery performance remains primarily a game-author responsibility rather than a hard kernel-level restriction
+
+Rationale:
+
+- preserves the read-only nature of discovery at the engine boundary
+- avoids over-constraining consumers who may need richer analysis for UI, bots, or agent guidance
+- keeps the kernel focused on semantics while leaving performance strategy to the game implementation
+
 ## Current discussion
 
 We are discussing the near-term design goals in strict order.
