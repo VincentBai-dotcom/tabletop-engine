@@ -644,12 +644,14 @@ Command-versus-step abstraction direction:
 Implication:
 
 - commands are the public outside-submitted input abstraction
-- internal steps are engine-scheduled continuation work and should not be exposed as the same public input concept
-- the engine may still normalize both into a similar internal executable form for sequencing, event emission, and result handling
+- public `InternalStep` definitions are consumer-defined game-specific continuation work
+- kernel runtime mechanics should remain private implementation detail rather than living in the same public `InternalStep` catalog
+- the engine may still normalize commands, consumer-defined steps, and private kernel runtime operations into similar internal executable forms for sequencing, event emission, and result handling
 
 Rationale:
 
 - preserves the important semantic boundary between outside intent and engine continuation
+- avoids name clashes and conceptual mixing between consumer-defined steps and kernel-private runtime operations
 - keeps the public API, auditing model, and replay semantics clearer
 - still allows the kernel to avoid duplicating execution machinery internally
 
@@ -661,13 +663,14 @@ Command-and-step contract direction:
 Implication:
 
 - commands always have an explicit legality gate because they come from outside the engine
-- internal steps are trusted engine-scheduled work, though the engine may still use invariants or precondition checks internally when needed
+- consumer-defined internal steps are trusted continuation work once scheduled by the engine, though the engine may still use invariants or precondition checks internally when needed
+- private kernel runtime operations are not part of the public step contract even if they reuse similar execution machinery
 - full validation remains part of the command abstraction rather than the step abstraction
 
 Rationale:
 
 - preserves the semantic distinction between accepted external input and trusted internal continuation
-- avoids making internal steps drift into a second public command system
+- avoids making consumer-visible internal steps drift into a second public command system
 - keeps consumer-facing rule authoring simpler
 
 Helper-effect abstraction direction:
