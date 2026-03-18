@@ -71,6 +71,26 @@ Rationale:
 - it fits tabletop patterns where triggered effects often wait to resolve in a defined order
 - it gives the engine a cleaner foundation for later work on stacks, queues, and deterministic replay
 
+### Optional-trigger scope
+
+The first version should support mandatory automatic triggers only.
+
+Current high-level direction:
+
+- optional or "may" triggers should not require a separate special trigger category in v1
+- if a trigger requires a player choice about whether to proceed, that can be modeled as a mandatory trigger that creates a pending choice
+
+Implication:
+
+- the first trigger model stays simpler
+- player agency inside triggered effects can still be expressed through the already chosen pending-choice mechanism
+
+Rationale:
+
+- avoids adding a second trigger flavor before the base trigger engine exists
+- reuses the pending-choice abstraction instead of inventing a parallel optional-trigger mechanism
+- keeps the first trigger engine focused on one clear default behavior
+
 ## Current discussion
 
 We are discussing the near-term design goals in strict order.
