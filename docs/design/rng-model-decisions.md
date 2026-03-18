@@ -27,6 +27,27 @@ Rationale:
 - kernel-owned RNG fits the repo goal of deterministic simulation and reusable runtime infrastructure
 - leaving randomness fully outside the kernel would weaken key guarantees this runtime is supposed to provide
 
+### Enforcement posture
+
+Kernel RNG should be the only supported randomness path for deterministic game logic, but enforcement machinery is deferred until real consumer behavior shows it is needed.
+
+Current high-level direction:
+
+- deterministic game logic is expected to use kernel RNG rather than ambient randomness
+- eventual enforcement can come from API design plus linting, tests, or tooling rather than pretending TypeScript can prevent all ambient randomness by itself
+- the kernel should not prioritize building that enforcement machinery until implementation experience shows consumers or agents actually need the constraint reinforced
+
+Implication:
+
+- the design direction is clear without overbuilding enforcement prematurely
+- future enforcement remains available if agent-authored or consumer-authored rules start violating the deterministic RNG boundary
+
+Rationale:
+
+- a "hard requirement" is meaningless if the system cannot realistically support or check it
+- practical enforcement in TypeScript is possible only through structure and tooling, not absolute runtime prohibition
+- deferring the enforcement layer matches the broader preference to avoid premature complexity until real failure modes appear
+
 ## Current discussion
 
 We are discussing the near-term design goals in strict order.
