@@ -48,6 +48,25 @@ Rationale:
 - practical enforcement in TypeScript is possible only through structure and tooling, not absolute runtime prohibition
 - deferring the enforcement layer matches the broader preference to avoid premature complexity until real failure modes appear
 
+### RNG surface area
+
+The first version should expose only basic deterministic RNG primitives.
+
+Current high-level direction:
+
+- kernel RNG should focus on basic building blocks such as random numbers, dice-like rolls, shuffles, and similar core primitives
+- higher-level consumer-defined random operations should be built on top of those primitives rather than standardized by the kernel in v1
+
+Implication:
+
+- the first RNG service stays small and easier to reason about
+- consumer-specific random mechanics can still be expressed without turning the kernel RNG surface into a large domain library
+
+Rationale:
+
+- basic deterministic primitives cover many games while keeping the kernel generic
+- higher-level random operations are easier to add later than to remove if the initial surface becomes too opinionated
+
 ## Current discussion
 
 We are discussing the near-term design goals in strict order.
