@@ -26,6 +26,25 @@ Rationale:
 - kernel guarantees are most trustworthy when tested through the same runtime surface consumers actually use
 - consumers benefit from a ready-made deterministic test environment rather than rebuilding one for each game
 
+### Harness style
+
+The harness should support both scenario-style tests and lower-level runtime assertions, with scenario-style testing as the main consumer-facing mode.
+
+Current high-level direction:
+
+- consumers should mainly interact with the harness through scenario-like tests built from seeds, commands, and assertions
+- the kernel should also be able to use the same harness for lower-level runtime checks and invariants
+
+Implication:
+
+- consumers get an ergonomic deterministic testing style close to how games are actually exercised
+- kernel maintainers still have room for deeper runtime-focused assertions when needed
+
+Rationale:
+
+- scenario-style tests are the most natural fit for game-rule authors
+- lower-level assertions are still valuable for kernel guarantees that are awkward to express only as high-level scenarios
+
 ## Current discussion
 
 We are discussing the near-term design goals in strict order.
