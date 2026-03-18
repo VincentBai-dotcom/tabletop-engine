@@ -49,6 +49,28 @@ Rationale:
 - avoids blurring game rules with private runtime control flow
 - matches the broader design choice that public abstractions should belong to the consumer while kernel-private mechanics stay internal
 
+### Trigger firing model
+
+Matching triggers should be queued and resolved in a controlled order rather than firing immediately inline the moment a matching event appears.
+
+Current high-level direction:
+
+- matching triggers should enter a queue or similar controlled pending structure
+- resolution order matters, but the exact ordering policy can be deferred until later
+- trigger resolution should remain part of the engine's deterministic sequencing model
+
+Implication:
+
+- the engine can preserve a clear execution order for cascading trigger chains
+- trigger processing can be reasoned about as explicit pending work rather than hidden inline side effects
+- exact ordering rules can be designed later without abandoning the queued model
+
+Rationale:
+
+- queued resolution is easier to reason about than ad hoc immediate trigger firing
+- it fits tabletop patterns where triggered effects often wait to resolve in a defined order
+- it gives the engine a cleaner foundation for later work on stacks, queues, and deterministic replay
+
 ## Current discussion
 
 We are discussing the near-term design goals in strict order.
