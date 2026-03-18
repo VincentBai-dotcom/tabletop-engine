@@ -48,6 +48,26 @@ Rationale:
 - building replay in from the start is easier than retrofitting it later
 - this still leaves room to refine the public API once the first implementation exists
 
+### Replay payload scope
+
+Replay and history should center on public execution artifacts first, with debug-oriented metadata only included as optional information when available.
+
+Current high-level direction:
+
+- the core replay/history story should rely on artifacts such as commands, snapshots, and committed events
+- debug metadata may be attached when useful, but it should not become the defining basis of replay
+
+Implication:
+
+- replay remains suitable for both runtime use and player-facing features
+- debugging benefits can still exist without making debug-only fields mandatory for the core replay model
+
+Rationale:
+
+- the kernel should not make replay depend on development-only metadata
+- public runtime artifacts are the most stable foundation for long-term replay support
+- optional debug detail still helps investigations when available
+
 ## Current discussion
 
 We are discussing the near-term design goals in strict order.
