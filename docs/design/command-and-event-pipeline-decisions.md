@@ -673,6 +673,22 @@ Rationale:
 - avoids making consumer-visible internal steps drift into a second public command system
 - keeps consumer-facing rule authoring simpler
 
+Step event-emission direction:
+
+- consumer-defined internal steps should emit a primary committed event by default, just like commands
+
+Implication:
+
+- from the engine's point of view, successful command execution and successful step execution should both produce a primary semantic fact unless a later design decision introduces a narrow exception
+- step implementations may still emit additional explicit events when needed
+- this keeps event traces consistent across outside-submitted actions and engine-scheduled continuation work
+
+Rationale:
+
+- matches the earlier decision that internal steps should also emit committed events by default
+- preserves the shared execution feel between commands and steps inside the engine
+- makes debugging, replay explanation, and trigger handling more coherent
+
 Helper-effect abstraction direction:
 
 - helpers or effects should remain consumer-owned implementation structure rather than a first-class kernel abstraction in v1
