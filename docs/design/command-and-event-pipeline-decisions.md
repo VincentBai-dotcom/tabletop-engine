@@ -743,3 +743,8 @@ We are discussing the near-term design goals in strict order.
 Current topic:
 
 2. command and event pipeline
+
+Design-detail boundary:
+
+- this topic is considered defined enough at a high level for now
+- lower-level API and implementation details should be deferred until working code makes the tradeoffs easier to evaluate
