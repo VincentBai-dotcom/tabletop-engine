@@ -1,5 +1,5 @@
 import type { Command, CommandDefinition } from "./types/command";
-import type { ProgressionState } from "./types/progression";
+import type { ProgressionDefinition } from "./types/progression";
 
 export interface GameDefinition<
   GameState = Record<string, unknown>,
@@ -12,7 +12,7 @@ export interface GameDefinition<
   name: string;
   initialState: () => GameState;
   commands: Commands;
-  progression?: ProgressionState;
+  progression?: ProgressionDefinition;
   rngSeed?: string | number;
   runtime?: RuntimeState;
 }

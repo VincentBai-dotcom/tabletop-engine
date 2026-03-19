@@ -1,3 +1,15 @@
+export interface ProgressionSegmentDefinition {
+  id: string;
+  kind: string;
+  name: string;
+  parentId?: string;
+}
+
+export interface ProgressionDefinition {
+  initial?: string | null;
+  segments: Record<string, ProgressionSegmentDefinition>;
+}
+
 export interface ProgressionSegmentState {
   id: string;
   kind: string;

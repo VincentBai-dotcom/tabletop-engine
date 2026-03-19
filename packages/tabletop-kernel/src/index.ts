@@ -26,6 +26,11 @@ export type {
   PendingState,
   RuntimeState,
 } from "./types/state";
-export type { ProgressionSegmentState, ProgressionState } from "./types/progression";
+export type {
+  ProgressionDefinition,
+  ProgressionSegmentDefinition,
+  ProgressionSegmentState,
+  ProgressionState,
+} from "./types/progression";
 export type { RNGState } from "./types/rng";
 export type { ReplayRecord, Snapshot } from "./types/snapshot";
