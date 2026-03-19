@@ -4,6 +4,7 @@ import type {
   Command,
   ExecutionResult,
   KernelEvent,
+  ValidationOutcome,
 } from "../src/index";
 
 test("foundational runtime types compose", () => {
@@ -46,9 +47,16 @@ test("foundational runtime types compose", () => {
     pendingChoices: [],
   };
 
+  const validation: ValidationOutcome = {
+    ok: false,
+    reason: "wrong_phase",
+    metadata: { expectedPhase: "main" },
+  };
+
   expect(event.category).toBe("domain");
   expect(state.runtime.progression.current).toBeNull();
   expect(command.type).toBe("draw_card");
   expect(result.ok).toBeTrue();
   expect(result.state).toBe(state);
+  expect(validation.ok).toBeFalse();
 });

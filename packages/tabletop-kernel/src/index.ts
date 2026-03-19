@@ -10,6 +10,7 @@ export type {
   ExecutionResult,
   ExecutionSuccess,
   ValidationError,
+  ValidationOutcome,
   ValidationResult,
 } from "./types/result";
 export type {

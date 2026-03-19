@@ -11,6 +11,8 @@ export interface ValidationError {
   metadata?: unknown;
 }
 
+export type ValidationOutcome = ValidationResult | ValidationError;
+
 export interface ExecutionSuccess<State extends CanonicalState = CanonicalState> {
   ok: true;
   state: State;
