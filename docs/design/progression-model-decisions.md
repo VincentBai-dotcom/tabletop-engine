@@ -26,6 +26,46 @@ Rationale:
 - many games use similar progression ideas with different names and structures
 - a generic segment model is more flexible than hardcoded built-in turn/phase semantics
 
+### Progression-definition style
+
+Consumers should define progression as a declarative structure with hooks for lifecycle and transition behavior.
+
+Current high-level direction:
+
+- progression shape should be declared structurally rather than existing only as opaque callbacks
+- hooks can still provide custom behavior for entering, exiting, or advancing progression segments
+
+Implication:
+
+- the engine gets an inspectable progression structure
+- consumers still retain flexibility for game-specific lifecycle behavior
+
+Rationale:
+
+- a purely callback-based progression model would make structure too implicit
+- a purely declarative model would be too rigid for many games
+
+### Progression-to-command boundary
+
+Progression should provide structured runtime context, while command legality and discovery remain in command definitions.
+
+Current high-level direction:
+
+- progression state belongs under kernel-owned runtime state rather than consumer-owned game state
+- command `validate()` and `discover()` use progression context plus game state to determine legality and available options
+- progression itself should not own the full command set
+
+Implication:
+
+- consumers do not discover legal commands by brute-forcing command payloads through `validate()`
+- instead, command availability is surfaced through command-local discovery hooks that read current progression context
+- if a broader "what can this actor do now?" query is needed later, it can be composed from command-local discovery rather than hardcoded into progression
+
+Rationale:
+
+- keeps progression responsible for progression semantics rather than command catalogs
+- keeps command legality and discovery in the command layer where those decisions already belong
+
 ## Current discussion
 
 We are discussing the near-term design goals in strict order.
