@@ -1,0 +1,18 @@
+{
+  "name": "tabletop-kernel",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "bun test --cwd packages/tabletop-kernel",
+    "typecheck": "bun run --cwd packages/tabletop-kernel typecheck"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
