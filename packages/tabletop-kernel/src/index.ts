@@ -4,6 +4,11 @@ export type {
   ExecuteContext,
   ValidationContext,
 } from "./types/command";
+export { defineGame } from "./game-definition";
+export type {
+  GameDefinition,
+  GameDefinitionInput,
+} from "./game-definition";
 export type { KernelEvent } from "./types/event";
 export type {
   ExecutionFailure,
