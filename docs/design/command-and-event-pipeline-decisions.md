@@ -202,7 +202,7 @@ Nested command submission decision:
 
 Implication:
 
-- follow-up work should be modeled through shared rule helpers, committed events, and engine-scheduled internal steps rather than reentrant command submission
+- follow-up work should be modeled through shared rule helpers, committed events, and engine-scheduled continuation work rather than reentrant command submission
 - the pipeline should avoid reentrancy caused by command submission from inside active execution
 
 Rationale:
@@ -222,7 +222,7 @@ Implication:
 
 Rationale:
 
-- internal steps are engine-scheduled trusted work
+- scheduled continuation work is engine-trusted work
 - avoids unnecessary duplication of command-style validation
 - keeps the pipeline simpler while still allowing engine-safety checks
 
@@ -388,12 +388,12 @@ Pending-choice representation direction:
 
 Implication:
 
-- pending choices should not be treated merely as a special kind of internal engine step
+- pending choices should not be treated merely as a special kind of automatic continuation work
 - the pipeline should acknowledge that some engine states wait for outside input rather than continuing automatic internal work
 
 Rationale:
 
-- pending choices are blocking interaction points with different semantics from normal internal steps
+- pending choices are blocking interaction points with different semantics from ordinary automatic continuation work
 - a dedicated concept makes the pipeline easier to reason about
 - avoids awkwardly modeling external input waits as if they were just more automatic engine work
 
@@ -637,88 +637,21 @@ Rationale:
 - avoids making discovery too weak to be useful in games with private hands, decks, or role-specific knowledge
 - acknowledges the boundary with the later visibility design topic without forcing that full model now
 
-Command-versus-step abstraction direction:
+Internal-step posture:
 
-- `Command` and `InternalStep` should remain distinct first-class concepts for consumers, even if they share much of the same underlying execution machinery inside the engine
-
-Implication:
-
-- commands are the public outside-submitted input abstraction
-- public `InternalStep` definitions are consumer-defined game-specific continuation work
-- kernel runtime mechanics should remain private implementation detail rather than living in the same public `InternalStep` catalog
-- the engine may still normalize commands, consumer-defined steps, and private kernel runtime operations into similar internal executable forms for sequencing, event emission, and result handling
-
-Rationale:
-
-- preserves the important semantic boundary between outside intent and engine continuation
-- avoids name clashes and conceptual mixing between consumer-defined steps and kernel-private runtime operations
-- keeps the public API, auditing model, and replay semantics clearer
-- still allows the kernel to avoid duplicating execution machinery internally
-
-Command-and-step contract direction:
-
-- commands should require both `validate()` and `execute()`
-- internal steps should require `execute()` but not ordinary command-style `validate()`
+- first-class public `InternalStep` should be deferred from the initial runtime unless implementation pressure proves it is the right abstraction
 
 Implication:
 
-- commands always have an explicit legality gate because they come from outside the engine
-- consumer-defined internal steps are trusted continuation work once scheduled by the engine, though the engine may still use invariants or precondition checks internally when needed
-- private kernel runtime operations are not part of the public step contract even if they reuse similar execution machinery
-- full validation remains part of the command abstraction rather than the step abstraction
+- commands remain the only clearly committed first-class execution abstraction for now
+- consumers can express most immediate automatic logic through helpers plus event emission
+- richer engine-visible continuation work remains a likely future design space rather than a locked day-one abstraction
 
 Rationale:
 
-- preserves the semantic distinction between accepted external input and trusted internal continuation
-- avoids making consumer-visible internal steps drift into a second public command system
-- keeps consumer-facing rule authoring simpler
-
-Step event-emission direction:
-
-- consumer-defined internal steps should emit a primary committed event by default, just like commands
-
-Implication:
-
-- from the engine's point of view, successful command execution and successful step execution should both produce a primary semantic fact unless a later design decision introduces a narrow exception
-- step implementations may still emit additional explicit events when needed
-- this keeps event traces consistent across outside-submitted actions and engine-scheduled continuation work
-
-Rationale:
-
-- matches the earlier decision that internal steps should also emit committed events by default
-- preserves the shared execution feel between commands and steps inside the engine
-- makes debugging, replay explanation, and trigger handling more coherent
-
-Step-chaining direction:
-
-- consumer-defined internal steps may schedule further consumer-defined internal steps
-
-Implication:
-
-- consumers can compose larger automatic workflows out of smaller reusable steps
-- scheduled follow-up steps should still flow through the same engine sequencing and event-emission rules as other steps
-- this preserves reuse without forcing all continuation logic to be flattened into one large step body
-
-Rationale:
-
-- supports more modular game-specific continuation logic
-- keeps step behavior composable while preserving the same execution semantics already chosen for steps
-- aligns with the goal of letting consumers express richer automatic rule flows without exposing kernel-private runtime operations
-
-Step-created choice direction:
-
-- consumer-defined internal steps may create pending choices or prompts just like commands
-
-Implication:
-
-- automatic continuation work may still pause and wait for new outside input when the game rules require a choice after a step resolves
-- the same pending-choice model and response-command rules should apply regardless of whether the choice originated from a command or a step
-
-Rationale:
-
-- many real rule flows reach a user choice only after automatic continuation or trigger-like processing has begun
-- avoids awkwardly forcing those interaction points to be modeled as fake extra commands
-- keeps the step abstraction expressive enough for richer game-specific workflows
+- helpers can already cover a large amount of reusable automatic logic in the initial direct-sequencing model
+- step-specific semantics such as scheduling, event handling, and pending-choice behavior should be introduced only if inline helper logic becomes insufficient
+- this avoids overcommitting to an abstraction before the first working implementation proves it necessary
 
 Helper-effect abstraction direction:
 
@@ -728,7 +661,7 @@ Implication:
 
 - the kernel should not require a formal `Effect` or helper registration model yet
 - consumers may structure reusable game logic as ordinary functions, objects, or other local abstractions
-- helpers can be called from commands or internal steps, but they are not themselves first-class pipeline inputs
+- helpers can be called from commands and from other consumer-authored rule logic, but they are not themselves first-class pipeline inputs
 
 Rationale:
 
