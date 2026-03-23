@@ -233,6 +233,25 @@ Current direction:
 - `resolveNext` should stay a single hook rather than being split into many
   smaller next-owner and next-segment hooks in the first design
 
+## Lifecycle Hooks, Events, and Triggers
+
+Segment lifecycle hooks such as `onEnter` and `onExit` may:
+
+- mutate `game`
+- emit events through the normal event API
+
+When those hooks emit events, those events should flow into the normal
+event/trigger pipeline.
+
+They should not bypass normal trigger semantics just because they were emitted
+from progression lifecycle logic.
+
+Current direction:
+
+- lifecycle hooks may emit events
+- emitted lifecycle events use the same event pipeline as other emitted events
+- triggers may react to those events through the normal trigger system
+
 ## Likely Kernel Hooks
 
 Exact API is still open, but the kernel likely needs concepts like:
