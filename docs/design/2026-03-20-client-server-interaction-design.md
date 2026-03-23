@@ -1,382 +1,243 @@
 # Client/Server Interaction Design
 
-This document explores how a host application can use `tabletop-kernel` with an authoritative host model without making the kernel itself transport-specific.
+This document records the current direction for how `tabletop-kernel` should fit into a hosted client/server architecture.
 
-The goal here is not to lock a single networking protocol today.
-
-The goal is to clarify the interaction shapes that a host is likely to need once a game runs under one authoritative runtime and one or more clients must stay in sync.
-
-## Why This Topic Exists
-
-`tabletop-kernel` is explicitly transport-agnostic.
-
-That does not remove the need to think about client/server interaction.
-
-If a game runs under one authoritative host, the host still needs answers to questions like:
-
-- what does the client send to the host
-- what does the host send back
-- what gets broadcast to other players
-- how do hidden-information views work
-- how do reconnects and spectators work
-- how do replay and audit artifacts relate to live synchronization
-
-The kernel should avoid hardcoding a protocol, but it should expose stable runtime artifacts that make these interaction models easy to build.
-
-Important reframing:
-
-- the deeper question is not "server or not"
-- the deeper question is where the authoritative runtime lives, and how clients interact with it
-
-## Core Invariants
-
-Any authoritative-host model built around this kernel should preserve these invariants:
-
-- the host is authoritative over canonical `{ game, runtime }` state
-- clients submit commands rather than mutating state directly
-- the host validates and executes commands
-- the host decides what each viewer is allowed to see
-- client-visible data may differ by viewer when hidden information matters
-- reconnect and replay should come from authoritative host artifacts, not client-local guesswork
-
-## The Main Interaction Surfaces
-
-An authoritative host built on `tabletop-kernel` will usually need some subset of these surfaces:
-
-- command submission
-- execution result for the submitting client
-- state synchronization for all connected viewers
-- viewer-specific projection or redaction
-- event/history stream for replay, debugging, or spectators
-- snapshot/checkpoint loading for reconnects or catch-up
-
-The main design question is how much of that should travel in the immediate request/response path versus a separate update stream.
-
-## Authoritative Host Modes
-
-The authoritative host does not need to be a remote network server in every deployment.
-
-There are two important modes:
-
-### Embedded authoritative host
-
-Shape:
-
-- UI, authoritative runtime, and state all live in the same program
-- the client-side layer talks to the host through direct function calls or an in-process adapter
-
-Good fit:
-
-- pass-and-play
-- local multiplayer
-- local bots
-- single-device desktop/mobile apps
-- local development tools
-
-### Remote authoritative host
-
-Shape:
-
-- the authoritative runtime lives in another process or machine
-- the client interacts through HTTP, WebSocket, RPC, or another transport
-
-Good fit:
-
-- online multiplayer
-- reconnect and persistence-backed matches
-- spectators across multiple devices
-- central anti-cheat or authoritative session management
-
-Important consequence:
-
-- the same game can reasonably want both modes
-- the best abstraction is usually one authoritative host contract with multiple implementations, not two different client models
-
-## One Host Contract, Multiple Implementations
-
-If a consumer wants to support both local play and online play, the cleanest architecture is often:
+The guiding principle is:
 
 - one authoritative host contract
-- one client interaction model
-- multiple host implementations
+- one generated client contract
+- one transport model
+- local and remote play differ only by which host the client connects to
 
-For example:
+## Current Direction
 
-- `EmbeddedHostClient`
-  calls the kernel through an in-process adapter
-- `RemoteHostClient`
-  talks to a remote host over HTTP/WebSocket using the same conceptual contract
+The current direction is:
 
-This is especially attractive if the consumer already plans to:
+- use a single authoritative host model
+- use WebSocket as the main interaction transport
+- use AsyncAPI to describe the remote client/server contract
+- use the same generated client for both remote online play and local play
+- in local play, start a local loopback authoritative server and point the same client to it
 
-- define an OpenAPI spec
-- generate clients in multiple languages
-- keep client code identical between local and remote play
+This means the client side does not need a separate local-mode protocol or a second client generator.
 
-In that setup, local play does not necessarily need a real local HTTP server.
+## Why This Direction Was Chosen
 
-Instead, a local embedded adapter can implement the same host contract in-process.
+The main reason is consistency.
 
-Benefits:
+If the project already intends to generate clients from a formal contract, then using one generated client everywhere is the cleanest architecture.
 
-- the UI/client layer stays stable
-- local and remote play differ mainly by host implementation or base URL
-- generated clients and remote contracts remain useful
-- local debugging is still simpler than forcing full network plumbing
+That gives:
 
-This suggests that the long-term design center should be:
+- one client contract
+- one transport mental model
+- one update-envelope model
+- one set of generated client libraries
+- less branching in UI/client code
 
-- not merely "client/server"
-- but an authoritative host API that may be embedded or remote
+The local-versus-remote distinction becomes:
 
-## Option 1: Simple Command/Result RPC
+- remote mode: connect to a remote authoritative server
+- local mode: connect to a local authoritative server started on the same machine
 
-Shape:
+## Core Model
 
-- client sends a command
-- authoritative host executes it immediately
-- host returns one rich response to the caller
+The deeper abstraction is not "HTTP versus WebSocket."
 
-Example response contents:
+The deeper abstraction is:
 
-- accepted or rejected
-- validation metadata on rejection
-- caller-visible committed events
-- caller-visible updated state or state projection
-- newly opened pending choices
+- there is one authoritative host
+- clients never mutate canonical state directly
+- clients submit commands to the authoritative host
+- the authoritative host executes commands and sends back updates
 
-Benefits:
+The chosen transport for that host interaction is WebSocket.
 
-- simplest model to build first
-- easy for local tools, tests, bots, and early prototypes
-- straightforward mental model
+## Transport Decision
 
-Weaknesses:
+The interaction model should use WebSocket rather than an HTTP request/response API as the primary client-facing transport.
 
-- weak fit for multiplayer fan-out by itself
-- other clients still need a separate update mechanism
-- reconnect and spectator flows become ad hoc unless another sync path exists
+Reason:
 
-Good fit:
+- the host needs bidirectional communication
+- the host needs to push state updates, committed events, and visible pending choices
+- the same socket can naturally support:
+  - command submission
+  - reconnect/update flows
+  - spectator updates
+  - live game state changes
 
-- local development
-- single-client tools
-- initial debugging surfaces
-- synchronous agent-driven play
+This avoids splitting the main interaction model across:
 
-## Option 2: Command RPC Plus Authoritative State Broadcast
+- one protocol for commands
+- another protocol for subscriptions
 
-Shape:
+## Contract Description Decision
 
-- client sends a command to the host
-- host validates and executes it
-- host broadcasts updated viewer-specific state to all relevant clients
-- the submitting client may receive only a light acknowledgement, or the same update via the broadcast path
+The remote host contract should be described using AsyncAPI.
 
-Broadcast payload choices:
+Reason:
 
-- full viewer-specific snapshot
-- patch/diff
-- minimal update envelope that includes visible pending choices and metadata
+- the chosen transport is WebSocket
+- the system is message-oriented rather than purely request/response
+- AsyncAPI is the best formal fit for describing:
+  - channels
+  - message shapes
+  - update envelopes
+  - bidirectional interaction patterns
 
-Benefits:
+The role of AsyncAPI here is:
 
-- natural fit for multiplayer sessions
-- keeps server authority clear
-- reconnect and late-join behavior can reuse the same state-view mechanism
+- define the authoritative host protocol
+- generate consistent clients
+- keep remote integrations stable across languages
 
-Weaknesses:
+## Local Play Decision
 
-- patch/diff design can get complex
-- full snapshots are simpler but more bandwidth-heavy
-- event/debug consumers may still need another stream
+Local play should still use the same generated client.
 
-Good fit:
+To make that possible:
 
-- standard online turn-based games
-- multiple simultaneous viewers
-- authoritative browser/native clients
+- local mode should boot a local authoritative server
+- the generated client should connect to that local server
+- switching between local and remote play should mainly be a matter of changing the server address
 
-## Option 3: Command RPC Plus Event Stream
+This means:
 
-Shape:
+- no special local-only protocol
+- no separate local client generator
+- no separate in-process client contract
 
-- client sends a command
-- host executes it
-- host emits committed events to subscribed clients
-- clients derive visible UI updates from those events, often with periodic snapshots for recovery
+The same message flow should exist in both modes.
 
-Benefits:
+## What "Local Mode" Means Under This Model
 
-- strong audit and replay story
-- good for observers, logs, and devtools
-- aligns with trigger/history concepts already present in the design
+Under this model, local mode is still hosted mode.
 
-Weaknesses:
+The only difference is where the host runs:
 
-- clients must interpret the event stream correctly
-- hidden-information filtering becomes more delicate
-- purely event-driven clients are harder to build than snapshot-driven clients
-- initial sync and reconnect still need snapshots or checkpoints
+- remote mode: the host runs on another machine or service
+- local mode: the host runs on the same machine as the UI
 
-Good fit:
+So the architecture remains consistent:
 
-- rich developer tooling
-- spectator/replay products
-- systems that want a semantic live feed
+1. player interacts with UI
+2. UI uses the generated client
+3. generated client sends command over WebSocket
+4. authoritative host executes the command
+5. authoritative host emits the resulting updates
+6. generated client receives the updates and the UI re-renders
 
-## Option 4: Hybrid Snapshot Plus Event/Delta Model
+That flow is identical in local and remote modes except for the connection address.
 
-Shape:
+## Benefits
 
-- client joins or reconnects by receiving a viewer-specific snapshot
-- client submits commands via request/response
-- host broadcasts incremental viewer-specific updates after each accepted execution
-- updates may contain both:
-  - visible committed events
-  - state delta or refreshed projection
+### Consistent client architecture
 
-Benefits:
+The client code does not need a separate local-play path.
 
-- strongest general-purpose model
-- easy reconnect path through snapshots
-- efficient live sync through deltas or events
-- works for players, spectators, bots, and replay tools
-- lets hosts choose how much logic lives client-side versus server-side
+### No second client generator
 
-Weaknesses:
+AsyncAPI-generated clients can serve both deployment modes.
 
-- more moving parts
-- requires clearer envelope design
-- visibility filtering must be applied consistently across multiple artifact types
+### Better parity between local and remote behavior
 
-Good fit:
+Local play and online play exercise the same interaction path.
 
-- long-lived multiplayer games
-- spectator support
-- reconnect-heavy products
-- future-proof transport layers
+### Easier future multi-language support
 
-## State Sync Format Choices
+Because the same protocol contract applies in both modes, language-specific clients remain aligned.
 
-Regardless of the higher-level interaction model, the authoritative host still needs a sync format.
+### Cleaner long-term product architecture
 
-The main choices are:
+Pass-and-play, bots, online play, and spectators can all fit under the same hosted interaction model.
 
-### Full viewer-specific snapshots
+## Costs
 
-Benefits:
+This direction does have real costs:
 
-- simplest correctness story
-- easiest reconnect path
-- easiest clients to implement
+- local mode is heavier than a pure in-process function-call model
+- a local host process or local server lifecycle must be managed
+- local debugging includes transport startup and connection handling
+- simple offline play inherits some hosted-architecture overhead
 
-Weaknesses:
+These costs are accepted because consistency is being prioritized over the lightest local-only setup.
 
-- more bandwidth
-- repetitive for small updates
+## State and Update Model
 
-### Patches or deltas
+The authoritative host should remain responsible for:
 
-Benefits:
+- canonical `{ game, runtime }` state
+- command validation and execution
+- viewer-specific outbound updates
+- reconnect snapshots
+- live update envelopes
 
-- smaller payloads
-- better for frequent updates
+The client should be responsible for:
 
-Weaknesses:
+- sending commands
+- receiving updates
+- rendering the visible state
+- handling local UX around pending choices and command submission
 
-- harder to make robust
-- patch drift and version mismatch are real risks
-- reconnect still needs snapshots
+## Recommended Update Shape
 
-### Events only
+The exact AsyncAPI schema is still open, but the host should likely support message categories like:
 
-Benefits:
-
-- semantically meaningful
-- great for audit trails and replay
-
-Weaknesses:
-
-- weak standalone sync mechanism
-- clients must reconstruct enough state to render correctly
-
-## Hidden Information Implications
-
-Once hidden information matters, an authoritative host cannot assume one uniform payload for everyone.
-
-The host will need viewer-specific handling for at least:
-
-- state projection
+- command submission
+- command acceptance/rejection
+- viewer-specific state snapshot
+- incremental match update
+- visible committed events
 - visible pending choices
-- event payload filtering
-- debug/log views
+- reconnect or resync messages
 
-That means the client/server interaction model should assume that:
+The exact names can be decided later, but the important point is:
 
-- the authoritative host owns full canonical state
-- each outbound payload may be viewer-specific
-- submitted commands may still reference hidden entities or private zones, but legality is checked server-side
+- one coherent WebSocket protocol should carry the authoritative host interaction
 
-This is one reason a pure client-derived event model is usually weaker than a server-projected view model.
+## Relationship To Persistence
 
-## Recommended Near-Term Direction
+This interaction model works naturally with the persistence-adapter direction.
 
-The best default direction for `tabletop-kernel` hosts is:
+The server flow should be:
 
-- command submission via request/response
-- authoritative viewer-specific snapshot on join/reconnect
-- authoritative viewer-specific update broadcast after accepted execution
-- optional visible committed events attached to those updates for debugging, replay, and tooling
+1. receive command over WebSocket
+2. execute against a working state
+3. persist if the match is persistence-backed
+4. only after persistence succeeds, publish the resulting committed update
 
-This is effectively Option 4 in a conservative form.
+That keeps the transport layer aligned with the authoritative commit model.
 
-Why this looks like the best default:
+## Relationship To Replay
 
-- it preserves the kernel's transport-agnostic stance
-- it fits multiplayer better than pure RPC
-- it fits reconnect better than pure events
-- it fits replay/debugging better than pure snapshots
-- it does not force every client to become an event interpreter
+Because the authoritative host owns execution, it can also own the live generation of:
 
-Additional recommendation:
-
-- the interaction model should be designed as one authoritative host contract that can be implemented in both embedded and remote forms
-
-That means:
-
-- local pass-and-play or local bots can use an embedded host adapter
-- online play can use a remote host implementation
-- if a consumer generates clients from an OpenAPI spec, the same client-facing contract can still be reused across both modes
-
-## What The Kernel Should Expose To Support These Models
-
-To support the interaction patterns above, the kernel should continue exposing or eventually expose:
-
-- canonical state snapshots
-- command execution results
+- accepted command records
+- snapshots/checkpoints
 - committed events
-- pending choices
-- deterministic replay artifacts
-- viewer-projection hooks or visibility contracts when that subsystem is revisited
+- replay artifacts
 
-The host layer can then choose whether to transmit:
+That fits well with a centralized host model and reduces ambiguity about what actually happened.
 
-- only snapshots
-- only results plus broadcasts
-- results plus events
-- or a hybrid envelope
+## What The Kernel Should Eventually Support
 
-without forcing `tabletop-kernel` itself to become a networking framework.
+To support this direction cleanly, the broader ecosystem around `tabletop-kernel` should eventually support:
+
+- a formal authoritative host contract
+- AsyncAPI generation or source-of-truth schemas for the WebSocket protocol
+- generated clients for supported languages
+- local authoritative host bootstrapping for pass-and-play and bots
+- remote authoritative host deployment for online play
+
+The kernel itself should remain transport-agnostic, but the ecosystem around it should make this hosted model easy to adopt.
 
 ## Open Questions
 
-These questions are intentionally left open for later:
+The main remaining open questions are:
 
-- should `tabletop-kernel` eventually define a first-class authoritative host contract
-- should an embedded host adapter be an official package or left to consumers
-- should the kernel provide a standard update-envelope type for hosts
-- should committed events be first-class in live client updates or mainly for tooling
-- should reconnect always use full snapshots, or may it use checkpoints plus replay tail
-- how should viewer-specific projections interact with pending choices once visibility becomes first-class
-- whether optimistic client UI should be encouraged, tolerated, or kept entirely host-defined
+- what the exact AsyncAPI channel/message structure should look like
+- whether command submission and updates should share one socket or multiple channels
+- how reconnect snapshots should be represented in the live protocol
+- how viewer-specific visibility filtering should be expressed once that subsystem is revisited
+- how much of the authoritative host package should live in `tabletop-kernel` versus companion packages
