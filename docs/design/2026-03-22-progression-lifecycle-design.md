@@ -357,11 +357,16 @@ That is why auto progression must remain optional rather than mandatory.
 
 The following questions remain open for later:
 
-- what the exact progression lifecycle API should look like
-- whether completion policy should be modeled as named strategies, callbacks, or
-  both
-- how segment entry/exit hooks should interact with events and triggers
-- how lifecycle resolution should report multiple chained progression changes in
-  execution results and history
 - whether progression lifecycle should be entirely in the core package or partly
   in companion abstractions
+
+Current direction:
+
+- progression lifecycle should live entirely in the core package
+
+Reason:
+
+- progression/lifecycle is too central to command execution semantics to be
+  treated as an optional companion abstraction
+- commands, events, triggers, and progression all need to interact through one
+  coherent core execution model
