@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test";
 import { createKernel } from "../src/kernel/create-kernel";
 import { defineGame } from "../src/game-definition";
+import { evaluateCompletionPolicy } from "../src/kernel/progression-lifecycle";
+import {
+  createProgressionCompletionContext,
+  createProgressionLifecycleHookContext,
+} from "../src/kernel/contexts";
+import { createEventCollector } from "../src/kernel/events";
+import { createRNGService } from "../src/rng/service";
 
 test("createKernel creates initial state and commits successful commands", () => {
   const game = defineGame({
@@ -105,13 +112,10 @@ test("execute context can update current progression owner through controlled AP
       marker: 0,
     }),
     progression: {
-      initial: "turn",
-      segments: {
-        turn: {
-          id: "turn",
-          kind: "turn",
-          name: "Turn",
-        },
+      root: {
+        id: "turn",
+        kind: "turn",
+        children: [],
       },
     },
     setup: ({ runtime }) => {
@@ -133,7 +137,72 @@ test("execute context can update current progression owner through controlled AP
     type: "pass_turn",
   });
 
-  expect(initialState.runtime.progression.segments.turn?.ownerId).toBe("player-1");
+  expect(initialState.runtime.progression.segments.turn?.ownerId).toBe(
+    "player-1",
+  );
   expect(result.ok).toBe(true);
-  expect(result.state.runtime.progression.segments.turn?.ownerId).toBe("player-2");
+  expect(result.state.runtime.progression.segments.turn?.ownerId).toBe(
+    "player-2",
+  );
+});
+
+test("built-in progression completion policies evaluate through lifecycle contexts", () => {
+  const state = {
+    game: {
+      counter: 0,
+    },
+    runtime: {
+      progression: {
+        current: "turn",
+        rootId: "turn",
+        segments: {
+          turn: {
+            id: "turn",
+            childIds: [],
+            active: true,
+            ownerId: "player-1",
+          },
+        },
+      },
+      rng: {
+        seed: "seed",
+        cursor: 0,
+      },
+      history: {
+        entries: [],
+      },
+      pending: {
+        choices: [],
+      },
+    },
+  };
+  const command = {
+    type: "take_action",
+    actorId: "player-1",
+  };
+  const completionContext = createProgressionCompletionContext(
+    state,
+    command,
+    state.runtime.progression.segments.turn!,
+  );
+  const collector = createEventCollector();
+  const lifecycleContext = createProgressionLifecycleHookContext(
+    state,
+    command,
+    state.runtime.progression.segments.turn!,
+    createRNGService(state.runtime.rng),
+    collector.emit,
+  );
+
+  expect(
+    evaluateCompletionPolicy("after_successful_command", completionContext),
+  ).toBe(true);
+  expect(evaluateCompletionPolicy("manual_only", completionContext)).toBe(
+    false,
+  );
+  expect(completionContext.progression.current()?.id).toBe("turn");
+  expect(completionContext.progression.parent()?.id).toBeUndefined();
+  expect(
+    lifecycleContext.progression.activePath().map((segment) => segment.id),
+  ).toEqual(["turn"]);
 });

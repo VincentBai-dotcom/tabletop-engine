@@ -1,6 +1,10 @@
 import type { GameDefinition } from "../game-definition";
 import { createExecuteContext, createValidationContext } from "./contexts";
 import { createEventCollector } from "./events";
+import {
+  createProgressionState,
+  normalizeProgressionDefinition,
+} from "./progression-normalize";
 import { cloneCanonicalState } from "./transaction";
 import type { Command, CommandDefinition } from "../types/command";
 import type {
@@ -9,7 +13,6 @@ import type {
   ExecutionSuccess,
 } from "../types/result";
 import type { CanonicalState, RuntimeState } from "../types/state";
-import type { ProgressionSegmentState } from "../types/progression";
 import { createRNGService } from "../rng/service";
 
 type CommandDefinitions<GameState extends object> = Record<
@@ -30,22 +33,17 @@ export interface Kernel<GameState extends object> {
 function createInitialRuntimeState<GameState extends object>(
   game: GameDefinition<GameState, CommandDefinitions<GameState>>,
 ): RuntimeState {
-  const segments: Record<string, ProgressionSegmentState> = {};
-
-  for (const [id, segment] of Object.entries(
-    game.progression?.segments ?? {},
-  )) {
-    segments[id] = {
-      ...segment,
-      active: game.progression?.initial === id,
-    };
-  }
+  const progression = createProgressionState(
+    normalizeProgressionDefinition(
+      game.progression as GameDefinition<
+        GameState,
+        CommandDefinitions<GameState>
+      >["progression"],
+    ),
+  );
 
   const runtime: RuntimeState = {
-    progression: {
-      current: game.progression?.initial ?? null,
-      segments,
-    },
+    progression,
     rng: {
       seed: game.rngSeed ?? 0,
       cursor: 0,

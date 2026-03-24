@@ -1,10 +1,18 @@
 export { defineGame } from "./game-definition";
 export { createKernel } from "./kernel/create-kernel";
-export { appendReplayStep, createReplayRecord, replayRecord } from "./replay/history";
+export {
+  appendReplayStep,
+  createReplayRecord,
+  replayRecord,
+} from "./replay/history";
 export { createSnapshot, restoreSnapshot } from "./snapshot/snapshot";
 export { runScenario } from "./testing/harness";
 
-export type { GameDefinition, GameDefinitionInput, GameSetupContext } from "./game-definition";
+export type {
+  GameDefinition,
+  GameDefinitionInput,
+  GameSetupContext,
+} from "./game-definition";
 export type {
   Command,
   CommandDefinition,
@@ -29,7 +37,16 @@ export type {
   RuntimeState,
 } from "./types/state";
 export type {
+  BuiltInProgressionCompletionPolicy,
+  ProgressionCompletionCallback,
+  ProgressionCompletionContext,
+  ProgressionCompletionPolicy,
   ProgressionDefinition,
+  ProgressionLifecycleHook,
+  ProgressionLifecycleHookContext,
+  ProgressionNavigation,
+  ProgressionResolveNext,
+  ProgressionResolveNextResult,
   ProgressionSegmentDefinition,
   ProgressionSegmentState,
   ProgressionState,

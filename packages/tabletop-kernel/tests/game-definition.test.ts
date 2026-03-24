@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { createKernel } from "../src/kernel/create-kernel";
 import { defineGame } from "../src/game-definition";
 
 test("defineGame preserves the supplied configuration", () => {
@@ -9,13 +10,15 @@ test("defineGame preserves the supplied configuration", () => {
     }),
     commands: {},
     progression: {
-      initial: "main",
-      segments: {
-        main: {
-          id: "main",
-          kind: "phase",
-          name: "Main",
-        },
+      root: {
+        id: "round",
+        children: [
+          {
+            id: "main",
+            kind: "phase",
+            children: [],
+          },
+        ],
       },
     },
   });
@@ -23,5 +26,61 @@ test("defineGame preserves the supplied configuration", () => {
   expect(game.name).toBe("test-game");
   expect(game.initialState().score).toBe(0);
   expect(game.commands).toEqual({});
-  expect(game.progression?.initial).toBe("main");
+  expect(game.progression?.root.children[0]?.id).toBe("main");
+});
+
+test("createKernel normalizes nested progression trees into runtime state", () => {
+  const game = defineGame({
+    name: "progression-game",
+    initialState: () => ({
+      score: 0,
+    }),
+    commands: {},
+    progression: {
+      root: {
+        id: "round",
+        kind: "round",
+        children: [
+          {
+            id: "turn",
+            kind: "turn",
+            children: [
+              {
+                id: "main",
+                kind: "phase",
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    },
+  });
+
+  const kernel = createKernel(game);
+  const state = kernel.createInitialState();
+
+  expect(state.runtime.progression.rootId).toBe("round");
+  expect(state.runtime.progression.current).toBe("main");
+  expect(state.runtime.progression.segments.round).toMatchObject({
+    id: "round",
+    kind: "round",
+    parentId: undefined,
+    childIds: ["turn"],
+    active: true,
+  });
+  expect(state.runtime.progression.segments.turn).toMatchObject({
+    id: "turn",
+    kind: "turn",
+    parentId: "round",
+    childIds: ["main"],
+    active: true,
+  });
+  expect(state.runtime.progression.segments.main).toMatchObject({
+    id: "main",
+    kind: "phase",
+    parentId: "turn",
+    childIds: [],
+    active: true,
+  });
 });
