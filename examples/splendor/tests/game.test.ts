@@ -70,6 +70,79 @@ test("splendor exposes buy commands once the active player can afford them", () 
   expect(availableCommands).toContain("buy_reserved_card");
 });
 
+test("splendor discovers gem color choices before return tokens for three-distinct take", () => {
+  const kernel = createTestKernel(["p1", "p2"]);
+  const state = kernel.createInitialState();
+
+  const firstStep = kernel.discoverCommand(state, {
+    type: "take_three_distinct_gems",
+    actorId: "p1",
+  });
+  const secondStep = kernel.discoverCommand(state, {
+    type: "take_three_distinct_gems",
+    actorId: "p1",
+    payload: {
+      colors: ["white", "blue", "green"],
+    },
+  });
+
+  expect(firstStep).toMatchObject({
+    step: "select_gem_color",
+  });
+  expect(firstStep?.options).toHaveLength(5);
+  expect(firstStep?.options[0]).toMatchObject({
+    id: expect.any(String),
+    value: {
+      colors: [expect.any(String)],
+    },
+  });
+  expect(secondStep).toMatchObject({
+    step: "complete",
+    complete: true,
+  });
+});
+
+test("splendor discovers noble selection when a purchase leaves multiple nobles eligible", () => {
+  const kernel = createTestKernel(["p1", "p2"]);
+  const state = kernel.createInitialState();
+
+  state.game.board.nobleIds = [6, 7];
+  state.game.players.p1 = {
+    ...state.game.players.p1!,
+    tokens: {
+      white: 0,
+      blue: 0,
+      green: 0,
+      red: 0,
+      black: 0,
+      gold: 20,
+    },
+    reservedCardIds: [45],
+    purchasedCardIds: [17, 18, 19, 20, 33, 34, 35, 36, 1, 2, 3],
+    nobleIds: [],
+  };
+
+  const discovery = kernel.discoverCommand(state, {
+    type: "buy_reserved_card",
+    actorId: "p1",
+    payload: {
+      cardId: 45,
+    },
+  });
+
+  expect(discovery).toMatchObject({
+    step: "select_noble",
+  });
+  expect(discovery?.options).toHaveLength(2);
+  expect(discovery?.options[0]).toMatchObject({
+    id: expect.any(String),
+    value: {
+      cardId: 45,
+      chosenNobleId: expect.any(Number),
+    },
+  });
+});
+
 test("taking three distinct gems updates tokens and advances the turn", () => {
   const kernel = createTestKernel(["p1", "p2"]);
   const state = kernel.createInitialState();

@@ -1,4 +1,9 @@
 import type { CommandDefinition } from "tabletop-kernel";
+import {
+  completeDiscovery,
+  createReturnTokenDiscovery,
+  SPLENDOR_DISCOVERY_STEPS,
+} from "../discovery.ts";
 import type { ReserveFaceUpCardPayload, SplendorGameState } from "../state.ts";
 import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
@@ -26,6 +31,52 @@ export const reserveFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
         (cards) => cards.length > 0,
       );
     }),
+  discover: (context) => {
+    const actorId = assertAvailableActor(context);
+    const payload = readPayload<Partial<ReserveFaceUpCardPayload>>(
+      context.partialCommand,
+    );
+
+    if (!payload.level || !payload.cardId) {
+      return {
+        step: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
+        options: Object.entries(context.state.game.board.faceUpByLevel).flatMap(
+          ([level, cardIds]) =>
+            cardIds.map((cardId) => ({
+              id: `${level}:${cardId}`,
+              value: {
+                ...payload,
+                level: Number(level),
+                cardId,
+              },
+              metadata: {
+                level: Number(level),
+                cardId,
+                source: "face_up",
+              },
+            })),
+        ),
+      };
+    }
+
+    const player = PlayerOps.clone(context.state.game.players[actorId]!);
+
+    if (context.state.game.bank.gold > 0) {
+      player.tokens.gold += 1;
+    }
+
+    const requiredReturnCount = Math.max(
+      new PlayerOps(player).getTokenCount() - 10,
+      0,
+    );
+    const returnDiscovery = createReturnTokenDiscovery(
+      payload,
+      player.tokens,
+      requiredReturnCount,
+    );
+
+    return returnDiscovery ?? completeDiscovery(payload);
+  },
   validate: ({ state, command }) =>
     guardedValidate(() => {
       assertGameActive(state.game);

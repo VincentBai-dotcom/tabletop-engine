@@ -1,5 +1,14 @@
 import type { CommandDefinition } from "tabletop-kernel";
-import type { SplendorGameState, TakeTwoSameGemsPayload } from "../state.ts";
+import {
+  completeDiscovery,
+  createReturnTokenDiscovery,
+  SPLENDOR_DISCOVERY_STEPS,
+} from "../discovery.ts";
+import type {
+  ReturnTokensPayload,
+  SplendorGameState,
+  TakeTwoSameGemsPayload,
+} from "../state.ts";
 import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
 import { applyReturnTokens, validateReturnTokens } from "../model/token-ops.ts";
@@ -21,6 +30,47 @@ export const takeTwoSameGemsCommand: CommandDefinition<SplendorGameState> = {
         ([color, count]) => color !== "gold" && count >= 4,
       );
     }),
+  discover: (context) => {
+    const actorId = assertAvailableActor(context);
+    const payload = readPayload<
+      Partial<TakeTwoSameGemsPayload> & {
+        returnTokens?: ReturnTokensPayload;
+      }
+    >(context.partialCommand);
+
+    if (!payload.color) {
+      return {
+        step: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
+        options: Object.entries(context.state.game.bank)
+          .filter(([color, count]) => color !== "gold" && count >= 4)
+          .map(([color]) => ({
+            id: color,
+            value: {
+              ...payload,
+              color,
+            },
+            metadata: {
+              color,
+              amount: 2,
+            },
+          })),
+      };
+    }
+
+    const player = PlayerOps.clone(context.state.game.players[actorId]!);
+    player.tokens[payload.color] += 2;
+    const requiredReturnCount = Math.max(
+      new PlayerOps(player).getTokenCount() - 10,
+      0,
+    );
+    const returnDiscovery = createReturnTokenDiscovery(
+      payload,
+      player.tokens,
+      requiredReturnCount,
+    );
+
+    return returnDiscovery ?? completeDiscovery(payload);
+  },
   validate: ({ state, command }) =>
     guardedValidate(() => {
       assertGameActive(state.game);

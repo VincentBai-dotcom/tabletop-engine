@@ -1,4 +1,9 @@
 import type { CommandDefinition } from "tabletop-kernel";
+import {
+  completeDiscovery,
+  createNobleDiscovery,
+  SPLENDOR_DISCOVERY_STEPS,
+} from "../discovery.ts";
 import type { BuyFaceUpCardPayload, SplendorGameState } from "../state.ts";
 import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
@@ -31,6 +36,49 @@ export const buyFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
           }),
       );
     }),
+  discover: (context) => {
+    const actorId = assertAvailableActor(context);
+    const payload = readPayload<Partial<BuyFaceUpCardPayload>>(
+      context.partialCommand,
+    );
+    const gameOps = new SplendorGameOps(context.state.game);
+    const player = gameOps.getPlayer(actorId);
+
+    if (!payload.level || !payload.cardId) {
+      return {
+        step: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
+        options: Object.entries(context.state.game.board.faceUpByLevel).flatMap(
+          ([level, cardIds]) =>
+            cardIds
+              .filter((cardId) => {
+                const card = gameOps.getCard(cardId);
+
+                return player.getAffordablePayment(card) !== null;
+              })
+              .map((cardId) => ({
+                id: `${level}:${cardId}`,
+                value: {
+                  ...payload,
+                  level: Number(level),
+                  cardId,
+                },
+                metadata: {
+                  level: Number(level),
+                  cardId,
+                  source: "face_up",
+                },
+              })),
+        ),
+      };
+    }
+
+    const hypotheticalPlayer = new PlayerOps(PlayerOps.clone(player.state));
+    hypotheticalPlayer.buyCard(payload.cardId);
+    const eligibleNobles = gameOps.getEligibleNobles(hypotheticalPlayer);
+    const nobleDiscovery = createNobleDiscovery(payload, eligibleNobles);
+
+    return nobleDiscovery ?? completeDiscovery(payload);
+  },
   validate: ({ state, command }) =>
     guardedValidate(() => {
       assertGameActive(state.game);

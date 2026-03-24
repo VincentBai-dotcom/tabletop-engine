@@ -1,4 +1,9 @@
 import type { CommandDefinition } from "tabletop-kernel";
+import {
+  completeDiscovery,
+  createNobleDiscovery,
+  SPLENDOR_DISCOVERY_STEPS,
+} from "../discovery.ts";
 import type { BuyReservedCardPayload, SplendorGameState } from "../state.ts";
 import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
@@ -25,6 +30,45 @@ export const buyReservedCardCommand: CommandDefinition<SplendorGameState> = {
         return player.getAffordablePayment(card) !== null;
       });
     }),
+  discover: (context) => {
+    const actorId = assertAvailableActor(context);
+    const payload = readPayload<Partial<BuyReservedCardPayload>>(
+      context.partialCommand,
+    );
+    const gameOps = new SplendorGameOps(context.state.game);
+    const player = gameOps.getPlayer(actorId);
+
+    if (!payload.cardId) {
+      return {
+        step: SPLENDOR_DISCOVERY_STEPS.selectReservedCard,
+        options: player.state.reservedCardIds
+          .filter((cardId) => {
+            const card = gameOps.getCard(cardId);
+
+            return player.getAffordablePayment(card) !== null;
+          })
+          .map((cardId) => ({
+            id: String(cardId),
+            value: {
+              ...payload,
+              cardId,
+            },
+            metadata: {
+              cardId,
+              source: "reserved",
+            },
+          })),
+      };
+    }
+
+    const hypotheticalPlayer = new PlayerOps(PlayerOps.clone(player.state));
+    hypotheticalPlayer.removeReservedCard(payload.cardId);
+    hypotheticalPlayer.buyCard(payload.cardId);
+    const eligibleNobles = gameOps.getEligibleNobles(hypotheticalPlayer);
+    const nobleDiscovery = createNobleDiscovery(payload, eligibleNobles);
+
+    return nobleDiscovery ?? completeDiscovery(payload);
+  },
   validate: ({ state, command }) =>
     guardedValidate(() => {
       assertGameActive(state.game);
