@@ -97,6 +97,36 @@ export function createProgressionState<
   };
 }
 
+export function getNormalizedSegmentPathIds<
+  GameState extends object = object,
+  Runtime = unknown,
+  Cmd extends Command = Command,
+>(
+  progression: NormalizedProgressionDefinition<GameState, Runtime, Cmd>,
+  segmentId: string,
+): string[] {
+  return getSegmentPathIds(progression.segments, segmentId);
+}
+
+export function getDefaultLeafSegmentId<
+  GameState extends object = object,
+  Runtime = unknown,
+  Cmd extends Command = Command,
+>(
+  progression: NormalizedProgressionDefinition<GameState, Runtime, Cmd>,
+  segmentId: string,
+): string {
+  let currentId = segmentId;
+  let currentSegment = progression.segments[currentId];
+
+  while (currentSegment && currentSegment.childIds.length > 0) {
+    currentId = currentSegment.childIds[0]!;
+    currentSegment = progression.segments[currentId];
+  }
+
+  return currentId;
+}
+
 function visitSegment<GameState extends object, Runtime, Cmd extends Command>(
   segment: ProgressionSegmentDefinition<GameState, Runtime, Cmd>,
   parentId: string | undefined,

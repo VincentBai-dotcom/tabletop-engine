@@ -5,6 +5,10 @@ import {
   createProgressionState,
   normalizeProgressionDefinition,
 } from "./progression-normalize";
+import {
+  resolveProgressionLifecycle,
+  type NormalizedProgressionDefinition,
+} from "./progression-lifecycle";
 import { cloneCanonicalState } from "./transaction";
 import type { Command, CommandDefinition } from "../types/command";
 import type {
@@ -31,19 +35,15 @@ export interface Kernel<GameState extends object> {
 }
 
 function createInitialRuntimeState<GameState extends object>(
+  progression: NormalizedProgressionDefinition<
+    GameState,
+    RuntimeState,
+    Command
+  >,
   game: GameDefinition<GameState, CommandDefinitions<GameState>>,
 ): RuntimeState {
-  const progression = createProgressionState(
-    normalizeProgressionDefinition(
-      game.progression as GameDefinition<
-        GameState,
-        CommandDefinitions<GameState>
-      >["progression"],
-    ),
-  );
-
   const runtime: RuntimeState = {
-    progression,
+    progression: createProgressionState(progression),
     rng: {
       seed: game.rngSeed ?? 0,
       cursor: 0,
@@ -63,10 +63,18 @@ export function createKernel<
   GameState extends object,
   Commands extends CommandDefinitions<GameState>,
 >(game: GameDefinition<GameState, Commands>): Kernel<GameState> {
+  const progression = normalizeProgressionDefinition(
+    game.progression as GameDefinition<
+      GameState,
+      CommandDefinitions<GameState>
+    >["progression"],
+  );
+
   return {
     createInitialState(options) {
       const gameState = game.initialState();
       const runtime = createInitialRuntimeState(
+        progression,
         game as GameDefinition<GameState, CommandDefinitions<GameState>>,
       );
       const rng = createRNGService(runtime.rng);
@@ -143,6 +151,14 @@ export function createKernel<
           setCurrentSegmentOwner,
           collector.emit,
         ),
+      );
+
+      resolveProgressionLifecycle(
+        workingState,
+        command,
+        progression,
+        rng,
+        collector.emit,
       );
 
       const success: ExecutionSuccess<CanonicalState<GameState>> = {

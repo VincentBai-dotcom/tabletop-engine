@@ -1,7 +1,12 @@
 import type { KernelEvent } from "tabletop-kernel";
 import { developmentCardsById } from "../data/cards.ts";
 import { nobleTilesById } from "../data/nobles.ts";
-import type { CardCost, DevelopmentCard, DevelopmentLevel, NobleTile } from "../data/types.ts";
+import type {
+  CardCost,
+  DevelopmentCard,
+  DevelopmentLevel,
+  NobleTile,
+} from "../data/types.ts";
 import type { SplendorGameState } from "../state.ts";
 import { PlayerOps } from "./player-ops.ts";
 
@@ -51,7 +56,8 @@ export class SplendorGameOps {
   }
 
   getLastPlayerId(): string {
-    const lastPlayerId = this.game.playerOrder[this.game.playerOrder.length - 1];
+    const lastPlayerId =
+      this.game.playerOrder[this.game.playerOrder.length - 1];
 
     if (!lastPlayerId) {
       throw new Error("player_order_empty");
@@ -61,9 +67,9 @@ export class SplendorGameOps {
   }
 
   removeFaceUpCard(level: DevelopmentLevel, cardId: number): void {
-    this.game.board.faceUpByLevel[level] = this.game.board.faceUpByLevel[level].filter(
-      (faceUpCardId) => faceUpCardId !== cardId,
-    );
+    this.game.board.faceUpByLevel[level] = this.game.board.faceUpByLevel[
+      level
+    ].filter((faceUpCardId) => faceUpCardId !== cardId);
   }
 
   replenishFaceUpCard(level: DevelopmentLevel): void {
@@ -116,7 +122,9 @@ export class SplendorGameOps {
       throw new Error("chosen_noble_required");
     }
 
-    const chosenNoble = eligibleNobles.find((noble) => noble.id === chosenNobleId);
+    const chosenNoble = eligibleNobles.find(
+      (noble) => noble.id === chosenNobleId,
+    );
 
     if (!chosenNoble) {
       throw new Error("invalid_chosen_noble");
@@ -127,9 +135,8 @@ export class SplendorGameOps {
     return chosenNoble.id;
   }
 
-  finishTurn(
+  resolveTurnEnd(
     actorId: string,
-    setCurrentSegmentOwner: (ownerId?: string) => void,
     emitEvent: (event: KernelEvent) => void,
     chosenNobleId?: number,
   ): void {
@@ -172,10 +179,7 @@ export class SplendorGameOps {
           winnerIds: this.game.winnerIds,
         },
       });
-      return;
     }
-
-    setCurrentSegmentOwner(this.getNextPlayerId(actorId));
   }
 
   private removeNoble(nobleId: number): void {
@@ -188,7 +192,9 @@ export class SplendorGameOps {
     const players = Object.values(this.game.players).map(
       (player) => new PlayerOps(player),
     );
-    const highestScore = Math.max(...players.map((player) => player.getScore()));
+    const highestScore = Math.max(
+      ...players.map((player) => player.getScore()),
+    );
     const highestScorers = players.filter(
       (player) => player.getScore() === highestScore,
     );
@@ -197,7 +203,10 @@ export class SplendorGameOps {
     );
 
     this.game.winnerIds = highestScorers
-      .filter((player) => player.state.purchasedCardIds.length === fewestPurchasedCards)
+      .filter(
+        (player) =>
+          player.state.purchasedCardIds.length === fewestPurchasedCards,
+      )
       .map((player) => player.state.id);
   }
 }

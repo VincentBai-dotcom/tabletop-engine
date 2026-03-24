@@ -1,7 +1,15 @@
-import { defineGame } from "tabletop-kernel";
-import { createCommands, type SplendorCommandDefinitions } from "./commands/index.ts";
+import { defineGame, type Command } from "tabletop-kernel";
+import {
+  createCommands,
+  type SplendorCommandDefinitions,
+} from "./commands/index.ts";
+import { SplendorGameOps } from "./model/game-ops.ts";
 import { createInitialGameState, setupSplendorGame } from "./setup.ts";
-import type { SplendorGameState } from "./state.ts";
+import type {
+  BuyFaceUpCardPayload,
+  BuyReservedCardPayload,
+  SplendorGameState,
+} from "./state.ts";
 
 export interface CreateSplendorGameOptions {
   playerIds: string[];
@@ -19,13 +27,43 @@ export function createSplendorGame(options: CreateSplendorGameOptions) {
     name: "splendor",
     rngSeed: seed,
     progression: {
-      initial: "turn",
-      segments: {
-        turn: {
-          id: "turn",
-          kind: "turn",
-          name: "Turn",
+      root: {
+        id: "turn",
+        kind: "turn",
+        completionPolicy: "after_successful_command",
+        onExit: ({ command, emitEvent, game }) => {
+          const actorId = command.actorId;
+          const splendorGame = game as SplendorGameState;
+
+          if (!actorId) {
+            throw new Error("actor_id_required");
+          }
+
+          const gameOps = new SplendorGameOps(splendorGame);
+          gameOps.resolveTurnEnd(
+            actorId,
+            emitEvent,
+            readChosenNobleId(command),
+          );
         },
+        resolveNext: ({ command, game }) => {
+          const actorId = command.actorId;
+          const splendorGame = game as SplendorGameState;
+
+          if (!actorId || splendorGame.winnerIds) {
+            return {
+              nextSegmentId: null,
+            };
+          }
+
+          const gameOps = new SplendorGameOps(splendorGame);
+
+          return {
+            nextSegmentId: "turn",
+            ownerId: gameOps.getNextPlayerId(actorId),
+          };
+        },
+        children: [],
       },
     },
     initialState: () => createInitialGameState(playerIds),
@@ -34,4 +72,15 @@ export function createSplendorGame(options: CreateSplendorGameOptions) {
     },
     commands: createCommands(),
   });
+}
+
+function readChosenNobleId(command: Command): number | undefined {
+  const payload = command.payload as
+    | BuyFaceUpCardPayload
+    | BuyReservedCardPayload
+    | undefined;
+
+  return typeof payload?.chosenNobleId === "number"
+    ? payload.chosenNobleId
+    : undefined;
 }

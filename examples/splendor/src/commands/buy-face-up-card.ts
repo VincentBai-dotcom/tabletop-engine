@@ -3,7 +3,12 @@ import type { BuyFaceUpCardPayload, SplendorGameState } from "../state.ts";
 import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
 import { applyTokenDelta } from "../model/token-ops.ts";
-import { assertActivePlayer, assertGameActive, guardedValidate, readPayload } from "./shared.ts";
+import {
+  assertActivePlayer,
+  assertGameActive,
+  guardedValidate,
+  readPayload,
+} from "./shared.ts";
 
 export const buyFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
   validate: ({ state, command }) =>
@@ -17,7 +22,9 @@ export const buyFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
         return { ok: false, reason: "level_and_card_required" };
       }
 
-      if (!state.game.board.faceUpByLevel[payload.level].includes(payload.cardId)) {
+      if (
+        !state.game.board.faceUpByLevel[payload.level].includes(payload.cardId)
+      ) {
         return { ok: false, reason: "card_not_face_up" };
       }
 
@@ -46,7 +53,7 @@ export const buyFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
 
       return { ok: true };
     }),
-  execute: ({ game, command, emitEvent, setCurrentSegmentOwner }) => {
+  execute: ({ game, command, emitEvent }) => {
     const actorId = command.actorId!;
     const payload = readPayload<BuyFaceUpCardPayload>(command);
     const gameOps = new SplendorGameOps(game);
@@ -74,11 +81,5 @@ export const buyFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
         payment,
       },
     });
-    gameOps.finishTurn(
-      actorId,
-      setCurrentSegmentOwner,
-      emitEvent,
-      payload.chosenNobleId,
-    );
   },
 };

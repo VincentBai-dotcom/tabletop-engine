@@ -3,7 +3,12 @@ import type { BuyReservedCardPayload, SplendorGameState } from "../state.ts";
 import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
 import { applyTokenDelta } from "../model/token-ops.ts";
-import { assertActivePlayer, assertGameActive, guardedValidate, readPayload } from "./shared.ts";
+import {
+  assertActivePlayer,
+  assertGameActive,
+  guardedValidate,
+  readPayload,
+} from "./shared.ts";
 
 export const buyReservedCardCommand: CommandDefinition<SplendorGameState> = {
   validate: ({ state, command }) =>
@@ -47,7 +52,7 @@ export const buyReservedCardCommand: CommandDefinition<SplendorGameState> = {
 
       return { ok: true };
     }),
-  execute: ({ game, command, emitEvent, setCurrentSegmentOwner }) => {
+  execute: ({ game, command, emitEvent }) => {
     const actorId = command.actorId!;
     const payload = readPayload<BuyReservedCardPayload>(command);
     const gameOps = new SplendorGameOps(game);
@@ -73,11 +78,5 @@ export const buyReservedCardCommand: CommandDefinition<SplendorGameState> = {
         payment,
       },
     });
-    gameOps.finishTurn(
-      actorId,
-      setCurrentSegmentOwner,
-      emitEvent,
-      payload.chosenNobleId,
-    );
   },
 };

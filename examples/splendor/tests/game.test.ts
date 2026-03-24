@@ -77,6 +77,8 @@ test("taking three distinct gems updates tokens and advances the turn", () => {
     category: "domain",
     type: "gems_taken",
   });
+  expect(result.events.map((event) => event.type)).toContain("segment_exited");
+  expect(result.events.map((event) => event.type)).toContain("segment_entered");
 });
 
 test("taking two gems of the same color requires at least four in the bank", () => {
@@ -227,7 +229,9 @@ test("endgame finishes after the final player in turn order and breaks ties by f
     endsAfterPlayerId: "p2",
   });
   expect(firstResult.state.game.winnerIds).toBeNull();
-  expect(firstResult.state.runtime.progression.segments.turn?.ownerId).toBe("p2");
+  expect(firstResult.state.runtime.progression.segments.turn?.ownerId).toBe(
+    "p2",
+  );
 
   const secondResult = kernel.executeCommand(firstResult.state, {
     type: "buy_reserved_card",
@@ -246,5 +250,7 @@ test("endgame finishes after the final player in turn order and breaks ties by f
   expect(secondResult.state.game.players.p1?.purchasedCardIds).toHaveLength(5);
   expect(secondResult.state.game.players.p2?.purchasedCardIds).toHaveLength(4);
   expect(secondResult.state.game.winnerIds).toEqual(["p2"]);
-  expect(secondResult.events.map((event) => event.type)).toContain("game_finished");
+  expect(secondResult.events.map((event) => event.type)).toContain(
+    "game_finished",
+  );
 });

@@ -1,4 +1,5 @@
 import type { KernelEvent } from "../types/event";
+import type { ProgressionSegmentState } from "../types/progression";
 
 export interface EventCollector<Event extends KernelEvent = KernelEvent> {
   emit(event: Event): void;
@@ -16,6 +17,34 @@ export function createEventCollector<
     },
     list() {
       return [...events];
+    },
+  };
+}
+
+export function createSegmentExitedEvent(
+  segment: ProgressionSegmentState,
+): KernelEvent<"runtime", "segment_exited", Record<string, unknown>> {
+  return {
+    category: "runtime",
+    type: "segment_exited",
+    payload: {
+      segmentId: segment.id,
+      kind: segment.kind ?? null,
+      ownerId: segment.ownerId ?? null,
+    },
+  };
+}
+
+export function createSegmentEnteredEvent(
+  segment: ProgressionSegmentState,
+): KernelEvent<"runtime", "segment_entered", Record<string, unknown>> {
+  return {
+    category: "runtime",
+    type: "segment_entered",
+    payload: {
+      segmentId: segment.id,
+      kind: segment.kind ?? null,
+      ownerId: segment.ownerId ?? null,
     },
   };
 }

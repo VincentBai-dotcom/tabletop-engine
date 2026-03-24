@@ -3,7 +3,12 @@ import type { ReserveFaceUpCardPayload, SplendorGameState } from "../state.ts";
 import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
 import { applyReturnTokens, validateReturnTokens } from "../model/token-ops.ts";
-import { assertActivePlayer, assertGameActive, guardedValidate, readPayload } from "./shared.ts";
+import {
+  assertActivePlayer,
+  assertGameActive,
+  guardedValidate,
+  readPayload,
+} from "./shared.ts";
 
 export const reserveFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
   validate: ({ state, command }) =>
@@ -21,7 +26,9 @@ export const reserveFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
         return { ok: false, reason: "level_and_card_required" };
       }
 
-      if (!state.game.board.faceUpByLevel[payload.level].includes(payload.cardId)) {
+      if (
+        !state.game.board.faceUpByLevel[payload.level].includes(payload.cardId)
+      ) {
         return { ok: false, reason: "card_not_face_up" };
       }
 
@@ -29,15 +36,20 @@ export const reserveFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
         player.tokens.gold += 1;
       }
 
-      const requiredReturnCount = Math.max(new PlayerOps(player).getTokenCount() - 10, 0);
+      const requiredReturnCount = Math.max(
+        new PlayerOps(player).getTokenCount() - 10,
+        0,
+      );
 
-      if (!validateReturnTokens(player, payload.returnTokens, requiredReturnCount)) {
+      if (
+        !validateReturnTokens(player, payload.returnTokens, requiredReturnCount)
+      ) {
         return { ok: false, reason: "invalid_return_tokens" };
       }
 
       return { ok: true };
     }),
-  execute: ({ game, command, emitEvent, setCurrentSegmentOwner }) => {
+  execute: ({ game, command, emitEvent }) => {
     const actorId = command.actorId!;
     const payload = readPayload<ReserveFaceUpCardPayload>(command);
     const gameOps = new SplendorGameOps(game);
@@ -67,6 +79,5 @@ export const reserveFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
         returnTokens: payload.returnTokens ?? null,
       },
     });
-    gameOps.finishTurn(actorId, setCurrentSegmentOwner, emitEvent);
   },
 };
