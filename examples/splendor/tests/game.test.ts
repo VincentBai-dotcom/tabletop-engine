@@ -42,6 +42,34 @@ test("splendor setup follows official 4-player rules", () => {
   expect(state.game.board.nobleIds).toHaveLength(5);
 });
 
+test("splendor exposes the expected available command families on the opening turn", () => {
+  const kernel = createTestKernel(["p1", "p2"]);
+  const state = kernel.createInitialState();
+
+  expect(kernel.listAvailableCommands(state, { actorId: "p1" })).toEqual([
+    "take_three_distinct_gems",
+    "take_two_same_gems",
+    "reserve_face_up_card",
+    "reserve_deck_card",
+  ]);
+  expect(kernel.listAvailableCommands(state, { actorId: "p2" })).toEqual([]);
+});
+
+test("splendor exposes buy commands once the active player can afford them", () => {
+  const kernel = createTestKernel(["p1", "p2"]);
+  const state = kernel.createInitialState();
+
+  state.game.players.p1!.tokens.gold = 20;
+  state.game.players.p1!.reservedCardIds = [24];
+
+  const availableCommands = kernel.listAvailableCommands(state, {
+    actorId: "p1",
+  });
+
+  expect(availableCommands).toContain("buy_face_up_card");
+  expect(availableCommands).toContain("buy_reserved_card");
+});
+
 test("taking three distinct gems updates tokens and advances the turn", () => {
   const kernel = createTestKernel(["p1", "p2"]);
   const state = kernel.createInitialState();

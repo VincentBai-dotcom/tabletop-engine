@@ -7,14 +7,26 @@ import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
 import { applyReturnTokens, validateReturnTokens } from "../model/token-ops.ts";
 import {
+  assertAvailableActor,
   assertActivePlayer,
   assertGameActive,
+  guardedAvailability,
   guardedValidate,
   readPayload,
 } from "./shared.ts";
 
 export const takeThreeDistinctGemsCommand: CommandDefinition<SplendorGameState> =
   {
+    isAvailable: (context) =>
+      guardedAvailability(() => {
+        assertAvailableActor(context);
+
+        return (
+          Object.entries(context.state.game.bank).filter(
+            ([color, count]) => color !== "gold" && count > 0,
+          ).length >= 3
+        );
+      }),
     validate: ({ state, command }) =>
       guardedValidate(() => {
         assertGameActive(state.game);

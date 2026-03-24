@@ -1,4 +1,8 @@
-import type { Command, ValidationOutcome } from "tabletop-kernel";
+import type {
+  Command,
+  CommandAvailabilityContext,
+  ValidationOutcome,
+} from "tabletop-kernel";
 import type { SplendorGameState } from "../state.ts";
 
 interface ProgressionAwareState {
@@ -14,7 +18,9 @@ export function readPayload<T>(command: Command): T {
   return (command.payload ?? {}) as T;
 }
 
-export function guardedValidate(run: () => ValidationOutcome): ValidationOutcome {
+export function guardedValidate(
+  run: () => ValidationOutcome,
+): ValidationOutcome {
   try {
     return run();
   } catch (error) {
@@ -22,6 +28,14 @@ export function guardedValidate(run: () => ValidationOutcome): ValidationOutcome
       ok: false,
       reason: error instanceof Error ? error.message : "invalid_command",
     };
+  }
+}
+
+export function guardedAvailability(run: () => boolean): boolean {
+  try {
+    return run();
+  } catch {
+    return false;
   }
 }
 
@@ -45,11 +59,19 @@ export function assertActivePlayer(
     throw new Error("no_active_segment");
   }
 
-  const currentOwnerId = state.runtime.progression.segments[currentSegmentId]?.ownerId;
+  const currentOwnerId =
+    state.runtime.progression.segments[currentSegmentId]?.ownerId;
 
   if (!currentOwnerId || actorId !== currentOwnerId) {
     throw new Error("not_active_player");
   }
 
   return actorId;
+}
+
+export function assertAvailableActor(
+  context: CommandAvailabilityContext<SplendorGameState>,
+): string {
+  assertGameActive(context.state.game);
+  return assertActivePlayer(context.state, context.actorId);
 }

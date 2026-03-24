@@ -4,13 +4,28 @@ import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
 import { applyReturnTokens, validateReturnTokens } from "../model/token-ops.ts";
 import {
+  assertAvailableActor,
   assertActivePlayer,
   assertGameActive,
+  guardedAvailability,
   guardedValidate,
   readPayload,
 } from "./shared.ts";
 
 export const reserveDeckCardCommand: CommandDefinition<SplendorGameState> = {
+  isAvailable: (context) =>
+    guardedAvailability(() => {
+      const actorId = assertAvailableActor(context);
+      const player = context.state.game.players[actorId]!;
+
+      if (player.reservedCardIds.length >= 3) {
+        return false;
+      }
+
+      return Object.values(context.state.game.board.deckByLevel).some(
+        (cards) => cards.length > 0,
+      );
+    }),
   validate: ({ state, command }) =>
     guardedValidate(() => {
       assertGameActive(state.game);

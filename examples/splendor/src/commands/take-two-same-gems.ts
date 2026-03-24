@@ -4,13 +4,23 @@ import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
 import { applyReturnTokens, validateReturnTokens } from "../model/token-ops.ts";
 import {
+  assertAvailableActor,
   assertActivePlayer,
   assertGameActive,
+  guardedAvailability,
   guardedValidate,
   readPayload,
 } from "./shared.ts";
 
 export const takeTwoSameGemsCommand: CommandDefinition<SplendorGameState> = {
+  isAvailable: (context) =>
+    guardedAvailability(() => {
+      assertAvailableActor(context);
+
+      return Object.entries(context.state.game.bank).some(
+        ([color, count]) => color !== "gold" && count >= 4,
+      );
+    }),
   validate: ({ state, command }) =>
     guardedValidate(() => {
       assertGameActive(state.game);

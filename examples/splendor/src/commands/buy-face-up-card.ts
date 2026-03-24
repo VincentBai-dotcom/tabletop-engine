@@ -4,13 +4,33 @@ import { PlayerOps } from "../model/player-ops.ts";
 import { SplendorGameOps } from "../model/game-ops.ts";
 import { applyTokenDelta } from "../model/token-ops.ts";
 import {
+  assertAvailableActor,
   assertActivePlayer,
   assertGameActive,
+  guardedAvailability,
   guardedValidate,
   readPayload,
 } from "./shared.ts";
 
 export const buyFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
+  isAvailable: (context) =>
+    guardedAvailability(() => {
+      const actorId = assertAvailableActor(context);
+      const gameOps = new SplendorGameOps(context.state.game);
+      const player = gameOps.getPlayer(actorId);
+
+      return Object.entries(context.state.game.board.faceUpByLevel).some(
+        ([level, cardIds]) =>
+          cardIds.some((cardId) => {
+            const card = gameOps.getCard(cardId);
+
+            return (
+              card.level === Number(level) &&
+              player.getAffordablePayment(card) !== null
+            );
+          }),
+      );
+    }),
   validate: ({ state, command }) =>
     guardedValidate(() => {
       assertGameActive(state.game);
