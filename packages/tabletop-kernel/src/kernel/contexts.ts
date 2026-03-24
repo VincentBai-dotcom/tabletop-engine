@@ -1,5 +1,7 @@
 import type {
+  CommandAvailabilityContext,
   Command,
+  DiscoveryContext,
   ExecuteContext,
   ValidationContext,
 } from "../types/command";
@@ -25,6 +27,39 @@ export function createValidationContext<
   return {
     state,
     command,
+  };
+}
+
+export function createCommandAvailabilityContext<
+  GameState extends object,
+  Runtime extends RuntimeState,
+>(
+  state: CanonicalState<GameState, Runtime>,
+  commandType: string,
+  actorId?: string,
+): CommandAvailabilityContext<GameState, Runtime> {
+  return {
+    state,
+    commandType,
+    actorId,
+  };
+}
+
+export function createDiscoveryContext<
+  GameState extends object,
+  Runtime extends RuntimeState,
+  PartialCmd extends Command,
+>(
+  state: CanonicalState<GameState, Runtime>,
+  partialCommand: PartialCmd,
+): DiscoveryContext<GameState, Runtime, PartialCmd> {
+  return {
+    ...createCommandAvailabilityContext(
+      state,
+      partialCommand.type,
+      partialCommand.actorId,
+    ),
+    partialCommand,
   };
 }
 

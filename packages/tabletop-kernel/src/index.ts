@@ -14,8 +14,11 @@ export type {
   GameSetupContext,
 } from "./game-definition";
 export type {
+  CommandAvailabilityContext,
   Command,
   CommandDefinition,
+  CommandDiscoveryResult,
+  DiscoveryContext,
   ExecuteContext,
   ValidationContext,
 } from "./types/command";

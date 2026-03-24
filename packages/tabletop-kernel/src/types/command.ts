@@ -20,6 +20,31 @@ export interface ValidationContext<
   command: Cmd;
 }
 
+export interface CommandAvailabilityContext<
+  GameState extends object = object,
+  Runtime extends RuntimeState = RuntimeState,
+> {
+  state: CanonicalState<GameState, Runtime>;
+  commandType: string;
+  actorId?: string;
+}
+
+export interface DiscoveryContext<
+  GameState extends object = object,
+  Runtime extends RuntimeState = RuntimeState,
+  PartialCmd extends Command = Command,
+> extends CommandAvailabilityContext<GameState, Runtime> {
+  partialCommand: PartialCmd;
+}
+
+export interface CommandDiscoveryResult<Option = unknown> {
+  step: string;
+  options: Option[];
+  complete?: boolean;
+  nextPartialCommand?: Command;
+  metadata?: Record<string, unknown>;
+}
+
 export interface ExecuteContext<
   GameState extends object = object,
   Runtime extends RuntimeState = RuntimeState,
@@ -37,6 +62,12 @@ export interface CommandDefinition<
   Runtime extends RuntimeState = RuntimeState,
   Cmd extends Command = Command,
 > {
+  isAvailable?(
+    context: CommandAvailabilityContext<GameState, Runtime>,
+  ): boolean;
+  discover?(
+    context: DiscoveryContext<GameState, Runtime, Cmd>,
+  ): CommandDiscoveryResult | null;
   validate(
     context: ValidationContext<GameState, Runtime, Cmd>,
   ): ValidationOutcome;

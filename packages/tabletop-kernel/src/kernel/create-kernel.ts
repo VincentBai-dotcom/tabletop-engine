@@ -1,5 +1,10 @@
 import type { GameDefinition } from "../game-definition";
-import { createExecuteContext, createValidationContext } from "./contexts";
+import {
+  createCommandAvailabilityContext,
+  createDiscoveryContext,
+  createExecuteContext,
+  createValidationContext,
+} from "./contexts";
 import { createEventCollector } from "./events";
 import {
   createProgressionState,
@@ -11,6 +16,7 @@ import {
 } from "./progression-lifecycle";
 import { cloneCanonicalState } from "./transaction";
 import type { Command, CommandDefinition } from "../types/command";
+import type { CommandDiscoveryResult } from "../types/command";
 import type {
   ExecutionFailure,
   ExecutionResult,
@@ -28,6 +34,16 @@ export interface Kernel<GameState extends object> {
   createInitialState(options?: {
     playerIds?: readonly string[];
   }): CanonicalState<GameState>;
+  listAvailableCommands(
+    state: CanonicalState<GameState>,
+    options?: {
+      actorId?: string;
+    },
+  ): string[];
+  discoverCommand(
+    state: CanonicalState<GameState>,
+    partialCommand: Command,
+  ): CommandDiscoveryResult | null;
   executeCommand(
     state: CanonicalState<GameState>,
     command: Command,
@@ -90,6 +106,47 @@ export function createKernel<
         game: gameState,
         runtime,
       };
+    },
+
+    listAvailableCommands(state, options) {
+      return Object.entries(game.commands)
+        .filter(([commandType, definition]) => {
+          if (!definition.isAvailable) {
+            return true;
+          }
+
+          return definition.isAvailable(
+            createCommandAvailabilityContext(
+              state,
+              commandType,
+              options?.actorId,
+            ),
+          );
+        })
+        .map(([commandType]) => commandType);
+    },
+
+    discoverCommand(state, partialCommand) {
+      const definition = game.commands[partialCommand.type];
+
+      if (!definition?.discover) {
+        return null;
+      }
+
+      if (
+        definition.isAvailable &&
+        !definition.isAvailable(
+          createCommandAvailabilityContext(
+            state,
+            partialCommand.type,
+            partialCommand.actorId,
+          ),
+        )
+      ) {
+        return null;
+      }
+
+      return definition.discover(createDiscoveryContext(state, partialCommand));
     },
 
     executeCommand(state, command) {

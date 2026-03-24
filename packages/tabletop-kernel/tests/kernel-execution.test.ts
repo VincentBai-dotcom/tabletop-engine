@@ -448,3 +448,114 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
     endTurnResult.events.filter((event) => event.type === "segment_entered"),
   ).toHaveLength(1);
 });
+
+test("kernel can list available commands through per-command availability hooks", () => {
+  const game = defineGame({
+    name: "availability-game",
+    initialState: () => ({
+      energy: 1,
+    }),
+    commands: {
+      pass_turn: {
+        isAvailable: () => true,
+        validate: () => ({ ok: true as const }),
+        execute: () => {},
+      },
+      spend_energy: {
+        isAvailable: ({ state }) => state.game.energy > 0,
+        validate: ({ state }) =>
+          state.game.energy > 0
+            ? { ok: true as const }
+            : { ok: false as const, reason: "no_energy" },
+        execute: ({ game }) => {
+          game.energy -= 1;
+        },
+      },
+      impossible_action: {
+        isAvailable: () => false,
+        validate: () => ({ ok: true as const }),
+        execute: () => {},
+      },
+    },
+  });
+
+  const kernel = createKernel(game);
+  const initialState = kernel.createInitialState();
+
+  expect(
+    kernel.listAvailableCommands(initialState, { actorId: "player-1" }),
+  ).toEqual(["pass_turn", "spend_energy"]);
+
+  const nextState = kernel.executeCommand(initialState, {
+    type: "spend_energy",
+    actorId: "player-1",
+  });
+
+  expect(nextState.ok).toBe(true);
+
+  if (!nextState.ok) {
+    throw new Error("expected spending energy to succeed");
+  }
+
+  expect(
+    kernel.listAvailableCommands(nextState.state, { actorId: "player-1" }),
+  ).toEqual(["pass_turn"]);
+});
+
+test("kernel can discover the next semantic options for a command", () => {
+  const game = defineGame({
+    name: "discovery-game",
+    initialState: () => ({
+      canPlay: true,
+    }),
+    commands: {
+      play_card: {
+        isAvailable: ({ state }) => state.game.canPlay,
+        discover: ({ partialCommand }) => {
+          const cardId = partialCommand.payload?.cardId;
+
+          if (typeof cardId !== "number") {
+            return {
+              step: "select_card",
+              options: [
+                { id: "card-1", value: 1 },
+                { id: "card-2", value: 2 },
+              ],
+            };
+          }
+
+          return {
+            step: "select_target",
+            options: [{ id: "target-1", value: 101 }],
+            nextPartialCommand: partialCommand,
+          };
+        },
+        validate: () => ({ ok: true as const }),
+        execute: () => {},
+      },
+    },
+  });
+
+  const kernel = createKernel(game);
+  const initialState = kernel.createInitialState();
+  const firstStep = kernel.discoverCommand(initialState, {
+    type: "play_card",
+    actorId: "player-1",
+  });
+  const secondStep = kernel.discoverCommand(initialState, {
+    type: "play_card",
+    actorId: "player-1",
+    payload: {
+      cardId: 2,
+    },
+  });
+
+  expect(firstStep).toMatchObject({
+    step: "select_card",
+  });
+  expect(firstStep?.options).toHaveLength(2);
+  expect(secondStep).toMatchObject({
+    step: "select_target",
+  });
+  expect(secondStep?.options[0]).toEqual({ id: "target-1", value: 101 });
+});

@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
 import type {
+  CommandAvailabilityContext,
   CanonicalState,
   Command,
+  CommandDiscoveryResult,
+  DiscoveryContext,
   ExecutionResult,
   KernelEvent,
   ProgressionCompletionContext,
@@ -154,4 +157,81 @@ test("progression lifecycle types support nested segment authoring", () => {
   expect(progression.root.children[0]?.id).toBe("turn");
   expect(lifecycleContext.segment.id).toBe("turn");
   expect(next.ownerId).toBe("player-2");
+});
+
+test("discovery types compose for command availability and next-input options", () => {
+  const availabilityContext: CommandAvailabilityContext<
+    { handCount: number },
+    {
+      progression: {
+        current: string | null;
+        rootId: string | null;
+        segments: Record<string, never>;
+      };
+      rng: { seed: string; cursor: number };
+      history: { entries: [] };
+      pending: { choices: [] };
+    }
+  > = {
+    state: {
+      game: { handCount: 3 },
+      runtime: {
+        progression: { current: "turn", rootId: "turn", segments: {} },
+        rng: { seed: "seed", cursor: 0 },
+        history: { entries: [] },
+        pending: { choices: [] },
+      },
+    },
+    commandType: "play_card",
+    actorId: "p1",
+  };
+
+  const discoveryContext: DiscoveryContext<
+    { handCount: number },
+    {
+      progression: {
+        current: string | null;
+        rootId: string | null;
+        segments: Record<string, never>;
+      };
+      rng: { seed: string; cursor: number };
+      history: { entries: [] };
+      pending: { choices: [] };
+    }
+  > = {
+    ...availabilityContext,
+    partialCommand: {
+      type: "play_card",
+      actorId: "p1",
+      payload: {
+        cardId: 12,
+      },
+    },
+  };
+
+  const discovery: CommandDiscoveryResult<{
+    id: string;
+    value: number;
+  }> = {
+    step: "select_target",
+    options: [
+      {
+        id: "target-1",
+        value: 101,
+      },
+    ],
+    complete: false,
+    nextPartialCommand: {
+      type: "play_card",
+      actorId: "p1",
+      payload: {
+        cardId: 12,
+      },
+    },
+  };
+
+  expect(availabilityContext.actorId).toBe("p1");
+  expect(discoveryContext.partialCommand.payload).toEqual({ cardId: 12 });
+  expect(discovery.step).toBe("select_target");
+  expect(discovery.options[0]?.id).toBe("target-1");
 });
