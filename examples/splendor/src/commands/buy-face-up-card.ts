@@ -20,12 +20,12 @@ import {
 export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameState> {
   readonly commandId = "buy_face_up_card";
 
-  isAvailable = (
+  isAvailable(
     context: Parameters<
       NonNullable<CommandDefinition<SplendorGameState>["isAvailable"]>
     >[0],
-  ) =>
-    guardedAvailability(() => {
+  ) {
+    return guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
       const gameOps = new SplendorGameOps(context.state.game);
       const player = gameOps.getPlayer(actorId);
@@ -42,12 +42,13 @@ export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameState
           }),
       );
     });
+  }
 
-  discover = (
+  discover(
     context: Parameters<
       NonNullable<CommandDefinition<SplendorGameState>["discover"]>
     >[0],
-  ) => {
+  ) {
     const actorId = assertAvailableActor(context);
     const payload = readPayload<Partial<BuyFaceUpCardPayload>>(
       context.partialCommand,
@@ -89,13 +90,13 @@ export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameState
     const nobleDiscovery = createNobleDiscovery(payload, eligibleNobles);
 
     return nobleDiscovery ?? completeDiscovery(payload);
-  };
+  }
 
-  validate = ({
+  validate({
     state,
     command,
-  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) =>
-    guardedValidate(() => {
+  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) {
+    return guardedValidate(() => {
       assertGameActive(state.game);
       const actorId = assertActivePlayer(state, command.actorId);
       const payload = readPayload<BuyFaceUpCardPayload>(command);
@@ -136,12 +137,13 @@ export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameState
 
       return { ok: true };
     });
+  }
 
-  execute = ({
+  execute({
     game,
     command,
     emitEvent,
-  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) => {
+  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) {
     const actorId = command.actorId!;
     const payload = readPayload<BuyFaceUpCardPayload>(command);
     const gameOps = new SplendorGameOps(game);
@@ -169,7 +171,7 @@ export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameState
         payment,
       },
     });
-  };
+  }
 }
 
 export const buyFaceUpCardCommand = new BuyFaceUpCardCommand();

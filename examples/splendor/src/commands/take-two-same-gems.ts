@@ -24,24 +24,25 @@ import {
 export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameState> {
   readonly commandId = "take_two_same_gems";
 
-  isAvailable = (
+  isAvailable(
     context: Parameters<
       NonNullable<CommandDefinition<SplendorGameState>["isAvailable"]>
     >[0],
-  ) =>
-    guardedAvailability(() => {
+  ) {
+    return guardedAvailability(() => {
       assertAvailableActor(context);
 
       return Object.entries(context.state.game.bank).some(
         ([color, count]) => color !== "gold" && count >= 4,
       );
     });
+  }
 
-  discover = (
+  discover(
     context: Parameters<
       NonNullable<CommandDefinition<SplendorGameState>["discover"]>
     >[0],
-  ) => {
+  ) {
     const actorId = assertAvailableActor(context);
     const payload = readPayload<
       Partial<TakeTwoSameGemsPayload> & {
@@ -81,13 +82,13 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
     );
 
     return returnDiscovery ?? completeDiscovery(payload);
-  };
+  }
 
-  validate = ({
+  validate({
     state,
     command,
-  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) =>
-    guardedValidate(() => {
+  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) {
+    return guardedValidate(() => {
       assertGameActive(state.game);
       const actorId = assertActivePlayer(state, command.actorId);
       const payload = readPayload<TakeTwoSameGemsPayload>(command);
@@ -115,12 +116,13 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
 
       return { ok: true };
     });
+  }
 
-  execute = ({
+  execute({
     game,
     command,
     emitEvent,
-  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) => {
+  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) {
     const actorId = command.actorId!;
     const payload = readPayload<TakeTwoSameGemsPayload>(command);
     const gameOps = new SplendorGameOps(game);
@@ -138,7 +140,7 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
         returnTokens: payload.returnTokens ?? null,
       },
     });
-  };
+  }
 }
 
 export const takeTwoSameGemsCommand = new TakeTwoSameGemsCommand();

@@ -25,12 +25,12 @@ import {
 export class TakeThreeDistinctGemsCommand implements CommandDefinition<SplendorGameState> {
   readonly commandId = "take_three_distinct_gems";
 
-  isAvailable = (
+  isAvailable(
     context: Parameters<
       NonNullable<CommandDefinition<SplendorGameState>["isAvailable"]>
     >[0],
-  ) =>
-    guardedAvailability(() => {
+  ) {
+    return guardedAvailability(() => {
       assertAvailableActor(context);
 
       return (
@@ -39,12 +39,13 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<SplendorG
         ).length >= 3
       );
     });
+  }
 
-  discover = (
+  discover(
     context: Parameters<
       NonNullable<CommandDefinition<SplendorGameState>["discover"]>
     >[0],
-  ) => {
+  ) {
     const actorId = assertAvailableActor(context);
     const payload = readPayload<
       Partial<TakeThreeDistinctGemsPayload> & {
@@ -107,13 +108,13 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<SplendorG
         colors: [...selectedColors] as GemTokenColor[],
       })
     );
-  };
+  }
 
-  validate = ({
+  validate({
     state,
     command,
-  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) =>
-    guardedValidate(() => {
+  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) {
+    return guardedValidate(() => {
       assertGameActive(state.game);
       const actorId = assertActivePlayer(state, command.actorId);
       const payload = readPayload<TakeThreeDistinctGemsPayload>(command);
@@ -151,12 +152,13 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<SplendorG
 
       return { ok: true };
     });
+  }
 
-  execute = ({
+  execute({
     game,
     command,
     emitEvent,
-  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) => {
+  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) {
     const actorId = command.actorId!;
     const payload = readPayload<TakeThreeDistinctGemsPayload>(command);
     const gameOps = new SplendorGameOps(game);
@@ -177,7 +179,7 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<SplendorG
         returnTokens: payload.returnTokens ?? null,
       },
     });
-  };
+  }
 }
 
 export const takeThreeDistinctGemsCommand = new TakeThreeDistinctGemsCommand();
