@@ -1,8 +1,4 @@
-import type {
-  Command,
-  CommandDefinition,
-  TypedCommandDefinition,
-} from "./types/command";
+import type { Command, CommandDefinition } from "./types/command";
 import type { ProgressionDefinition } from "./types/progression";
 import type { RuntimeState } from "./types/state";
 import type { RNGApi } from "./types/rng";
@@ -13,16 +9,13 @@ type AnyCommandDefinition<GameState extends object> = CommandDefinition<
   Command
 >;
 
-type AnyTypedCommandDefinition<GameState extends object> =
-  TypedCommandDefinition<GameState, RuntimeState, Command>;
-
 type CommandDefinitionMap<GameState extends object> = Record<
   string,
   AnyCommandDefinition<GameState>
 >;
 
 type CommandDefinitionList<GameState extends object> =
-  readonly AnyTypedCommandDefinition<GameState>[];
+  readonly AnyCommandDefinition<GameState>[];
 
 export interface GameSetupContext<GameState extends object = object> {
   game: GameState;
@@ -166,11 +159,11 @@ function compileCommandList<GameState extends object>(
   const commandMap: CommandDefinitionMap<GameState> = {};
 
   for (const command of commands) {
-    if (command.type in commandMap) {
-      throw new Error(`duplicate_command_type:${command.type}`);
+    if (command.commandId in commandMap) {
+      throw new Error(`duplicate_command_id:${command.commandId}`);
     }
 
-    commandMap[command.type] = command;
+    commandMap[command.commandId] = command;
   }
 
   return commandMap;

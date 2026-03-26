@@ -14,6 +14,7 @@ test("runScenario applies commands in order and returns per-command results", ()
     }))
     .commands({
       increment_counter: {
+        commandId: "increment_counter",
         validate: () => ({ ok: true as const }),
         execute: ({ game, command }) => {
           const amount =

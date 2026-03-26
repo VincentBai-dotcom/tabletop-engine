@@ -21,6 +21,7 @@ test("snapshots restore canonical state and replay reproduces final state", () =
     .rngSeed("seed-123")
     .commands({
       increment_counter: {
+        commandId: "increment_counter",
         validate: () => ({ ok: true as const }),
         execute: ({ game, command }) => {
           const amount =
@@ -32,6 +33,7 @@ test("snapshots restore canonical state and replay reproduces final state", () =
         },
       },
       sample_randomness: {
+        commandId: "sample_randomness",
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();

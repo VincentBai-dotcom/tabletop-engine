@@ -18,6 +18,7 @@ test("createGameExecutor creates initial state and commits successful commands",
     }))
     .commands({
       increment_counter: {
+        commandId: "increment_counter",
         validate: () => ({ ok: true as const }),
         execute: ({ game, command, emitEvent }) => {
           const amount =
@@ -34,6 +35,7 @@ test("createGameExecutor creates initial state and commits successful commands",
         },
       },
       decrement_counter: {
+        commandId: "decrement_counter",
         validate: ({ state }) =>
           state.game.counter > 0
             ? { ok: true as const }
@@ -73,6 +75,7 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
     }))
     .commands({
       decrement_counter: {
+        commandId: "decrement_counter",
         validate: ({ state }) =>
           state.game.counter > 0
             ? { ok: true as const }
@@ -126,6 +129,7 @@ test("execute context can update current progression owner through controlled AP
     })
     .commands({
       pass_turn: {
+        commandId: "pass_turn",
         validate: () => ({ ok: true as const }),
         execute: ({ setCurrentSegmentOwner }) => {
           setCurrentSegmentOwner("player-2");
@@ -245,6 +249,7 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
     })
     .commands({
       take_action: {
+        commandId: "take_action",
         validate: () => ({ ok: true as const }),
         execute: ({ game, emitEvent }) => {
           game.actions += 1;
@@ -331,6 +336,7 @@ test("nested progression can cascade through multiple segment transitions", () =
     })
     .commands({
       resolve_step: {
+        commandId: "resolve_step",
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           game.resolved += 1;
@@ -397,12 +403,14 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
     })
     .commands({
       take_action: {
+        commandId: "take_action",
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           game.actions += 1;
         },
       },
       end_turn: {
+        commandId: "end_turn",
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           game.requestedTurnEnd = true;
@@ -465,11 +473,13 @@ test("game executor can list available commands through per-command availability
     }))
     .commands({
       pass_turn: {
+        commandId: "pass_turn",
         isAvailable: () => true,
         validate: () => ({ ok: true as const }),
         execute: () => {},
       },
       spend_energy: {
+        commandId: "spend_energy",
         isAvailable: ({ state }) => state.game.energy > 0,
         validate: ({ state }) =>
           state.game.energy > 0
@@ -480,6 +490,7 @@ test("game executor can list available commands through per-command availability
         },
       },
       impossible_action: {
+        commandId: "impossible_action",
         isAvailable: () => false,
         validate: () => ({ ok: true as const }),
         execute: () => {},
@@ -519,6 +530,7 @@ test("game executor can discover the next semantic options for a command", () =>
     }))
     .commands({
       play_card: {
+        commandId: "play_card",
         isAvailable: ({ state }) => state.game.canPlay,
         discover: ({ partialCommand }) => {
           const cardId = partialCommand.payload?.cardId;

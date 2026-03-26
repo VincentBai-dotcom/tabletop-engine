@@ -1,4 +1,4 @@
-import type { TypedCommandDefinition } from "tabletop-kernel";
+import type { CommandDefinition } from "tabletop-kernel";
 import {
   completeDiscovery,
   createReturnTokenDiscovery,
@@ -22,9 +22,9 @@ import {
   readPayload,
 } from "./shared.ts";
 
-export const takeThreeDistinctGemsCommand: TypedCommandDefinition<SplendorGameState> =
+export const takeThreeDistinctGemsCommand: CommandDefinition<SplendorGameState> =
   {
-    type: "take_three_distinct_gems",
+    commandId: "take_three_distinct_gems",
     isAvailable: (context) =>
       guardedAvailability(() => {
         assertAvailableActor(context);

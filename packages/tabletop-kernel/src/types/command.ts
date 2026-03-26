@@ -62,6 +62,7 @@ export interface CommandDefinition<
   Runtime extends RuntimeState = RuntimeState,
   Cmd extends Command = Command,
 > {
+  commandId: string;
   isAvailable?(
     context: CommandAvailabilityContext<GameState, Runtime>,
   ): boolean;
@@ -72,12 +73,4 @@ export interface CommandDefinition<
     context: ValidationContext<GameState, Runtime, Cmd>,
   ): ValidationOutcome;
   execute(context: ExecuteContext<GameState, Runtime, Cmd>): void;
-}
-
-export interface TypedCommandDefinition<
-  GameState extends object = object,
-  Runtime extends RuntimeState = RuntimeState,
-  Cmd extends Command = Command,
-> extends CommandDefinition<GameState, Runtime, Cmd> {
-  type: string;
 }

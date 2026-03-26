@@ -1,4 +1,4 @@
-import type { TypedCommandDefinition } from "tabletop-kernel";
+import type { CommandDefinition } from "tabletop-kernel";
 import type { SplendorGameState } from "../state.ts";
 import { buyFaceUpCardCommand } from "./buy-face-up-card.ts";
 import { buyReservedCardCommand } from "./buy-reserved-card.ts";
@@ -7,8 +7,7 @@ import { reserveFaceUpCardCommand } from "./reserve-face-up-card.ts";
 import { takeThreeDistinctGemsCommand } from "./take-three-distinct-gems.ts";
 import { takeTwoSameGemsCommand } from "./take-two-same-gems.ts";
 
-export type SplendorCommandDefinition =
-  TypedCommandDefinition<SplendorGameState>;
+export type SplendorCommandDefinition = CommandDefinition<SplendorGameState>;
 
 export function createCommands(): SplendorCommandDefinition[] {
   return [

@@ -4,7 +4,7 @@ import { GameDefinitionBuilder } from "../src/game-definition";
 import type { CommandDefinition } from "../src/types/command";
 
 class IncrementScoreCommand implements CommandDefinition<{ score: number }> {
-  readonly type = "increment_score";
+  readonly commandId = "increment_score";
 
   validate() {
     return { ok: true as const };
@@ -16,7 +16,7 @@ class IncrementScoreCommand implements CommandDefinition<{ score: number }> {
 }
 
 class DecrementScoreCommand implements CommandDefinition<{ score: number }> {
-  readonly type = "decrement_score";
+  readonly commandId = "decrement_score";
 
   validate() {
     return { ok: true as const };
@@ -62,10 +62,7 @@ test("GameDefinitionBuilder compiles command lists into the command map shape", 
     .initialState(() => ({
       score: 0,
     }))
-    .commands([
-      new IncrementScoreCommand(),
-      new DecrementScoreCommand(),
-    ] as unknown as Record<string, never>)
+    .commands([new IncrementScoreCommand(), new DecrementScoreCommand()])
     .build();
 
   expect(Object.keys(game.commands)).toEqual([
@@ -76,7 +73,7 @@ test("GameDefinitionBuilder compiles command lists into the command map shape", 
   expect(game.commands.decrement_score).toBeInstanceOf(DecrementScoreCommand);
 });
 
-test("GameDefinitionBuilder rejects duplicate command types in command lists", () => {
+test("GameDefinitionBuilder rejects duplicate command ids in command lists", () => {
   expect(() =>
     new GameDefinitionBuilder<{
       score: number;
@@ -84,12 +81,9 @@ test("GameDefinitionBuilder rejects duplicate command types in command lists", (
       .initialState(() => ({
         score: 0,
       }))
-      .commands([
-        new IncrementScoreCommand(),
-        new IncrementScoreCommand(),
-      ] as unknown as Record<string, never>)
+      .commands([new IncrementScoreCommand(), new IncrementScoreCommand()])
       .build(),
-  ).toThrow("duplicate_command_type:increment_score");
+  ).toThrow("duplicate_command_id:increment_score");
 });
 
 test("createGameExecutor normalizes nested progression trees into runtime state", () => {

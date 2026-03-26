@@ -15,6 +15,7 @@ test("game executor rng is deterministic for the same seed and command sequence"
     .rngSeed("seed-123")
     .commands({
       sample_randomness: {
+        commandId: "sample_randomness",
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();
@@ -56,6 +57,7 @@ test("game executor rng cursor advances when randomness is consumed", () => {
     .rngSeed("seed-123")
     .commands({
       sample_randomness: {
+        commandId: "sample_randomness",
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();
