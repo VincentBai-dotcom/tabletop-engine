@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   appendReplayStep,
-  createKernel,
+  createGameExecutor,
   GameDefinitionBuilder,
   createReplayRecord,
   createSnapshot,
@@ -40,7 +40,7 @@ test("snapshots restore canonical state and replay reproduces final state", () =
     })
     .build();
 
-  const kernel = createKernel(game);
+  const kernel = createGameExecutor(game);
   const initialState = kernel.createInitialState();
   const initialSnapshot = createSnapshot(initialState);
   const restoredInitialState = restoreSnapshot(initialSnapshot);

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { createKernel, GameDefinitionBuilder } from "../src/index";
+import { createGameExecutor, GameDefinitionBuilder } from "../src/index";
 
-test("kernel rng is deterministic for the same seed and command sequence", () => {
+test("game executor rng is deterministic for the same seed and command sequence", () => {
   const game = new GameDefinitionBuilder<{
     roll: number;
     value: number;
@@ -25,8 +25,8 @@ test("kernel rng is deterministic for the same seed and command sequence", () =>
     })
     .build();
 
-  const kernelA = createKernel(game);
-  const kernelB = createKernel(game);
+  const kernelA = createGameExecutor(game);
+  const kernelB = createGameExecutor(game);
 
   const initialA = kernelA.createInitialState();
   const initialB = kernelB.createInitialState();
@@ -46,7 +46,7 @@ test("kernel rng is deterministic for the same seed and command sequence", () =>
   );
 });
 
-test("kernel rng cursor advances when randomness is consumed", () => {
+test("game executor rng cursor advances when randomness is consumed", () => {
   const game = new GameDefinitionBuilder<{
     value: number;
   }>("rng-game")
@@ -64,7 +64,7 @@ test("kernel rng cursor advances when randomness is consumed", () => {
     })
     .build();
 
-  const kernel = createKernel(game);
+  const kernel = createGameExecutor(game);
   const initialState = kernel.createInitialState();
   const result = kernel.executeCommand(initialState, {
     type: "sample_randomness",

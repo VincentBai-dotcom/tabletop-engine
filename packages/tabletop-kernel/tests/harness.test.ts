@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test";
-import { createKernel, GameDefinitionBuilder, runScenario } from "../src/index";
+import {
+  createGameExecutor,
+  GameDefinitionBuilder,
+  runScenario,
+} from "../src/index";
 
 test("runScenario applies commands in order and returns per-command results", () => {
   const game = new GameDefinitionBuilder<{
@@ -23,7 +27,7 @@ test("runScenario applies commands in order and returns per-command results", ()
     })
     .build();
 
-  const kernel = createKernel(game);
+  const kernel = createGameExecutor(game);
   const scenario = runScenario(kernel, [
     { type: "increment_counter", payload: { amount: 2 } },
     { type: "increment_counter", payload: { amount: 3 } },
