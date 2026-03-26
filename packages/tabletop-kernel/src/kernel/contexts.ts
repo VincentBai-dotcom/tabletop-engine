@@ -1,9 +1,9 @@
 import type {
-  CommandAvailabilityContext,
   CommandInput,
-  DiscoveryContext,
-  ExecuteContext,
-  ValidationContext,
+  InternalCommandAvailabilityContext,
+  InternalDiscoveryContext,
+  InternalExecuteContext,
+  InternalValidationContext,
 } from "../types/command";
 import type { KernelEvent } from "../types/event";
 import type { CanonicalState, RuntimeState } from "../types/state";
@@ -23,7 +23,7 @@ export function createValidationContext<
 >(
   state: CanonicalState<GameState, Runtime>,
   commandInput: Cmd,
-): ValidationContext<GameState, Runtime, Cmd> {
+): InternalValidationContext<GameState, Runtime, Cmd> {
   return {
     state,
     commandInput,
@@ -37,7 +37,7 @@ export function createCommandAvailabilityContext<
   state: CanonicalState<GameState, Runtime>,
   commandType: string,
   actorId?: string,
-): CommandAvailabilityContext<GameState, Runtime> {
+): InternalCommandAvailabilityContext<GameState, Runtime> {
   return {
     state,
     commandType,
@@ -52,7 +52,7 @@ export function createDiscoveryContext<
 >(
   state: CanonicalState<GameState, Runtime>,
   partialCommand: PartialCmd,
-): DiscoveryContext<GameState, Runtime, PartialCmd> {
+): InternalDiscoveryContext<GameState, Runtime, PartialCmd> {
   return {
     ...createCommandAvailabilityContext(
       state,
@@ -73,7 +73,7 @@ export function createExecuteContext<
   rng: RNGApi,
   setCurrentSegmentOwner: (ownerId?: string) => void,
   emitEvent: (event: KernelEvent) => void,
-): ExecuteContext<GameState, Runtime, Cmd> {
+): InternalExecuteContext<GameState, Runtime, Cmd> {
   return {
     state,
     commandInput,

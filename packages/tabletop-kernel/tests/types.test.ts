@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type {
   CommandAvailabilityContext,
+  CommandDefinition,
   CanonicalState,
   CommandInput,
   CommandDiscoveryResult,
@@ -160,19 +161,9 @@ test("progression lifecycle types support nested segment authoring", () => {
 });
 
 test("discovery types compose for command availability and next-input options", () => {
-  const availabilityContext: CommandAvailabilityContext<
-    { handCount: number },
-    {
-      progression: {
-        current: string | null;
-        rootId: string | null;
-        segments: Record<string, never>;
-      };
-      rng: { seed: string; cursor: number };
-      history: { entries: [] };
-      pending: { choices: [] };
-    }
-  > = {
+  const availabilityContext: CommandAvailabilityContext<{
+    handCount: number;
+  }> = {
     state: {
       game: { handCount: 3 },
       runtime: {
@@ -186,19 +177,7 @@ test("discovery types compose for command availability and next-input options", 
     actorId: "p1",
   };
 
-  const discoveryContext: DiscoveryContext<
-    { handCount: number },
-    {
-      progression: {
-        current: string | null;
-        rootId: string | null;
-        segments: Record<string, never>;
-      };
-      rng: { seed: string; cursor: number };
-      history: { entries: [] };
-      pending: { choices: [] };
-    }
-  > = {
+  const discoveryContext: DiscoveryContext<{ handCount: number }> = {
     ...availabilityContext,
     partialCommand: {
       type: "play_card",
@@ -234,4 +213,22 @@ test("discovery types compose for command availability and next-input options", 
   expect(discoveryContext.partialCommand.payload).toEqual({ cardId: 12 });
   expect(discovery.step).toBe("select_target");
   expect(discovery.options[0]?.id).toBe("target-1");
+});
+
+test("consumer command definitions only expose game state and command input generics", () => {
+  const definition: CommandDefinition<
+    { score: number },
+    CommandInput<{ amount: number }>
+  > = {
+    commandId: "gain_score",
+    validate: ({ commandInput }) => ({
+      ok: typeof commandInput.payload?.amount === "number",
+      reason: "amount_required",
+    }),
+    execute: ({ game, commandInput }) => {
+      game.score += commandInput.payload?.amount ?? 0;
+    },
+  };
+
+  expect(definition.commandId).toBe("gain_score");
 });

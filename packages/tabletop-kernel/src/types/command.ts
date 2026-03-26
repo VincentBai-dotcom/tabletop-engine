@@ -11,7 +11,7 @@ export interface CommandInput<
   payload?: Payload;
 }
 
-export interface ValidationContext<
+export interface InternalValidationContext<
   GameState extends object = object,
   Runtime extends RuntimeState = RuntimeState,
   Cmd extends CommandInput = CommandInput,
@@ -20,7 +20,12 @@ export interface ValidationContext<
   commandInput: Cmd;
 }
 
-export interface CommandAvailabilityContext<
+export type ValidationContext<
+  GameState extends object = object,
+  Cmd extends CommandInput = CommandInput,
+> = InternalValidationContext<GameState, RuntimeState, Cmd>;
+
+export interface InternalCommandAvailabilityContext<
   GameState extends object = object,
   Runtime extends RuntimeState = RuntimeState,
 > {
@@ -29,13 +34,21 @@ export interface CommandAvailabilityContext<
   actorId?: string;
 }
 
-export interface DiscoveryContext<
+export type CommandAvailabilityContext<GameState extends object = object> =
+  InternalCommandAvailabilityContext<GameState, RuntimeState>;
+
+export interface InternalDiscoveryContext<
   GameState extends object = object,
   Runtime extends RuntimeState = RuntimeState,
   PartialCmd extends CommandInput = CommandInput,
-> extends CommandAvailabilityContext<GameState, Runtime> {
+> extends InternalCommandAvailabilityContext<GameState, Runtime> {
   partialCommand: PartialCmd;
 }
+
+export type DiscoveryContext<
+  GameState extends object = object,
+  PartialCmd extends CommandInput = CommandInput,
+> = InternalDiscoveryContext<GameState, RuntimeState, PartialCmd>;
 
 export interface CommandDiscoveryResult<Option = unknown> {
   step: string;
@@ -45,11 +58,11 @@ export interface CommandDiscoveryResult<Option = unknown> {
   metadata?: Record<string, unknown>;
 }
 
-export interface ExecuteContext<
+export interface InternalExecuteContext<
   GameState extends object = object,
   Runtime extends RuntimeState = RuntimeState,
   Cmd extends CommandInput = CommandInput,
-> extends ValidationContext<GameState, Runtime, Cmd> {
+> extends InternalValidationContext<GameState, Runtime, Cmd> {
   game: GameState;
   runtime: Readonly<Runtime>;
   rng: RNGApi;
@@ -57,20 +70,30 @@ export interface ExecuteContext<
   emitEvent(event: KernelEvent): void;
 }
 
-export interface CommandDefinition<
+export type ExecuteContext<
+  GameState extends object = object,
+  Cmd extends CommandInput = CommandInput,
+> = InternalExecuteContext<GameState, RuntimeState, Cmd>;
+
+export interface InternalCommandDefinition<
   GameState extends object = object,
   Runtime extends RuntimeState = RuntimeState,
   Cmd extends CommandInput = CommandInput,
 > {
   commandId: string;
   isAvailable?(
-    context: CommandAvailabilityContext<GameState, Runtime>,
+    context: InternalCommandAvailabilityContext<GameState, Runtime>,
   ): boolean;
   discover?(
-    context: DiscoveryContext<GameState, Runtime, Cmd>,
+    context: InternalDiscoveryContext<GameState, Runtime, Cmd>,
   ): CommandDiscoveryResult | null;
   validate(
-    context: ValidationContext<GameState, Runtime, Cmd>,
+    context: InternalValidationContext<GameState, Runtime, Cmd>,
   ): ValidationOutcome;
-  execute(context: ExecuteContext<GameState, Runtime, Cmd>): void;
+  execute(context: InternalExecuteContext<GameState, Runtime, Cmd>): void;
 }
+
+export type CommandDefinition<
+  GameState extends object = object,
+  Cmd extends CommandInput = CommandInput,
+> = InternalCommandDefinition<GameState, RuntimeState, Cmd>;

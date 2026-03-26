@@ -5,7 +5,6 @@ import type { RNGApi } from "./types/rng";
 
 type AnyCommandDefinition<GameState extends object> = CommandDefinition<
   GameState,
-  RuntimeState,
   CommandInput
 >;
 
@@ -83,9 +82,9 @@ export class GameDefinitionBuilder<
     >;
   }
 
-  commands<NextCommands extends CommandDefinitionMap<GameState>>(
-    commands: NextCommands,
-  ): GameDefinitionBuilder<GameState, NextCommands>;
+  commands(
+    commands: CommandDefinitionMap<GameState>,
+  ): GameDefinitionBuilder<GameState, CommandDefinitionMap<GameState>>;
   commands(
     commands: CommandDefinitionList<GameState>,
   ): GameDefinitionBuilder<GameState, CommandDefinitionMap<GameState>>;
@@ -107,11 +106,17 @@ export class GameDefinitionBuilder<
     }
 
     (
-      this.config as unknown as GameDefinitionBuilderState<GameState, Commands>
-    ).commands = commands as Commands;
+      this.config as unknown as GameDefinitionBuilderState<
+        GameState,
+        CommandDefinitionMap<GameState>
+      >
+    ).commands = commands as CommandDefinitionMap<GameState>;
     delete this.config.commandList;
 
-    return this;
+    return this as unknown as GameDefinitionBuilder<
+      GameState,
+      CommandDefinitionMap<GameState>
+    >;
   }
 
   progression(progression: ProgressionDefinition): this {

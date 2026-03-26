@@ -15,7 +15,7 @@ import {
   type NormalizedProgressionDefinition,
 } from "./progression-lifecycle";
 import { cloneCanonicalState } from "./transaction";
-import type { CommandDefinition, CommandInput } from "../types/command";
+import type { CommandInput, InternalCommandDefinition } from "../types/command";
 import type { CommandDiscoveryResult } from "../types/command";
 import type {
   ExecutionFailure,
@@ -27,7 +27,7 @@ import { createRNGService } from "../rng/service";
 
 type CommandDefinitions<GameState extends object> = Record<
   string,
-  CommandDefinition<GameState, RuntimeState, CommandInput>
+  InternalCommandDefinition<GameState, RuntimeState, CommandInput>
 >;
 
 export interface GameExecutor<GameState extends object> {
