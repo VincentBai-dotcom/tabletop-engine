@@ -1,6 +1,19 @@
 import { expect, test } from "bun:test";
 
-import { developmentCards, developmentCardsByLevel, nobleTiles } from "../src/index.ts";
+import {
+  developmentCards,
+  developmentCardsByLevel,
+  nobleTiles,
+} from "../src/index.ts";
+import {
+  BuyFaceUpCardCommand,
+  BuyReservedCardCommand,
+  ReserveDeckCardCommand,
+  ReserveFaceUpCardCommand,
+  TakeThreeDistinctGemsCommand,
+  TakeTwoSameGemsCommand,
+  createCommands,
+} from "../src/commands/index.ts";
 
 test("splendor static data is complete", () => {
   expect(developmentCards).toHaveLength(90);
@@ -22,4 +35,15 @@ test("splendor static data has stable identifiers", () => {
   expect(nobleTiles.at(-1)?.name).toBe(
     "Suleiman the Magnificent, Sultan of the Ottoman Empire",
   );
+});
+
+test("splendor command registry is composed from command class instances", () => {
+  const commands = createCommands();
+
+  expect(commands[0]).toBeInstanceOf(TakeThreeDistinctGemsCommand);
+  expect(commands[1]).toBeInstanceOf(TakeTwoSameGemsCommand);
+  expect(commands[2]).toBeInstanceOf(ReserveFaceUpCardCommand);
+  expect(commands[3]).toBeInstanceOf(ReserveDeckCardCommand);
+  expect(commands[4]).toBeInstanceOf(BuyFaceUpCardCommand);
+  expect(commands[5]).toBeInstanceOf(BuyReservedCardCommand);
 });

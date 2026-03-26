@@ -21,17 +21,27 @@ import {
   readPayload,
 } from "./shared.ts";
 
-export const takeTwoSameGemsCommand: CommandDefinition<SplendorGameState> = {
-  commandId: "take_two_same_gems",
-  isAvailable: (context) =>
+export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameState> {
+  readonly commandId = "take_two_same_gems";
+
+  isAvailable = (
+    context: Parameters<
+      NonNullable<CommandDefinition<SplendorGameState>["isAvailable"]>
+    >[0],
+  ) =>
     guardedAvailability(() => {
       assertAvailableActor(context);
 
       return Object.entries(context.state.game.bank).some(
         ([color, count]) => color !== "gold" && count >= 4,
       );
-    }),
-  discover: (context) => {
+    });
+
+  discover = (
+    context: Parameters<
+      NonNullable<CommandDefinition<SplendorGameState>["discover"]>
+    >[0],
+  ) => {
     const actorId = assertAvailableActor(context);
     const payload = readPayload<
       Partial<TakeTwoSameGemsPayload> & {
@@ -71,8 +81,12 @@ export const takeTwoSameGemsCommand: CommandDefinition<SplendorGameState> = {
     );
 
     return returnDiscovery ?? completeDiscovery(payload);
-  },
-  validate: ({ state, command }) =>
+  };
+
+  validate = ({
+    state,
+    command,
+  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) =>
     guardedValidate(() => {
       assertGameActive(state.game);
       const actorId = assertActivePlayer(state, command.actorId);
@@ -100,8 +114,13 @@ export const takeTwoSameGemsCommand: CommandDefinition<SplendorGameState> = {
       }
 
       return { ok: true };
-    }),
-  execute: ({ game, command, emitEvent }) => {
+    });
+
+  execute = ({
+    game,
+    command,
+    emitEvent,
+  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) => {
     const actorId = command.actorId!;
     const payload = readPayload<TakeTwoSameGemsPayload>(command);
     const gameOps = new SplendorGameOps(game);
@@ -119,5 +138,7 @@ export const takeTwoSameGemsCommand: CommandDefinition<SplendorGameState> = {
         returnTokens: payload.returnTokens ?? null,
       },
     });
-  },
-};
+  };
+}
+
+export const takeTwoSameGemsCommand = new TakeTwoSameGemsCommand();

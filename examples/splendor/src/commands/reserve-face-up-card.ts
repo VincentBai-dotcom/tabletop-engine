@@ -17,9 +17,14 @@ import {
   readPayload,
 } from "./shared.ts";
 
-export const reserveFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
-  commandId: "reserve_face_up_card",
-  isAvailable: (context) =>
+export class ReserveFaceUpCardCommand implements CommandDefinition<SplendorGameState> {
+  readonly commandId = "reserve_face_up_card";
+
+  isAvailable = (
+    context: Parameters<
+      NonNullable<CommandDefinition<SplendorGameState>["isAvailable"]>
+    >[0],
+  ) =>
     guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
       const player = context.state.game.players[actorId]!;
@@ -31,8 +36,13 @@ export const reserveFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
       return Object.values(context.state.game.board.faceUpByLevel).some(
         (cards) => cards.length > 0,
       );
-    }),
-  discover: (context) => {
+    });
+
+  discover = (
+    context: Parameters<
+      NonNullable<CommandDefinition<SplendorGameState>["discover"]>
+    >[0],
+  ) => {
     const actorId = assertAvailableActor(context);
     const payload = readPayload<Partial<ReserveFaceUpCardPayload>>(
       context.partialCommand,
@@ -77,8 +87,12 @@ export const reserveFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
     );
 
     return returnDiscovery ?? completeDiscovery(payload);
-  },
-  validate: ({ state, command }) =>
+  };
+
+  validate = ({
+    state,
+    command,
+  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) =>
     guardedValidate(() => {
       assertGameActive(state.game);
       const actorId = assertActivePlayer(state, command.actorId);
@@ -115,8 +129,13 @@ export const reserveFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
       }
 
       return { ok: true };
-    }),
-  execute: ({ game, command, emitEvent }) => {
+    });
+
+  execute = ({
+    game,
+    command,
+    emitEvent,
+  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) => {
     const actorId = command.actorId!;
     const payload = readPayload<ReserveFaceUpCardPayload>(command);
     const gameOps = new SplendorGameOps(game);
@@ -146,5 +165,7 @@ export const reserveFaceUpCardCommand: CommandDefinition<SplendorGameState> = {
         returnTokens: payload.returnTokens ?? null,
       },
     });
-  },
-};
+  };
+}
+
+export const reserveFaceUpCardCommand = new ReserveFaceUpCardCommand();

@@ -22,59 +22,119 @@ import {
   readPayload,
 } from "./shared.ts";
 
-export const takeThreeDistinctGemsCommand: CommandDefinition<SplendorGameState> =
-  {
-    commandId: "take_three_distinct_gems",
-    isAvailable: (context) =>
-      guardedAvailability(() => {
-        assertAvailableActor(context);
+export class TakeThreeDistinctGemsCommand implements CommandDefinition<SplendorGameState> {
+  readonly commandId = "take_three_distinct_gems";
 
-        return (
-          Object.entries(context.state.game.bank).filter(
-            ([color, count]) => color !== "gold" && count > 0,
-          ).length >= 3
-        );
-      }),
-    discover: (context) => {
-      const actorId = assertAvailableActor(context);
-      const payload = readPayload<
-        Partial<TakeThreeDistinctGemsPayload> & {
-          colors?: GemTokenColor[];
-          returnTokens?: ReturnTokensPayload;
-        }
-      >(context.partialCommand);
-      const selectedColors: GemTokenColor[] = payload.colors
-        ? [...payload.colors]
-        : [];
+  isAvailable = (
+    context: Parameters<
+      NonNullable<CommandDefinition<SplendorGameState>["isAvailable"]>
+    >[0],
+  ) =>
+    guardedAvailability(() => {
+      assertAvailableActor(context);
 
-      if (selectedColors.length < 3) {
-        return {
-          step: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
-          options: Object.entries(context.state.game.bank)
-            .filter(
-              ([color, count]) =>
-                color !== "gold" &&
-                count > 0 &&
-                !selectedColors.includes(color as GemTokenColor),
-            )
-            .map(([color]) => ({
-              id: color,
-              value: {
-                ...payload,
-                colors: [...selectedColors, color] as GemTokenColor[],
-              },
-              metadata: {
-                color,
-                selectedCount: selectedColors.length,
-                requiredCount: 3,
-              },
-            })),
-        };
+      return (
+        Object.entries(context.state.game.bank).filter(
+          ([color, count]) => color !== "gold" && count > 0,
+        ).length >= 3
+      );
+    });
+
+  discover = (
+    context: Parameters<
+      NonNullable<CommandDefinition<SplendorGameState>["discover"]>
+    >[0],
+  ) => {
+    const actorId = assertAvailableActor(context);
+    const payload = readPayload<
+      Partial<TakeThreeDistinctGemsPayload> & {
+        colors?: GemTokenColor[];
+        returnTokens?: ReturnTokensPayload;
+      }
+    >(context.partialCommand);
+    const selectedColors: GemTokenColor[] = payload.colors
+      ? [...payload.colors]
+      : [];
+
+    if (selectedColors.length < 3) {
+      return {
+        step: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
+        options: Object.entries(context.state.game.bank)
+          .filter(
+            ([color, count]) =>
+              color !== "gold" &&
+              count > 0 &&
+              !selectedColors.includes(color as GemTokenColor),
+          )
+          .map(([color]) => ({
+            id: color,
+            value: {
+              ...payload,
+              colors: [...selectedColors, color] as GemTokenColor[],
+            },
+            metadata: {
+              color,
+              selectedCount: selectedColors.length,
+              requiredCount: 3,
+            },
+          })),
+      };
+    }
+
+    const player = PlayerOps.clone(context.state.game.players[actorId]!);
+
+    for (const color of selectedColors) {
+      player.tokens[color] += 1;
+    }
+
+    const requiredReturnCount = Math.max(
+      new PlayerOps(player).getTokenCount() - 10,
+      0,
+    );
+    const returnDiscovery = createReturnTokenDiscovery(
+      {
+        ...payload,
+        colors: [...selectedColors] as GemTokenColor[],
+      },
+      player.tokens,
+      requiredReturnCount,
+    );
+
+    return (
+      returnDiscovery ??
+      completeDiscovery({
+        ...payload,
+        colors: [...selectedColors] as GemTokenColor[],
+      })
+    );
+  };
+
+  validate = ({
+    state,
+    command,
+  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) =>
+    guardedValidate(() => {
+      assertGameActive(state.game);
+      const actorId = assertActivePlayer(state, command.actorId);
+      const payload = readPayload<TakeThreeDistinctGemsPayload>(command);
+
+      if (!payload.colors || payload.colors.length !== 3) {
+        return { ok: false, reason: "three_colors_required" };
       }
 
-      const player = PlayerOps.clone(context.state.game.players[actorId]!);
+      const uniqueColors = new Set(payload.colors);
 
-      for (const color of selectedColors) {
+      if (uniqueColors.size !== 3) {
+        return { ok: false, reason: "colors_must_be_distinct" };
+      }
+
+      const player = PlayerOps.clone(state.game.players[actorId]!);
+
+      for (const color of payload.colors) {
+        if (state.game.bank[color] <= 0) {
+          return { ok: false, reason: "token_color_unavailable" };
+        }
+
         player.tokens[color] += 1;
       }
 
@@ -82,86 +142,42 @@ export const takeThreeDistinctGemsCommand: CommandDefinition<SplendorGameState> 
         new PlayerOps(player).getTokenCount() - 10,
         0,
       );
-      const returnDiscovery = createReturnTokenDiscovery(
-        {
-          ...payload,
-          colors: [...selectedColors] as GemTokenColor[],
-        },
-        player.tokens,
-        requiredReturnCount,
-      );
 
-      return (
-        returnDiscovery ??
-        completeDiscovery({
-          ...payload,
-          colors: [...selectedColors] as GemTokenColor[],
-        })
-      );
-    },
-    validate: ({ state, command }) =>
-      guardedValidate(() => {
-        assertGameActive(state.game);
-        const actorId = assertActivePlayer(state, command.actorId);
-        const payload = readPayload<TakeThreeDistinctGemsPayload>(command);
-
-        if (!payload.colors || payload.colors.length !== 3) {
-          return { ok: false, reason: "three_colors_required" };
-        }
-
-        const uniqueColors = new Set(payload.colors);
-
-        if (uniqueColors.size !== 3) {
-          return { ok: false, reason: "colors_must_be_distinct" };
-        }
-
-        const player = PlayerOps.clone(state.game.players[actorId]!);
-
-        for (const color of payload.colors) {
-          if (state.game.bank[color] <= 0) {
-            return { ok: false, reason: "token_color_unavailable" };
-          }
-
-          player.tokens[color] += 1;
-        }
-
-        const requiredReturnCount = Math.max(
-          new PlayerOps(player).getTokenCount() - 10,
-          0,
-        );
-
-        if (
-          !validateReturnTokens(
-            player,
-            payload.returnTokens,
-            requiredReturnCount,
-          )
-        ) {
-          return { ok: false, reason: "invalid_return_tokens" };
-        }
-
-        return { ok: true };
-      }),
-    execute: ({ game, command, emitEvent }) => {
-      const actorId = command.actorId!;
-      const payload = readPayload<TakeThreeDistinctGemsPayload>(command);
-      const gameOps = new SplendorGameOps(game);
-      const player = gameOps.getPlayer(actorId).state;
-
-      for (const color of payload.colors) {
-        game.bank[color] -= 1;
-        player.tokens[color] += 1;
+      if (
+        !validateReturnTokens(player, payload.returnTokens, requiredReturnCount)
+      ) {
+        return { ok: false, reason: "invalid_return_tokens" };
       }
 
-      applyReturnTokens(player, game.bank, payload.returnTokens);
-      emitEvent({
-        category: "domain",
-        type: "gems_taken",
-        payload: {
-          actorId,
-          colors: payload.colors,
-          returnTokens: payload.returnTokens ?? null,
-        },
-      });
-    },
+      return { ok: true };
+    });
+
+  execute = ({
+    game,
+    command,
+    emitEvent,
+  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) => {
+    const actorId = command.actorId!;
+    const payload = readPayload<TakeThreeDistinctGemsPayload>(command);
+    const gameOps = new SplendorGameOps(game);
+    const player = gameOps.getPlayer(actorId).state;
+
+    for (const color of payload.colors) {
+      game.bank[color] -= 1;
+      player.tokens[color] += 1;
+    }
+
+    applyReturnTokens(player, game.bank, payload.returnTokens);
+    emitEvent({
+      category: "domain",
+      type: "gems_taken",
+      payload: {
+        actorId,
+        colors: payload.colors,
+        returnTokens: payload.returnTokens ?? null,
+      },
+    });
   };
+}
+
+export const takeThreeDistinctGemsCommand = new TakeThreeDistinctGemsCommand();
