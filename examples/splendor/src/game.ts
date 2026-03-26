@@ -1,8 +1,5 @@
 import { GameDefinitionBuilder, type Command } from "tabletop-kernel";
-import {
-  createCommands,
-  type SplendorCommandDefinitions,
-} from "./commands/index.ts";
+import { createCommands } from "./commands/index.ts";
 import { SplendorGameOps } from "./model/game-ops.ts";
 import { createInitialGameState, setupSplendorGame } from "./setup.ts";
 import type {
@@ -23,10 +20,7 @@ export function createSplendorGame(options: CreateSplendorGameOptions) {
     throw new Error("splendor_requires_2_to_4_players");
   }
 
-  return new GameDefinitionBuilder<
-    SplendorGameState,
-    SplendorCommandDefinitions
-  >("splendor")
+  return new GameDefinitionBuilder<SplendorGameState>("splendor")
     .rngSeed(seed)
     .progression({
       root: {
