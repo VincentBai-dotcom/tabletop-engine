@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createKernel } from "../src/kernel/create-kernel";
-import { defineGame } from "../src/game-definition";
+import { GameDefinitionBuilder } from "../src/game-definition";
 import { evaluateCompletionPolicy } from "../src/kernel/progression-lifecycle";
 import {
   createProgressionCompletionContext,
@@ -10,12 +10,13 @@ import { createEventCollector } from "../src/kernel/events";
 import { createRNGService } from "../src/rng/service";
 
 test("createKernel creates initial state and commits successful commands", () => {
-  const game = defineGame({
-    name: "counter-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    counter: number;
+  }>("counter-game")
+    .initialState(() => ({
       counter: 0,
-    }),
-    commands: {
+    }))
+    .commands({
       increment_counter: {
         validate: () => ({ ok: true as const }),
         execute: ({ game, command, emitEvent }) => {
@@ -44,9 +45,9 @@ test("createKernel creates initial state and commits successful commands", () =>
           game.counter -= 1;
         },
       },
-    },
-    rngSeed: "test-seed",
-  });
+    })
+    .rngSeed("test-seed")
+    .build();
 
   const kernel = createKernel(game);
   const initialState = kernel.createInitialState();
@@ -64,12 +65,13 @@ test("createKernel creates initial state and commits successful commands", () =>
 });
 
 test("createKernel returns unchanged state for validation failures", () => {
-  const game = defineGame({
-    name: "counter-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    counter: number;
+  }>("counter-game")
+    .initialState(() => ({
       counter: 0,
-    }),
-    commands: {
+    }))
+    .commands({
       decrement_counter: {
         validate: ({ state }) =>
           state.game.counter > 0
@@ -83,8 +85,8 @@ test("createKernel returns unchanged state for validation failures", () => {
           game.counter -= 1;
         },
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const initialState = kernel.createInitialState();
@@ -106,30 +108,31 @@ test("createKernel returns unchanged state for validation failures", () => {
 });
 
 test("execute context can update current progression owner through controlled API", () => {
-  const game = defineGame({
-    name: "turn-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    marker: number;
+  }>("turn-game")
+    .initialState(() => ({
       marker: 0,
-    }),
-    progression: {
+    }))
+    .progression({
       root: {
         id: "turn",
         kind: "turn",
         children: [],
       },
-    },
-    setup: ({ runtime }) => {
+    })
+    .setup(({ runtime }) => {
       runtime.progression.segments.turn!.ownerId = "player-1";
-    },
-    commands: {
+    })
+    .commands({
       pass_turn: {
         validate: () => ({ ok: true as const }),
         execute: ({ setCurrentSegmentOwner }) => {
           setCurrentSegmentOwner("player-2");
         },
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const initialState = kernel.createInitialState();
@@ -208,12 +211,13 @@ test("built-in progression completion policies evaluate through lifecycle contex
 });
 
 test("successful commands trigger automatic progression lifecycle and emit lifecycle events", () => {
-  const game = defineGame({
-    name: "auto-turn-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    actions: number;
+  }>("auto-turn-game")
+    .initialState(() => ({
       actions: 0,
-    }),
-    progression: {
+    }))
+    .progression({
       root: {
         id: "turn",
         kind: "turn",
@@ -235,11 +239,11 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
         }),
         children: [],
       },
-    },
-    setup: ({ runtime }) => {
+    })
+    .setup(({ runtime }) => {
       runtime.progression.segments.turn!.ownerId = "player-1";
-    },
-    commands: {
+    })
+    .commands({
       take_action: {
         validate: () => ({ ok: true as const }),
         execute: ({ game, emitEvent }) => {
@@ -253,8 +257,8 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
           });
         },
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const initialState = kernel.createInitialState();
@@ -291,12 +295,13 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
 });
 
 test("nested progression can cascade through multiple segment transitions", () => {
-  const game = defineGame({
-    name: "nested-progression-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    resolved: number;
+  }>("nested-progression-game")
+    .initialState(() => ({
       resolved: 0,
-    }),
-    progression: {
+    }))
+    .progression({
       root: {
         id: "round",
         kind: "round",
@@ -320,19 +325,19 @@ test("nested progression can cascade through multiple segment transitions", () =
           },
         ],
       },
-    },
-    setup: ({ runtime }) => {
+    })
+    .setup(({ runtime }) => {
       runtime.progression.segments.turn!.ownerId = "player-1";
-    },
-    commands: {
+    })
+    .commands({
       resolve_step: {
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           game.resolved += 1;
         },
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const initialState = kernel.createInitialState();
@@ -363,13 +368,15 @@ test("nested progression can cascade through multiple segment transitions", () =
 });
 
 test("manual progression paths can avoid auto-advancing ordinary commands and still end explicitly", () => {
-  const game = defineGame({
-    name: "manual-turn-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    actions: number;
+    requestedTurnEnd: boolean;
+  }>("manual-turn-game")
+    .initialState(() => ({
       actions: 0,
       requestedTurnEnd: false,
-    }),
-    progression: {
+    }))
+    .progression({
       root: {
         id: "turn",
         kind: "turn",
@@ -384,11 +391,11 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
         }),
         children: [],
       },
-    },
-    setup: ({ runtime }) => {
+    })
+    .setup(({ runtime }) => {
       runtime.progression.segments.turn!.ownerId = "player-1";
-    },
-    commands: {
+    })
+    .commands({
       take_action: {
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
@@ -401,8 +408,8 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
           game.requestedTurnEnd = true;
         },
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const initialState = kernel.createInitialState();
@@ -450,12 +457,13 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
 });
 
 test("kernel can list available commands through per-command availability hooks", () => {
-  const game = defineGame({
-    name: "availability-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    energy: number;
+  }>("availability-game")
+    .initialState(() => ({
       energy: 1,
-    }),
-    commands: {
+    }))
+    .commands({
       pass_turn: {
         isAvailable: () => true,
         validate: () => ({ ok: true as const }),
@@ -476,8 +484,8 @@ test("kernel can list available commands through per-command availability hooks"
         validate: () => ({ ok: true as const }),
         execute: () => {},
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const initialState = kernel.createInitialState();
@@ -503,12 +511,13 @@ test("kernel can list available commands through per-command availability hooks"
 });
 
 test("kernel can discover the next semantic options for a command", () => {
-  const game = defineGame({
-    name: "discovery-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    canPlay: boolean;
+  }>("discovery-game")
+    .initialState(() => ({
       canPlay: true,
-    }),
-    commands: {
+    }))
+    .commands({
       play_card: {
         isAvailable: ({ state }) => state.game.canPlay,
         discover: ({ partialCommand }) => {
@@ -533,8 +542,8 @@ test("kernel can discover the next semantic options for a command", () => {
         validate: () => ({ ok: true as const }),
         execute: () => {},
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const initialState = kernel.createInitialState();

@@ -1,15 +1,16 @@
 import { expect, test } from "bun:test";
 import { createKernel } from "../src/kernel/create-kernel";
-import { defineGame } from "../src/game-definition";
+import { GameDefinitionBuilder } from "../src/game-definition";
 
-test("defineGame preserves the supplied configuration", () => {
-  const game = defineGame({
-    name: "test-game",
-    initialState: () => ({
+test("GameDefinitionBuilder preserves the supplied configuration", () => {
+  const game = new GameDefinitionBuilder<{
+    score: number;
+  }>("test-game")
+    .initialState(() => ({
       score: 0,
-    }),
-    commands: {},
-    progression: {
+    }))
+    .commands({})
+    .progression({
       root: {
         id: "round",
         children: [
@@ -20,8 +21,8 @@ test("defineGame preserves the supplied configuration", () => {
           },
         ],
       },
-    },
-  });
+    })
+    .build();
 
   expect(game.name).toBe("test-game");
   expect(game.initialState().score).toBe(0);
@@ -30,13 +31,14 @@ test("defineGame preserves the supplied configuration", () => {
 });
 
 test("createKernel normalizes nested progression trees into runtime state", () => {
-  const game = defineGame({
-    name: "progression-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    score: number;
+  }>("progression-game")
+    .initialState(() => ({
       score: 0,
-    }),
-    commands: {},
-    progression: {
+    }))
+    .commands({})
+    .progression({
       root: {
         id: "round",
         kind: "round",
@@ -54,8 +56,8 @@ test("createKernel normalizes nested progression trees into runtime state", () =
           },
         ],
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const state = kernel.createInitialState();
@@ -83,4 +85,26 @@ test("createKernel normalizes nested progression trees into runtime state", () =
     childIds: [],
     active: true,
   });
+});
+
+test("GameDefinitionBuilder builds the same game definition shape", () => {
+  const game = new GameDefinitionBuilder<{
+    score: number;
+  }>("builder-game")
+    .initialState(() => ({
+      score: 0,
+    }))
+    .commands({})
+    .progression({
+      root: {
+        id: "round",
+        children: [],
+      },
+    })
+    .build();
+
+  expect(game.name).toBe("builder-game");
+  expect(game.initialState().score).toBe(0);
+  expect(game.commands).toEqual({});
+  expect(game.progression?.root.id).toBe("round");
 });

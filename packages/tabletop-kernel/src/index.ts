@@ -1,4 +1,4 @@
-export { defineGame } from "./game-definition";
+export { GameDefinitionBuilder } from "./game-definition";
 export { createKernel } from "./kernel/create-kernel";
 export {
   appendReplayStep,

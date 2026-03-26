@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
-import { createKernel, defineGame, runScenario } from "../src/index";
+import { createKernel, GameDefinitionBuilder, runScenario } from "../src/index";
 
 test("runScenario applies commands in order and returns per-command results", () => {
-  const game = defineGame({
-    name: "counter-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    counter: number;
+  }>("counter-game")
+    .initialState(() => ({
       counter: 0,
-    }),
-    commands: {
+    }))
+    .commands({
       increment_counter: {
         validate: () => ({ ok: true as const }),
         execute: ({ game, command }) => {
@@ -19,8 +20,8 @@ test("runScenario applies commands in order and returns per-command results", ()
           game.counter += amount;
         },
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const scenario = runScenario(kernel, [

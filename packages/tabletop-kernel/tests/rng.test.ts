@@ -1,16 +1,19 @@
 import { expect, test } from "bun:test";
-import { createKernel, defineGame } from "../src/index";
+import { createKernel, GameDefinitionBuilder } from "../src/index";
 
 test("kernel rng is deterministic for the same seed and command sequence", () => {
-  const game = defineGame({
-    name: "rng-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    roll: number;
+    value: number;
+    deck: string[];
+  }>("rng-game")
+    .initialState(() => ({
       roll: 0,
       value: 0,
       deck: ["a", "b", "c"],
-    }),
-    rngSeed: "seed-123",
-    commands: {
+    }))
+    .rngSeed("seed-123")
+    .commands({
       sample_randomness: {
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
@@ -19,8 +22,8 @@ test("kernel rng is deterministic for the same seed and command sequence", () =>
           game.deck = rng.shuffle(game.deck);
         },
       },
-    },
-  });
+    })
+    .build();
 
   const kernelA = createKernel(game);
   const kernelB = createKernel(game);
@@ -38,25 +41,28 @@ test("kernel rng is deterministic for the same seed and command sequence", () =>
   expect(resultA.ok).toBe(true);
   expect(resultB.ok).toBe(true);
   expect(resultA.state.game).toEqual(resultB.state.game);
-  expect(resultA.state.runtime.rng.cursor).toBe(resultB.state.runtime.rng.cursor);
+  expect(resultA.state.runtime.rng.cursor).toBe(
+    resultB.state.runtime.rng.cursor,
+  );
 });
 
 test("kernel rng cursor advances when randomness is consumed", () => {
-  const game = defineGame({
-    name: "rng-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    value: number;
+  }>("rng-game")
+    .initialState(() => ({
       value: 0,
-    }),
-    rngSeed: "seed-123",
-    commands: {
+    }))
+    .rngSeed("seed-123")
+    .commands({
       sample_randomness: {
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();
         },
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const initialState = kernel.createInitialState();

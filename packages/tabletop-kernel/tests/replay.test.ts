@@ -2,22 +2,24 @@ import { expect, test } from "bun:test";
 import {
   appendReplayStep,
   createKernel,
+  GameDefinitionBuilder,
   createReplayRecord,
   createSnapshot,
-  defineGame,
   replayRecord,
   restoreSnapshot,
 } from "../src/index";
 
 test("snapshots restore canonical state and replay reproduces final state", () => {
-  const game = defineGame({
-    name: "replay-game",
-    initialState: () => ({
+  const game = new GameDefinitionBuilder<{
+    counter: number;
+    value: number;
+  }>("replay-game")
+    .initialState(() => ({
       counter: 0,
       value: 0,
-    }),
-    rngSeed: "seed-123",
-    commands: {
+    }))
+    .rngSeed("seed-123")
+    .commands({
       increment_counter: {
         validate: () => ({ ok: true as const }),
         execute: ({ game, command }) => {
@@ -35,8 +37,8 @@ test("snapshots restore canonical state and replay reproduces final state", () =
           game.value = rng.number();
         },
       },
-    },
-  });
+    })
+    .build();
 
   const kernel = createKernel(game);
   const initialState = kernel.createInitialState();

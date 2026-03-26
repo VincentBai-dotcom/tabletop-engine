@@ -1,4 +1,4 @@
-import { defineGame, type Command } from "tabletop-kernel";
+import { GameDefinitionBuilder, type Command } from "tabletop-kernel";
 import {
   createCommands,
   type SplendorCommandDefinitions,
@@ -23,10 +23,12 @@ export function createSplendorGame(options: CreateSplendorGameOptions) {
     throw new Error("splendor_requires_2_to_4_players");
   }
 
-  return defineGame<SplendorGameState, SplendorCommandDefinitions>({
-    name: "splendor",
-    rngSeed: seed,
-    progression: {
+  return new GameDefinitionBuilder<
+    SplendorGameState,
+    SplendorCommandDefinitions
+  >("splendor")
+    .rngSeed(seed)
+    .progression({
       root: {
         id: "turn",
         kind: "turn",
@@ -65,13 +67,13 @@ export function createSplendorGame(options: CreateSplendorGameOptions) {
         },
         children: [],
       },
-    },
-    initialState: () => createInitialGameState(playerIds),
-    setup: ({ game, runtime, rng }) => {
+    })
+    .initialState(() => createInitialGameState(playerIds))
+    .setup(({ game, runtime, rng }) => {
       setupSplendorGame(game, runtime, rng, playerIds);
-    },
-    commands: createCommands(),
-  });
+    })
+    .commands(createCommands())
+    .build();
 }
 
 function readChosenNobleId(command: Command): number | undefined {
