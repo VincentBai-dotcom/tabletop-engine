@@ -41,6 +41,16 @@ export interface GameDefinitionInput<
   name: string;
 }
 
+interface GameDefinitionBuilderState<
+  GameState extends object = object,
+  Commands extends Record<string, AnyCommandDefinition<GameState>> = Record<
+    string,
+    AnyCommandDefinition<GameState>
+  >,
+> extends Partial<GameDefinition<GameState, Commands>> {
+  name: string;
+}
+
 export function defineGame<
   GameState extends object = object,
   Commands extends Record<string, AnyCommandDefinition<GameState>> = Record<
@@ -51,4 +61,83 @@ export function defineGame<
   config: GameDefinitionInput<GameState, Commands>,
 ): GameDefinition<GameState, Commands> {
   return config;
+}
+
+export class GameDefinitionBuilder<
+  GameState extends object = object,
+  Commands extends Record<string, AnyCommandDefinition<GameState>> = Record<
+    string,
+    AnyCommandDefinition<GameState>
+  >,
+> {
+  private readonly config: GameDefinitionBuilderState<GameState, Commands>;
+
+  constructor(name: string) {
+    this.config = {
+      name,
+    };
+  }
+
+  initialState<NextGameState extends object>(
+    initialState: () => NextGameState,
+  ): GameDefinitionBuilder<
+    NextGameState,
+    Record<string, AnyCommandDefinition<NextGameState>>
+  > {
+    (
+      this.config as GameDefinitionBuilderState<
+        NextGameState,
+        Record<string, AnyCommandDefinition<NextGameState>>
+      >
+    ).initialState = initialState;
+
+    return this as unknown as GameDefinitionBuilder<
+      NextGameState,
+      Record<string, AnyCommandDefinition<NextGameState>>
+    >;
+  }
+
+  commands<
+    NextCommands extends Record<string, AnyCommandDefinition<GameState>>,
+  >(commands: NextCommands): GameDefinitionBuilder<GameState, NextCommands> {
+    (
+      this.config as GameDefinitionBuilderState<GameState, NextCommands>
+    ).commands = commands;
+
+    return this as unknown as GameDefinitionBuilder<GameState, NextCommands>;
+  }
+
+  progression(progression: ProgressionDefinition): this {
+    this.config.progression = progression;
+    return this;
+  }
+
+  rngSeed(rngSeed: string | number): this {
+    this.config.rngSeed = rngSeed;
+    return this;
+  }
+
+  setup(setup: (context: GameSetupContext<GameState>) => void): this {
+    this.config.setup = setup;
+    return this;
+  }
+
+  build(): GameDefinition<GameState, Commands> {
+    if (!this.config.initialState) {
+      throw new Error("initial_state_required");
+    }
+
+    if (!this.config.commands) {
+      throw new Error("commands_required");
+    }
+
+    return {
+      name: this.config.name,
+      initialState: this.config.initialState,
+      commands: this.config.commands,
+      progression: this.config.progression,
+      rngSeed: this.config.rngSeed,
+      setup: this.config.setup,
+    };
+  }
 }

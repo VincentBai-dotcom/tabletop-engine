@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createKernel } from "../src/kernel/create-kernel";
-import { defineGame } from "../src/game-definition";
+import { defineGame, GameDefinitionBuilder } from "../src/game-definition";
 
 test("defineGame preserves the supplied configuration", () => {
   const game = defineGame({
@@ -83,4 +83,26 @@ test("createKernel normalizes nested progression trees into runtime state", () =
     childIds: [],
     active: true,
   });
+});
+
+test("GameDefinitionBuilder builds the same game definition shape", () => {
+  const game = new GameDefinitionBuilder<{
+    score: number;
+  }>("builder-game")
+    .initialState(() => ({
+      score: 0,
+    }))
+    .commands({})
+    .progression({
+      root: {
+        id: "round",
+        children: [],
+      },
+    })
+    .build();
+
+  expect(game.name).toBe("builder-game");
+  expect(game.initialState().score).toBe(0);
+  expect(game.commands).toEqual({});
+  expect(game.progression?.root.id).toBe("round");
 });
