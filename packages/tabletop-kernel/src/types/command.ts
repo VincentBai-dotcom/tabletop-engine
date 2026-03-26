@@ -73,3 +73,11 @@ export interface CommandDefinition<
   ): ValidationOutcome;
   execute(context: ExecuteContext<GameState, Runtime, Cmd>): void;
 }
+
+export interface TypedCommandDefinition<
+  GameState extends object = object,
+  Runtime extends RuntimeState = RuntimeState,
+  Cmd extends Command = Command,
+> extends CommandDefinition<GameState, Runtime, Cmd> {
+  type: string;
+}

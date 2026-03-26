@@ -1,4 +1,8 @@
-import type { Command, CommandDefinition } from "./types/command";
+import type {
+  Command,
+  CommandDefinition,
+  TypedCommandDefinition,
+} from "./types/command";
 import type { ProgressionDefinition } from "./types/progression";
 import type { RuntimeState } from "./types/state";
 import type { RNGApi } from "./types/rng";
@@ -9,6 +13,17 @@ type AnyCommandDefinition<GameState extends object> = CommandDefinition<
   Command
 >;
 
+type AnyTypedCommandDefinition<GameState extends object> =
+  TypedCommandDefinition<GameState, RuntimeState, Command>;
+
+type CommandDefinitionMap<GameState extends object> = Record<
+  string,
+  AnyCommandDefinition<GameState>
+>;
+
+type CommandDefinitionList<GameState extends object> =
+  readonly AnyTypedCommandDefinition<GameState>[];
+
 export interface GameSetupContext<GameState extends object = object> {
   game: GameState;
   runtime: RuntimeState;
@@ -18,10 +33,8 @@ export interface GameSetupContext<GameState extends object = object> {
 
 export interface GameDefinition<
   GameState extends object = object,
-  Commands extends Record<string, AnyCommandDefinition<GameState>> = Record<
-    string,
-    AnyCommandDefinition<GameState>
-  >,
+  Commands extends CommandDefinitionMap<GameState> =
+    CommandDefinitionMap<GameState>,
 > {
   name: string;
   initialState: () => GameState;
@@ -33,30 +46,25 @@ export interface GameDefinition<
 
 export interface GameDefinitionInput<
   GameState extends object = object,
-  Commands extends Record<string, AnyCommandDefinition<GameState>> = Record<
-    string,
-    AnyCommandDefinition<GameState>
-  >,
+  Commands extends CommandDefinitionMap<GameState> =
+    CommandDefinitionMap<GameState>,
 > extends Omit<GameDefinition<GameState, Commands>, "name"> {
   name: string;
 }
 
 interface GameDefinitionBuilderState<
   GameState extends object = object,
-  Commands extends Record<string, AnyCommandDefinition<GameState>> = Record<
-    string,
-    AnyCommandDefinition<GameState>
-  >,
+  Commands extends CommandDefinitionMap<GameState> =
+    CommandDefinitionMap<GameState>,
 > extends Partial<GameDefinition<GameState, Commands>> {
   name: string;
+  commandList?: CommandDefinitionList<GameState>;
 }
 
 export class GameDefinitionBuilder<
   GameState extends object = object,
-  Commands extends Record<string, AnyCommandDefinition<GameState>> = Record<
-    string,
-    AnyCommandDefinition<GameState>
-  >,
+  Commands extends CommandDefinitionMap<GameState> =
+    CommandDefinitionMap<GameState>,
 > {
   private readonly config: GameDefinitionBuilderState<GameState, Commands>;
 
@@ -68,34 +76,49 @@ export class GameDefinitionBuilder<
 
   initialState<NextGameState extends object>(
     initialState: () => NextGameState,
-  ): GameDefinitionBuilder<
-    NextGameState,
-    Record<string, AnyCommandDefinition<NextGameState>>
-  > {
+  ): GameDefinitionBuilder<NextGameState, CommandDefinitionMap<NextGameState>> {
     (
       this.config as unknown as GameDefinitionBuilderState<
         NextGameState,
-        Record<string, AnyCommandDefinition<NextGameState>>
+        CommandDefinitionMap<NextGameState>
       >
     ).initialState = initialState;
 
     return this as unknown as GameDefinitionBuilder<
       NextGameState,
-      Record<string, AnyCommandDefinition<NextGameState>>
+      CommandDefinitionMap<NextGameState>
     >;
   }
 
-  commands<
-    NextCommands extends Record<string, AnyCommandDefinition<GameState>>,
-  >(commands: NextCommands): GameDefinitionBuilder<GameState, NextCommands> {
-    (
-      this.config as unknown as GameDefinitionBuilderState<
-        GameState,
-        NextCommands
-      >
-    ).commands = commands;
+  commands<NextCommands extends CommandDefinitionMap<GameState>>(
+    commands: NextCommands,
+  ): GameDefinitionBuilder<GameState, NextCommands>;
+  commands(
+    commands: CommandDefinitionList<GameState>,
+  ): GameDefinitionBuilder<GameState, CommandDefinitionMap<GameState>>;
+  commands(
+    commands:
+      | CommandDefinitionMap<GameState>
+      | CommandDefinitionList<GameState>,
+  ):
+    | GameDefinitionBuilder<GameState, CommandDefinitionMap<GameState>>
+    | GameDefinitionBuilder<GameState, Commands> {
+    if (Array.isArray(commands)) {
+      this.config.commandList = commands;
+      delete this.config.commands;
 
-    return this as unknown as GameDefinitionBuilder<GameState, NextCommands>;
+      return this as unknown as GameDefinitionBuilder<
+        GameState,
+        CommandDefinitionMap<GameState>
+      >;
+    }
+
+    (
+      this.config as unknown as GameDefinitionBuilderState<GameState, Commands>
+    ).commands = commands;
+    delete this.config.commandList;
+
+    return this;
   }
 
   progression(progression: ProgressionDefinition): this {
@@ -118,17 +141,37 @@ export class GameDefinitionBuilder<
       throw new Error("initial_state_required");
     }
 
-    if (!this.config.commands) {
+    if (!this.config.commands && !this.config.commandList) {
       throw new Error("commands_required");
     }
+
+    const commands = this.config.commandList
+      ? compileCommandList(this.config.commandList)
+      : this.config.commands;
 
     return {
       name: this.config.name,
       initialState: this.config.initialState,
-      commands: this.config.commands,
+      commands: commands as Commands,
       progression: this.config.progression,
       rngSeed: this.config.rngSeed,
       setup: this.config.setup,
     };
   }
+}
+
+function compileCommandList<GameState extends object>(
+  commands: CommandDefinitionList<GameState>,
+): CommandDefinitionMap<GameState> {
+  const commandMap: CommandDefinitionMap<GameState> = {};
+
+  for (const command of commands) {
+    if (command.type in commandMap) {
+      throw new Error(`duplicate_command_type:${command.type}`);
+    }
+
+    commandMap[command.type] = command;
+  }
+
+  return commandMap;
 }

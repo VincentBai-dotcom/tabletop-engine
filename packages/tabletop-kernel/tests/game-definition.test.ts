@@ -1,6 +1,31 @@
 import { expect, test } from "bun:test";
 import { createGameExecutor } from "../src/kernel/create-kernel";
 import { GameDefinitionBuilder } from "../src/game-definition";
+import type { CommandDefinition } from "../src/types/command";
+
+class IncrementScoreCommand implements CommandDefinition<{ score: number }> {
+  readonly type = "increment_score";
+
+  validate() {
+    return { ok: true as const };
+  }
+
+  execute({ game }: { game: { score: number } }) {
+    game.score += 1;
+  }
+}
+
+class DecrementScoreCommand implements CommandDefinition<{ score: number }> {
+  readonly type = "decrement_score";
+
+  validate() {
+    return { ok: true as const };
+  }
+
+  execute({ game }: { game: { score: number } }) {
+    game.score -= 1;
+  }
+}
 
 test("GameDefinitionBuilder preserves the supplied configuration", () => {
   const game = new GameDefinitionBuilder<{
@@ -28,6 +53,43 @@ test("GameDefinitionBuilder preserves the supplied configuration", () => {
   expect(game.initialState().score).toBe(0);
   expect(game.commands).toEqual({});
   expect(game.progression?.root.children[0]?.id).toBe("main");
+});
+
+test("GameDefinitionBuilder compiles command lists into the command map shape", () => {
+  const game = new GameDefinitionBuilder<{
+    score: number;
+  }>("list-builder-game")
+    .initialState(() => ({
+      score: 0,
+    }))
+    .commands([
+      new IncrementScoreCommand(),
+      new DecrementScoreCommand(),
+    ] as unknown as Record<string, never>)
+    .build();
+
+  expect(Object.keys(game.commands)).toEqual([
+    "increment_score",
+    "decrement_score",
+  ]);
+  expect(game.commands.increment_score).toBeInstanceOf(IncrementScoreCommand);
+  expect(game.commands.decrement_score).toBeInstanceOf(DecrementScoreCommand);
+});
+
+test("GameDefinitionBuilder rejects duplicate command types in command lists", () => {
+  expect(() =>
+    new GameDefinitionBuilder<{
+      score: number;
+    }>("duplicate-command-game")
+      .initialState(() => ({
+        score: 0,
+      }))
+      .commands([
+        new IncrementScoreCommand(),
+        new IncrementScoreCommand(),
+      ] as unknown as Record<string, never>)
+      .build(),
+  ).toThrow("duplicate_command_type:increment_score");
 });
 
 test("createGameExecutor normalizes nested progression trees into runtime state", () => {
