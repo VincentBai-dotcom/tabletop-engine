@@ -19,16 +19,16 @@ import {
   guardedAvailability,
   guardedValidate,
   readPayload,
+  type SplendorAvailabilityContext,
+  type SplendorDiscoveryContext,
+  type SplendorExecuteContext,
+  type SplendorValidationContext,
 } from "./shared.ts";
 
 export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameState> {
   readonly commandId = "take_two_same_gems";
 
-  isAvailable(
-    context: Parameters<
-      NonNullable<CommandDefinition<SplendorGameState>["isAvailable"]>
-    >[0],
-  ) {
+  isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {
       assertAvailableActor(context);
 
@@ -38,11 +38,7 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
     });
   }
 
-  discover(
-    context: Parameters<
-      NonNullable<CommandDefinition<SplendorGameState>["discover"]>
-    >[0],
-  ) {
+  discover(context: SplendorDiscoveryContext) {
     const actorId = assertAvailableActor(context);
     const payload = readPayload<
       Partial<TakeTwoSameGemsPayload> & {
@@ -84,14 +80,11 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
     return returnDiscovery ?? completeDiscovery(payload);
   }
 
-  validate({
-    state,
-    command,
-  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) {
+  validate({ state, commandInput }: SplendorValidationContext) {
     return guardedValidate(() => {
       assertGameActive(state.game);
-      const actorId = assertActivePlayer(state, command.actorId);
-      const payload = readPayload<TakeTwoSameGemsPayload>(command);
+      const actorId = assertActivePlayer(state, commandInput.actorId);
+      const payload = readPayload<TakeTwoSameGemsPayload>(commandInput);
 
       if (!payload.color) {
         return { ok: false, reason: "color_required" };
@@ -118,13 +111,9 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
     });
   }
 
-  execute({
-    game,
-    command,
-    emitEvent,
-  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) {
-    const actorId = command.actorId!;
-    const payload = readPayload<TakeTwoSameGemsPayload>(command);
+  execute({ game, commandInput, emitEvent }: SplendorExecuteContext) {
+    const actorId = commandInput.actorId!;
+    const payload = readPayload<TakeTwoSameGemsPayload>(commandInput);
     const gameOps = new SplendorGameOps(game);
     const player = gameOps.getPlayer(actorId).state;
 

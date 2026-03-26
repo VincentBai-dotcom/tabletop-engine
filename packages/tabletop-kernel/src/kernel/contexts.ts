@@ -22,11 +22,11 @@ export function createValidationContext<
   Cmd extends Command,
 >(
   state: CanonicalState<GameState, Runtime>,
-  command: Cmd,
+  commandInput: Cmd,
 ): ValidationContext<GameState, Runtime, Cmd> {
   return {
     state,
-    command,
+    commandInput,
   };
 }
 
@@ -69,14 +69,14 @@ export function createExecuteContext<
   Cmd extends Command,
 >(
   state: CanonicalState<GameState, Runtime>,
-  command: Cmd,
+  commandInput: Cmd,
   rng: RNGApi,
   setCurrentSegmentOwner: (ownerId?: string) => void,
   emitEvent: (event: KernelEvent) => void,
 ): ExecuteContext<GameState, Runtime, Cmd> {
   return {
     state,
-    command,
+    commandInput,
     game: state.game,
     runtime: state.runtime,
     rng,
@@ -91,14 +91,14 @@ export function createProgressionCompletionContext<
   Cmd extends Command,
 >(
   state: CanonicalState<GameState, Runtime>,
-  command: Cmd,
+  commandInput: Cmd,
   segment: ProgressionSegmentState,
 ): ProgressionCompletionContext<GameState, Runtime, Cmd> {
   return {
     state,
     game: state.game,
     runtime: state.runtime,
-    command,
+    commandInput,
     segment,
     progression: createProgressionNavigation(state.runtime.progression),
   };
@@ -110,13 +110,13 @@ export function createProgressionLifecycleHookContext<
   Cmd extends Command,
 >(
   state: CanonicalState<GameState, Runtime>,
-  command: Cmd,
+  commandInput: Cmd,
   segment: ProgressionSegmentState,
   rng: RNGApi,
   emitEvent: (event: KernelEvent) => void,
 ): ProgressionLifecycleHookContext<GameState, Runtime, Cmd> {
   return {
-    ...createProgressionCompletionContext(state, command, segment),
+    ...createProgressionCompletionContext(state, commandInput, segment),
     game: state.game,
     rng,
     emitEvent,

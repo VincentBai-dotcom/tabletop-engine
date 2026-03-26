@@ -20,10 +20,10 @@ test("createGameExecutor creates initial state and commits successful commands",
       increment_counter: {
         commandId: "increment_counter",
         validate: () => ({ ok: true as const }),
-        execute: ({ game, command, emitEvent }) => {
+        execute: ({ game, commandInput, emitEvent }) => {
           const amount =
-            typeof command.payload?.amount === "number"
-              ? command.payload.amount
+            typeof commandInput.payload?.amount === "number"
+              ? commandInput.payload.amount
               : 1;
 
           game.counter += amount;
@@ -183,19 +183,19 @@ test("built-in progression completion policies evaluate through lifecycle contex
       },
     },
   };
-  const command = {
+  const commandInput = {
     type: "take_action",
     actorId: "player-1",
   };
   const completionContext = createProgressionCompletionContext(
     state,
-    command,
+    commandInput,
     state.runtime.progression.segments.turn!,
   );
   const collector = createEventCollector();
   const lifecycleContext = createProgressionLifecycleHookContext(
     state,
-    command,
+    commandInput,
     state.runtime.progression.segments.turn!,
     createRNGService(state.runtime.rng),
     collector.emit,
@@ -386,10 +386,12 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
       root: {
         id: "turn",
         kind: "turn",
-        completionPolicy: ({ game, command }) => {
+        completionPolicy: ({ game, commandInput }) => {
           const manualGame = game as { requestedTurnEnd: boolean };
 
-          return command.type === "end_turn" && manualGame.requestedTurnEnd;
+          return (
+            commandInput.type === "end_turn" && manualGame.requestedTurnEnd
+          );
         },
         resolveNext: ({ segment }) => ({
           nextSegmentId: "turn",

@@ -1,6 +1,9 @@
 import type {
   Command,
   CommandAvailabilityContext,
+  DiscoveryContext,
+  ExecuteContext,
+  ValidationContext,
   ValidationOutcome,
 } from "tabletop-kernel";
 import type { SplendorGameState } from "../state.ts";
@@ -14,8 +17,17 @@ interface ProgressionAwareState {
   };
 }
 
-export function readPayload<T>(command: Command): T {
-  return (command.payload ?? {}) as T;
+export type SplendorAvailabilityContext =
+  CommandAvailabilityContext<SplendorGameState>;
+
+export type SplendorDiscoveryContext = DiscoveryContext<SplendorGameState>;
+
+export type SplendorValidationContext = ValidationContext<SplendorGameState>;
+
+export type SplendorExecuteContext = ExecuteContext<SplendorGameState>;
+
+export function readPayload<T>(commandInput: Command): T {
+  return (commandInput.payload ?? {}) as T;
 }
 
 export function guardedValidate(

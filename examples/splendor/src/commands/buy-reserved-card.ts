@@ -15,16 +15,16 @@ import {
   guardedAvailability,
   guardedValidate,
   readPayload,
+  type SplendorAvailabilityContext,
+  type SplendorDiscoveryContext,
+  type SplendorExecuteContext,
+  type SplendorValidationContext,
 } from "./shared.ts";
 
 export class BuyReservedCardCommand implements CommandDefinition<SplendorGameState> {
   readonly commandId = "buy_reserved_card";
 
-  isAvailable(
-    context: Parameters<
-      NonNullable<CommandDefinition<SplendorGameState>["isAvailable"]>
-    >[0],
-  ) {
+  isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
       const gameOps = new SplendorGameOps(context.state.game);
@@ -38,11 +38,7 @@ export class BuyReservedCardCommand implements CommandDefinition<SplendorGameSta
     });
   }
 
-  discover(
-    context: Parameters<
-      NonNullable<CommandDefinition<SplendorGameState>["discover"]>
-    >[0],
-  ) {
+  discover(context: SplendorDiscoveryContext) {
     const actorId = assertAvailableActor(context);
     const payload = readPayload<Partial<BuyReservedCardPayload>>(
       context.partialCommand,
@@ -82,14 +78,11 @@ export class BuyReservedCardCommand implements CommandDefinition<SplendorGameSta
     return nobleDiscovery ?? completeDiscovery(payload);
   }
 
-  validate({
-    state,
-    command,
-  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) {
+  validate({ state, commandInput }: SplendorValidationContext) {
     return guardedValidate(() => {
       assertGameActive(state.game);
-      const actorId = assertActivePlayer(state, command.actorId);
-      const payload = readPayload<BuyReservedCardPayload>(command);
+      const actorId = assertActivePlayer(state, commandInput.actorId);
+      const payload = readPayload<BuyReservedCardPayload>(commandInput);
       const gameOps = new SplendorGameOps(state.game);
       const player = gameOps.getPlayer(actorId);
 
@@ -128,13 +121,9 @@ export class BuyReservedCardCommand implements CommandDefinition<SplendorGameSta
     });
   }
 
-  execute({
-    game,
-    command,
-    emitEvent,
-  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) {
-    const actorId = command.actorId!;
-    const payload = readPayload<BuyReservedCardPayload>(command);
+  execute({ game, commandInput, emitEvent }: SplendorExecuteContext) {
+    const actorId = commandInput.actorId!;
+    const payload = readPayload<BuyReservedCardPayload>(commandInput);
     const gameOps = new SplendorGameOps(game);
     const player = gameOps.getPlayer(actorId);
     const card = gameOps.getCard(payload.cardId);

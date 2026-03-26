@@ -89,7 +89,7 @@ test("progression lifecycle types support nested segment authoring", () => {
         current: "turn",
       },
     },
-    command: {
+    commandInput: {
       type: "gain_score",
       payload: { amount: 1 },
     },

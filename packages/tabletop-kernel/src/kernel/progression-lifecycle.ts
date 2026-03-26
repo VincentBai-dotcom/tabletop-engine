@@ -48,7 +48,7 @@ export function resolveProgressionLifecycle<
   Cmd extends Command,
 >(
   state: CanonicalState<GameState, Runtime>,
-  command: Cmd,
+  commandInput: Cmd,
   progression: NormalizedProgressionDefinition<GameState, Runtime, Cmd>,
   rng: RNGApi,
   emitEvent: (event: KernelEvent) => void,
@@ -65,7 +65,7 @@ export function resolveProgressionLifecycle<
 
     const completionContext = createProgressionCompletionContext(
       state,
-      command,
+      commandInput,
       segment,
     );
 
@@ -77,7 +77,7 @@ export function resolveProgressionLifecycle<
 
     const lifecycleContext = createProgressionLifecycleHookContext(
       state,
-      command,
+      commandInput,
       segment,
       rng,
       emitEvent,
@@ -140,7 +140,7 @@ export function resolveProgressionLifecycle<
 
       const enteredContext = createProgressionLifecycleHookContext(
         state,
-        command,
+        commandInput,
         enteredSegment,
         rng,
         emitEvent,

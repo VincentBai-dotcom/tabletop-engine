@@ -20,16 +20,16 @@ import {
   guardedAvailability,
   guardedValidate,
   readPayload,
+  type SplendorAvailabilityContext,
+  type SplendorDiscoveryContext,
+  type SplendorExecuteContext,
+  type SplendorValidationContext,
 } from "./shared.ts";
 
 export class TakeThreeDistinctGemsCommand implements CommandDefinition<SplendorGameState> {
   readonly commandId = "take_three_distinct_gems";
 
-  isAvailable(
-    context: Parameters<
-      NonNullable<CommandDefinition<SplendorGameState>["isAvailable"]>
-    >[0],
-  ) {
+  isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {
       assertAvailableActor(context);
 
@@ -41,11 +41,7 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<SplendorG
     });
   }
 
-  discover(
-    context: Parameters<
-      NonNullable<CommandDefinition<SplendorGameState>["discover"]>
-    >[0],
-  ) {
+  discover(context: SplendorDiscoveryContext) {
     const actorId = assertAvailableActor(context);
     const payload = readPayload<
       Partial<TakeThreeDistinctGemsPayload> & {
@@ -110,14 +106,11 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<SplendorG
     );
   }
 
-  validate({
-    state,
-    command,
-  }: Parameters<CommandDefinition<SplendorGameState>["validate"]>[0]) {
+  validate({ state, commandInput }: SplendorValidationContext) {
     return guardedValidate(() => {
       assertGameActive(state.game);
-      const actorId = assertActivePlayer(state, command.actorId);
-      const payload = readPayload<TakeThreeDistinctGemsPayload>(command);
+      const actorId = assertActivePlayer(state, commandInput.actorId);
+      const payload = readPayload<TakeThreeDistinctGemsPayload>(commandInput);
 
       if (!payload.colors || payload.colors.length !== 3) {
         return { ok: false, reason: "three_colors_required" };
@@ -154,13 +147,9 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<SplendorG
     });
   }
 
-  execute({
-    game,
-    command,
-    emitEvent,
-  }: Parameters<CommandDefinition<SplendorGameState>["execute"]>[0]) {
-    const actorId = command.actorId!;
-    const payload = readPayload<TakeThreeDistinctGemsPayload>(command);
+  execute({ game, commandInput, emitEvent }: SplendorExecuteContext) {
+    const actorId = commandInput.actorId!;
+    const payload = readPayload<TakeThreeDistinctGemsPayload>(commandInput);
     const gameOps = new SplendorGameOps(game);
     const player = gameOps.getPlayer(actorId).state;
 

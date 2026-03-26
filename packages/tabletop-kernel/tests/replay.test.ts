@@ -23,10 +23,10 @@ test("snapshots restore canonical state and replay reproduces final state", () =
       increment_counter: {
         commandId: "increment_counter",
         validate: () => ({ ok: true as const }),
-        execute: ({ game, command }) => {
+        execute: ({ game, commandInput }) => {
           const amount =
-            typeof command.payload?.amount === "number"
-              ? command.payload.amount
+            typeof commandInput.payload?.amount === "number"
+              ? commandInput.payload.amount
               : 1;
 
           game.counter += amount;

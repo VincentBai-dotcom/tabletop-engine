@@ -17,7 +17,7 @@ export interface ValidationContext<
   Cmd extends Command = Command,
 > {
   state: CanonicalState<GameState, Runtime>;
-  command: Cmd;
+  commandInput: Cmd;
 }
 
 export interface CommandAvailabilityContext<

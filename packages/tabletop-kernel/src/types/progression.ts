@@ -44,7 +44,7 @@ export interface ProgressionCompletionContext<
   state: Readonly<ProgressionExecutionState<GameState, Runtime>>;
   game: Readonly<GameState>;
   runtime: Readonly<Runtime>;
-  command: Cmd;
+  commandInput: Cmd;
   segment: Readonly<ProgressionSegmentState>;
   progression: ProgressionNavigation;
 }

@@ -16,10 +16,10 @@ test("runScenario applies commands in order and returns per-command results", ()
       increment_counter: {
         commandId: "increment_counter",
         validate: () => ({ ok: true as const }),
-        execute: ({ game, command }) => {
+        execute: ({ game, commandInput }) => {
           const amount =
-            typeof command.payload?.amount === "number"
-              ? command.payload.amount
+            typeof commandInput.payload?.amount === "number"
+              ? commandInput.payload.amount
               : 1;
 
           game.counter += amount;
