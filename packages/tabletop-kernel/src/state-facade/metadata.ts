@@ -16,6 +16,10 @@ export interface BooleanFieldType {
   kind: "boolean";
 }
 
+export interface DataFieldType {
+  kind: "data";
+}
+
 export interface NestedStateFieldType {
   kind: "state";
   target: StateFieldTargetFactory;
@@ -39,6 +43,7 @@ export type PrimitiveFieldType =
 
 export type FieldType =
   | PrimitiveFieldType
+  | DataFieldType
   | NestedStateFieldType
   | ArrayFieldType
   | RecordFieldType;
@@ -125,6 +130,13 @@ export const t = {
   boolean(): BooleanFieldType {
     return {
       kind: "boolean",
+    };
+  },
+
+  data<TData = unknown>(): DataFieldType {
+    void (0 as unknown as TData);
+    return {
+      kind: "data",
     };
   },
 

@@ -1,5 +1,5 @@
-import { scalar, state, State } from "tabletop-kernel";
 import type { KernelEvent } from "tabletop-kernel";
+import { field, State, t } from "tabletop-kernel";
 import { developmentCardsById } from "./data/cards.ts";
 import { nobleTilesById } from "./data/nobles.ts";
 import type {
@@ -71,22 +71,22 @@ const TOKEN_COLOR_MAP = {
 
 @State()
 export class SplendorBankStateFacade {
-  @scalar()
+  @field(t.number())
   white!: number;
 
-  @scalar()
+  @field(t.number())
   blue!: number;
 
-  @scalar()
+  @field(t.number())
   green!: number;
 
-  @scalar()
+  @field(t.number())
   red!: number;
 
-  @scalar()
+  @field(t.number())
   black!: number;
 
-  @scalar()
+  @field(t.number())
   gold!: number;
 
   adjustColor(color: TokenColor, amount: number): void {
@@ -102,13 +102,13 @@ export class SplendorBankStateFacade {
 
 @State()
 export class SplendorBoardStateFacade {
-  @scalar()
+  @field(t.record(t.number(), t.array(t.number())))
   faceUpByLevel!: Record<DevelopmentLevel, number[]>;
 
-  @scalar()
+  @field(t.record(t.number(), t.array(t.number())))
   deckByLevel!: Record<DevelopmentLevel, number[]>;
 
-  @scalar()
+  @field(t.array(t.number()))
   nobleIds!: number[];
 
   removeFaceUpCard(level: DevelopmentLevel, cardId: number): void {
@@ -144,31 +144,31 @@ export class SplendorBoardStateFacade {
 
 @State()
 export class SplendorEndGameStateFacade {
-  @scalar()
+  @field(t.string())
   triggeredByPlayerId!: string;
 
-  @scalar()
+  @field(t.string())
   endsAfterPlayerId!: string;
 }
 
 @State()
 export class SplendorGameStateFacade {
-  @scalar()
+  @field(t.array(t.string()))
   playerOrder!: string[];
 
-  @scalar()
+  @field(t.record(t.string(), t.data<SplendorPlayerState>()))
   players!: Record<string, SplendorPlayerState>;
 
-  @state(() => SplendorBankStateFacade)
+  @field(t.state(() => SplendorBankStateFacade))
   bank!: SplendorBankStateFacade;
 
-  @state(() => SplendorBoardStateFacade)
+  @field(t.state(() => SplendorBoardStateFacade))
   board!: SplendorBoardStateFacade;
 
-  @state(() => SplendorEndGameStateFacade)
+  @field(t.state(() => SplendorEndGameStateFacade))
   endGame!: SplendorEndGameStateFacade | null;
 
-  @scalar()
+  @field(t.array(t.string()))
   winnerIds!: string[] | null;
 
   getPlayer(playerId: string): PlayerOps {

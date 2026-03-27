@@ -252,7 +252,8 @@ function isScalarLikeField(field: StateFieldMetadata): boolean {
     field.kind === "scalar" ||
     field.kind === "number" ||
     field.kind === "string" ||
-    field.kind === "boolean"
+    field.kind === "boolean" ||
+    field.kind === "data"
   );
 }
 
