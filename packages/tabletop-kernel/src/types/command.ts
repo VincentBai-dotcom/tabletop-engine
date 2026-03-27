@@ -17,6 +17,7 @@ export interface InternalValidationContext<
   TCommandInput extends CommandInput = CommandInput,
 > {
   state: CanonicalState<GameState, Runtime>;
+  game: Readonly<GameState>;
   commandInput: TCommandInput;
 }
 
@@ -30,6 +31,7 @@ export interface InternalCommandAvailabilityContext<
   Runtime extends RuntimeState = RuntimeState,
 > {
   state: CanonicalState<GameState, Runtime>;
+  game: Readonly<GameState>;
   commandType: string;
   actorId?: string;
 }

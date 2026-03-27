@@ -28,6 +28,10 @@ class RootCounterStateFacade {
   incrementCounter(amount: number) {
     this.counter.increment(amount);
   }
+
+  hasCounterValueAtLeast(minimum: number) {
+    return this.counter.value >= minimum;
+  }
 }
 
 test("createGameExecutor hydrates decorated state facades for execution", () => {
@@ -70,6 +74,103 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
   expect(initialState.game.counter.value).toBe(0);
   expect(result.ok).toBe(true);
   expect(result.state.game.counter.value).toBe(3);
+});
+
+test("availability and discovery contexts hydrate readonly decorated state facades", () => {
+  const game = new GameDefinitionBuilder<{
+    counter: {
+      value: number;
+    };
+  }>("readonly-facade-discovery-game")
+    .rootState(RootCounterStateFacade)
+    .initialState(() => ({
+      counter: {
+        value: 2,
+      },
+    }))
+    .commands({
+      increment_counter: {
+        commandId: "increment_counter",
+        isAvailable: ({ game }) =>
+          (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
+        discover: ({ game, partialCommand }) => {
+          if ((game as RootCounterStateFacade).hasCounterValueAtLeast(2)) {
+            return {
+              step: "select_amount",
+              options: [{ id: "two", value: 2 }],
+              nextPartialCommand: partialCommand,
+            };
+          }
+
+          return {
+            step: "select_amount",
+            options: [{ id: "one", value: 1 }],
+          };
+        },
+        validate: () => ({ ok: true as const }),
+        execute: ({ game, commandInput }) => {
+          const amount =
+            typeof commandInput.payload?.amount === "number"
+              ? commandInput.payload.amount
+              : 1;
+
+          (game as RootCounterStateFacade).incrementCounter(amount);
+        },
+      },
+    })
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+
+  expect(executor.listAvailableCommands(initialState)).toEqual([
+    "increment_counter",
+  ]);
+  expect(
+    executor.discoverCommand(initialState, {
+      type: "increment_counter",
+      payload: {},
+    }),
+  ).toMatchObject({
+    step: "select_amount",
+    options: [{ id: "two", value: 2 }],
+  });
+  expect(initialState.game.counter.value).toBe(2);
+});
+
+test("readonly decorated facades reject mutation during validation", () => {
+  const game = new GameDefinitionBuilder<{
+    counter: {
+      value: number;
+    };
+  }>("readonly-facade-validation-game")
+    .rootState(RootCounterStateFacade)
+    .initialState(() => ({
+      counter: {
+        value: 0,
+      },
+    }))
+    .commands({
+      increment_counter: {
+        commandId: "increment_counter",
+        validate: ({ game }) => {
+          (game as RootCounterStateFacade).incrementCounter(1);
+          return { ok: true as const };
+        },
+        execute: () => {},
+      },
+    })
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+
+  expect(() =>
+    executor.executeCommand(initialState, {
+      type: "increment_counter",
+    }),
+  ).toThrow("readonly_state_facade_mutation:value");
+  expect(initialState.game.counter.value).toBe(0);
 });
 
 test("createGameExecutor creates initial state and commits successful commands", () => {

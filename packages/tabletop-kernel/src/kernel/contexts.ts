@@ -22,10 +22,12 @@ export function createValidationContext<
   TCommandInput extends CommandInput,
 >(
   state: CanonicalState<GameState, Runtime>,
+  game: Readonly<GameState>,
   commandInput: TCommandInput,
 ): InternalValidationContext<GameState, Runtime, TCommandInput> {
   return {
     state,
+    game,
     commandInput,
   };
 }
@@ -35,11 +37,13 @@ export function createCommandAvailabilityContext<
   Runtime extends RuntimeState,
 >(
   state: CanonicalState<GameState, Runtime>,
+  game: Readonly<GameState>,
   commandType: string,
   actorId?: string,
 ): InternalCommandAvailabilityContext<GameState, Runtime> {
   return {
     state,
+    game,
     commandType,
     actorId,
   };
@@ -51,11 +55,13 @@ export function createDiscoveryContext<
   TPartialCommandInput extends CommandInput,
 >(
   state: CanonicalState<GameState, Runtime>,
+  game: Readonly<GameState>,
   partialCommand: TPartialCommandInput,
 ): InternalDiscoveryContext<GameState, Runtime, TPartialCommandInput> {
   return {
     ...createCommandAvailabilityContext(
       state,
+      game,
       partialCommand.type,
       partialCommand.actorId,
     ),

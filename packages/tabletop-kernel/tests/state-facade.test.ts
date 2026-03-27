@@ -5,6 +5,8 @@ import {
   state,
   State,
 } from "../src/state-facade/metadata";
+import { compileStateFacadeDefinition } from "../src/state-facade/compile";
+import { hydrateStateFacade } from "../src/state-facade/hydrate";
 
 @State()
 class HandState {
@@ -41,4 +43,23 @@ test("state decorators capture scalar and nested state metadata", () => {
   }
 
   expect(handField.target()).toBe(HandState);
+});
+
+test("mutable state facades allow mutation through state methods but reject direct field writes", () => {
+  const compiled = compileStateFacadeDefinition(PlayerState);
+  const backing = {
+    health: 10,
+    hand: {
+      size: 3,
+    },
+  };
+  const facade = hydrateStateFacade<PlayerState>(compiled, backing);
+
+  facade.dealDamage(2);
+
+  expect(backing.health).toBe(8);
+  expect(() => {
+    facade.health = 1;
+  }).toThrow("direct_state_mutation_not_allowed:health");
+  expect(backing.health).toBe(8);
 });

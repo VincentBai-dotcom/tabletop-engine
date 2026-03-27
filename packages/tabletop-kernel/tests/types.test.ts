@@ -173,6 +173,7 @@ test("discovery types compose for command availability and next-input options", 
         pending: { choices: [] },
       },
     },
+    game: { handCount: 3 },
     commandType: "play_card",
     actorId: "p1",
   };

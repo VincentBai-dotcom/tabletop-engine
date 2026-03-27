@@ -53,6 +53,22 @@ export interface GameExecutor<GameState extends object> {
 
 export type Kernel<GameState extends object> = GameExecutor<GameState>;
 
+function createCommandGameView<GameState extends object>(
+  game: GameDefinition<GameState, CommandDefinitions<GameState>>,
+  state: CanonicalState<GameState>,
+  options?: {
+    readonly?: boolean;
+  },
+): GameState {
+  if (!game.stateFacade) {
+    return state.game;
+  }
+
+  return hydrateStateFacade(game.stateFacade, state.game, {
+    readonly: options?.readonly ?? false,
+  });
+}
+
 function createInitialRuntimeState<GameState extends object>(
   progression: NormalizedProgressionDefinition<
     GameState,
@@ -121,6 +137,14 @@ export function createGameExecutor<
           return definition.isAvailable(
             createCommandAvailabilityContext(
               state,
+              createCommandGameView(
+                game as GameDefinition<
+                  GameState,
+                  CommandDefinitions<GameState>
+                >,
+                state,
+                { readonly: true },
+              ),
               commandType,
               options?.actorId,
             ),
@@ -141,6 +165,11 @@ export function createGameExecutor<
         !definition.isAvailable(
           createCommandAvailabilityContext(
             state,
+            createCommandGameView(
+              game as GameDefinition<GameState, CommandDefinitions<GameState>>,
+              state,
+              { readonly: true },
+            ),
             partialCommand.type,
             partialCommand.actorId,
           ),
@@ -149,7 +178,17 @@ export function createGameExecutor<
         return null;
       }
 
-      return definition.discover(createDiscoveryContext(state, partialCommand));
+      return definition.discover(
+        createDiscoveryContext(
+          state,
+          createCommandGameView(
+            game as GameDefinition<GameState, CommandDefinitions<GameState>>,
+            state,
+            { readonly: true },
+          ),
+          partialCommand,
+        ),
+      );
     },
 
     executeCommand(state, commandInput) {
@@ -169,7 +208,15 @@ export function createGameExecutor<
       }
 
       const validation = definition.validate(
-        createValidationContext(state, commandInput),
+        createValidationContext(
+          state,
+          createCommandGameView(
+            game as GameDefinition<GameState, CommandDefinitions<GameState>>,
+            state,
+            { readonly: true },
+          ),
+          commandInput,
+        ),
       );
 
       if (!validation.ok) {
@@ -206,9 +253,10 @@ export function createGameExecutor<
       definition.execute(
         createExecuteContext(
           workingState,
-          game.stateFacade
-            ? hydrateStateFacade(game.stateFacade, workingState.game)
-            : workingState.game,
+          createCommandGameView(
+            game as GameDefinition<GameState, CommandDefinitions<GameState>>,
+            workingState,
+          ),
           commandInput,
           rng,
           setCurrentSegmentOwner,
