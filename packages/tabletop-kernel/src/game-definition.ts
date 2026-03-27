@@ -2,6 +2,11 @@ import type { CommandDefinition, CommandInput } from "./types/command";
 import type { ProgressionDefinition } from "./types/progression";
 import type { RuntimeState } from "./types/state";
 import type { RNGApi } from "./types/rng";
+import {
+  compileStateFacadeDefinition,
+  type CompiledStateFacadeDefinition,
+} from "./state-facade/compile";
+import type { StateClass } from "./state-facade/metadata";
 
 type AnyCommandDefinition<GameState extends object> = CommandDefinition<
   GameState,
@@ -31,6 +36,7 @@ export interface GameDefinition<
   name: string;
   initialState: () => GameState;
   commands: Commands;
+  stateFacade?: CompiledStateFacadeDefinition;
   progression?: ProgressionDefinition;
   rngSeed?: string | number;
   setup?: (context: GameSetupContext<GameState>) => void;
@@ -51,6 +57,7 @@ interface GameDefinitionBuilderState<
 > extends Partial<GameDefinition<GameState, Commands>> {
   name: string;
   commandList?: CommandDefinitionList<GameState>;
+  rootState?: StateClass;
 }
 
 export class GameDefinitionBuilder<
@@ -119,6 +126,11 @@ export class GameDefinitionBuilder<
     >;
   }
 
+  rootState(rootState: StateClass): this {
+    this.config.rootState = rootState;
+    return this;
+  }
+
   progression(progression: ProgressionDefinition): this {
     this.config.progression = progression;
     return this;
@@ -146,11 +158,15 @@ export class GameDefinitionBuilder<
     const commands = this.config.commandList
       ? compileCommandList(this.config.commandList)
       : this.config.commands;
+    const stateFacade = this.config.rootState
+      ? compileStateFacadeDefinition(this.config.rootState)
+      : undefined;
 
     return {
       name: this.config.name,
       initialState: this.config.initialState,
       commands: commands as Commands,
+      stateFacade,
       progression: this.config.progression,
       rngSeed: this.config.rngSeed,
       setup: this.config.setup,
