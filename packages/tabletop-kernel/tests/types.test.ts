@@ -81,14 +81,6 @@ test("progression lifecycle types support nested segment authoring", () => {
     { progression: { current: string | null } },
     CommandInput<{ amount: number }>
   > = {
-    state: {
-      game: { score: 0 },
-      runtime: {
-        progression: {
-          current: "turn",
-        },
-      },
-    },
     game: { score: 0 },
     runtime: {
       progression: {

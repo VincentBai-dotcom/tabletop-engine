@@ -36,25 +36,58 @@ interface ProgressionExecutionState<
   runtime: Runtime;
 }
 
-export interface ProgressionCompletionContext<
-  GameState extends object = object,
+export interface InternalProgressionCompletionContext<
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
   Runtime = unknown,
   TCommandInput extends CommandInput = CommandInput,
 > {
-  state: Readonly<ProgressionExecutionState<GameState, Runtime>>;
-  game: Readonly<GameState>;
+  state: Readonly<ProgressionExecutionState<CanonicalGameState, Runtime>>;
+  game: Readonly<FacadeGameState>;
   runtime: Readonly<Runtime>;
   commandInput: TCommandInput;
   segment: Readonly<ProgressionSegmentState>;
   progression: ProgressionNavigation;
 }
 
-export interface ProgressionLifecycleHookContext<
-  GameState extends object = object,
+export interface ProgressionCompletionContext<
+  FacadeGameState extends object = object,
   Runtime = unknown,
   TCommandInput extends CommandInput = CommandInput,
-> extends ProgressionCompletionContext<GameState, Runtime, TCommandInput> {
-  game: GameState;
+> {
+  game: Readonly<FacadeGameState>;
+  runtime: Readonly<Runtime>;
+  commandInput: TCommandInput;
+  segment: Readonly<ProgressionSegmentState>;
+  progression: ProgressionNavigation;
+}
+
+export interface InternalProgressionLifecycleHookContext<
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
+  Runtime = unknown,
+  TCommandInput extends CommandInput = CommandInput,
+> extends InternalProgressionCompletionContext<
+  CanonicalGameState,
+  FacadeGameState,
+  Runtime,
+  TCommandInput
+> {
+  game: FacadeGameState;
+  rng: RNGApi;
+  emitEvent(event: KernelEvent): void;
+}
+
+export interface ProgressionLifecycleHookContext<
+  FacadeGameState extends object = object,
+  Runtime = unknown,
+  TCommandInput extends CommandInput = CommandInput,
+> extends ProgressionCompletionContext<
+  FacadeGameState,
+  Runtime,
+  TCommandInput
+> {
+  game: FacadeGameState;
   rng: RNGApi;
   emitEvent(event: KernelEvent): void;
 }

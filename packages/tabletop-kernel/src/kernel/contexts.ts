@@ -9,8 +9,8 @@ import type { KernelEvent } from "../types/event";
 import type { CanonicalState, RuntimeState } from "../types/state";
 import type { RNGApi } from "../types/rng";
 import type {
-  ProgressionCompletionContext,
-  ProgressionLifecycleHookContext,
+  InternalProgressionCompletionContext,
+  InternalProgressionLifecycleHookContext,
   ProgressionNavigation,
   ProgressionSegmentState,
   ProgressionState,
@@ -118,15 +118,21 @@ export function createExecuteContext<
 }
 
 export function createProgressionCompletionContext<
-  GameState extends object,
+  CanonicalGameState extends object,
+  FacadeGameState extends object,
   Runtime extends RuntimeState,
   TCommandInput extends CommandInput,
 >(
-  state: CanonicalState<GameState, Runtime>,
-  game: Readonly<GameState>,
+  state: CanonicalState<CanonicalGameState, Runtime>,
+  game: Readonly<FacadeGameState>,
   commandInput: TCommandInput,
   segment: ProgressionSegmentState,
-): ProgressionCompletionContext<GameState, Runtime, TCommandInput> {
+): InternalProgressionCompletionContext<
+  CanonicalGameState,
+  FacadeGameState,
+  Runtime,
+  TCommandInput
+> {
   return {
     state,
     game,
@@ -138,17 +144,23 @@ export function createProgressionCompletionContext<
 }
 
 export function createProgressionLifecycleHookContext<
-  GameState extends object,
+  CanonicalGameState extends object,
+  FacadeGameState extends object,
   Runtime extends RuntimeState,
   TCommandInput extends CommandInput,
 >(
-  state: CanonicalState<GameState, Runtime>,
-  game: GameState,
+  state: CanonicalState<CanonicalGameState, Runtime>,
+  game: FacadeGameState,
   commandInput: TCommandInput,
   segment: ProgressionSegmentState,
   rng: RNGApi,
   emitEvent: (event: KernelEvent) => void,
-): ProgressionLifecycleHookContext<GameState, Runtime, TCommandInput> {
+): InternalProgressionLifecycleHookContext<
+  CanonicalGameState,
+  FacadeGameState,
+  Runtime,
+  TCommandInput
+> {
   return {
     ...createProgressionCompletionContext(state, game, commandInput, segment),
     game,

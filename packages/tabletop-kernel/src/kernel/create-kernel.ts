@@ -319,7 +319,7 @@ export function createGameExecutor<
       );
 
       resolveProgressionLifecycle(
-        workingState as unknown as CanonicalState<FacadeGameState>,
+        workingState,
         createCommandGameView(
           game as GameDefinition<
             CanonicalGameState,

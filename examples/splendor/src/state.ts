@@ -326,12 +326,6 @@ export class SplendorGameStateFacade {
   }
 }
 
-export function asSplendorGameFacade(
-  game: SplendorGameState,
-): SplendorGameStateFacade {
-  return game as unknown as SplendorGameStateFacade;
-}
-
 export type ReturnTokensPayload = Partial<TokenCounts>;
 
 export interface TakeThreeDistinctGemsPayload {
