@@ -1,4 +1,8 @@
-import { GameDefinitionBuilder, type CommandInput } from "tabletop-kernel";
+import {
+  GameDefinitionBuilder,
+  type CommandInput,
+  type GameDefinition,
+} from "tabletop-kernel";
 import { createCommands } from "./commands/index.ts";
 import { SplendorGameOps } from "./model/game-ops.ts";
 import { createInitialGameState, setupSplendorGame } from "./setup.ts";
@@ -13,7 +17,9 @@ export interface CreateSplendorGameOptions {
   seed?: string | number;
 }
 
-export function createSplendorGame(options: CreateSplendorGameOptions) {
+export function createSplendorGame(
+  options: CreateSplendorGameOptions,
+): GameDefinition<SplendorGameState> {
   const { playerIds, seed } = options;
 
   if (playerIds.length < 2 || playerIds.length > 4) {
