@@ -90,7 +90,7 @@ It should not reason directly in terms of backend user ids.
 
 The default projection path should be automatic.
 
-The consumer should not need to write a root `projectForViewer(...)` function
+The consumer should not need to write a root `getView(...)` function
 just to activate visibility.
 
 Automatic traversal should preserve the same structural shape by default:
@@ -265,7 +265,7 @@ class DeckState {
   @field(t.array(t.number()))
   cards!: number[];
 
-  projectForViewer(viewer: Viewer) {
+  projectCustomView(viewer: Viewer) {
     void viewer;
 
     return {

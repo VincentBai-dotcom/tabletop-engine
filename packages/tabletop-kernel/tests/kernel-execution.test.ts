@@ -85,7 +85,7 @@ class CustomVisibleDeckState {
   @field(t.array(t.string()))
   cards!: string[];
 
-  projectForViewer() {
+  projectCustomView() {
     return {
       count: this.cards.length,
     };
@@ -171,13 +171,13 @@ test("createGameExecutor can project viewer-safe visible state", () => {
         history: unknown;
       };
     };
-    projectStateForViewer(
+    getView(
       state: unknown,
       viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
     ): unknown;
   };
   const state = executor.createInitialState();
-  const visibleState = executor.projectStateForViewer(state, {
+  const visibleState = executor.getView(state, {
     kind: "spectator",
   }) as {
     game: { counter: { value: number } };
@@ -230,7 +230,7 @@ test("createGameExecutor projects visibleToSelf fields for the owner only", () =
 
   const executor = createGameExecutor(game) as {
     createInitialState(): unknown;
-    projectStateForViewer(
+    getView(
       state: unknown,
       viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
     ): {
@@ -248,11 +248,11 @@ test("createGameExecutor projects visibleToSelf fields for the owner only", () =
     };
   };
   const state = executor.createInitialState();
-  const visibleForP1 = executor.projectStateForViewer(state, {
+  const visibleForP1 = executor.getView(state, {
     kind: "player",
     playerId: "p1",
   });
-  const visibleForSpectator = executor.projectStateForViewer(state, {
+  const visibleForSpectator = executor.getView(state, {
     kind: "spectator",
   });
 
@@ -292,7 +292,7 @@ test("createGameExecutor projects hidden fields for every viewer", () => {
 
   const executor = createGameExecutor(game) as {
     createInitialState(): unknown;
-    projectStateForViewer(
+    getView(
       state: unknown,
       viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
     ): {
@@ -304,11 +304,11 @@ test("createGameExecutor projects hidden fields for every viewer", () => {
     };
   };
   const state = executor.createInitialState();
-  const visibleForPlayer = executor.projectStateForViewer(state, {
+  const visibleForPlayer = executor.getView(state, {
     kind: "player",
     playerId: "p1",
   });
-  const visibleForSpectator = executor.projectStateForViewer(state, {
+  const visibleForSpectator = executor.getView(state, {
     kind: "spectator",
   });
 
@@ -344,7 +344,7 @@ test("createGameExecutor lets a state override its visible projection shape", ()
 
   const executor = createGameExecutor(game) as {
     createInitialState(): unknown;
-    projectStateForViewer(
+    getView(
       state: unknown,
       viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
     ): {
@@ -356,7 +356,7 @@ test("createGameExecutor lets a state override its visible projection shape", ()
     };
   };
   const state = executor.createInitialState();
-  const visibleState = executor.projectStateForViewer(state, {
+  const visibleState = executor.getView(state, {
     kind: "spectator",
   });
 
@@ -400,7 +400,7 @@ test("createGameExecutor rejects owned player projection when id is empty", () =
   const state = executor.createInitialState();
 
   expect(() =>
-    executor.projectStateForViewer(state, {
+    executor.getView(state, {
       kind: "spectator",
     }),
   ).toThrow("owned_player_requires_non_empty_id_value:VisiblePlayerState");

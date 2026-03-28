@@ -4,7 +4,7 @@ import { hydrateStateNode } from "./hydrate";
 import type { CanonicalState } from "../types/state";
 import type { HiddenValue, Viewer, VisibleState } from "../types/visibility";
 
-export function projectStateForViewer<TGameState extends object>(
+export function getView<TGameState extends object>(
   state: CanonicalState<TGameState>,
   viewer: Viewer,
   compiled?: CompiledStateFacadeDefinition,
@@ -87,17 +87,17 @@ function projectStateNodeWithCustomHook(
   backing: unknown,
   viewer: Viewer,
 ): unknown {
-  if (typeof target.prototype.projectForViewer !== "function") {
+  if (typeof target.prototype.projectCustomView !== "function") {
     return undefined;
   }
 
   const facade = hydrateStateNode<{
-    projectForViewer(viewer: Viewer): unknown;
+    projectCustomView(viewer: Viewer): unknown;
   }>(compiled, target, backing as object, {
     readonly: true,
   });
 
-  return facade.projectForViewer(viewer);
+  return facade.projectCustomView(viewer);
 }
 
 function projectFieldValue(
