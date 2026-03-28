@@ -342,9 +342,6 @@ test("built-in progression completion policies evaluate through lifecycle contex
       history: {
         entries: [],
       },
-      pending: {
-        choices: [],
-      },
     },
   };
   const commandInput = {

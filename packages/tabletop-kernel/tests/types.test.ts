@@ -42,9 +42,6 @@ test("foundational runtime types compose", () => {
       history: {
         entries: [],
       },
-      pending: {
-        choices: [],
-      },
     },
   };
 
@@ -58,7 +55,6 @@ test("foundational runtime types compose", () => {
     ok: true,
     state,
     events: [event],
-    pendingChoices: [],
   };
 
   const validation: ValidationOutcome = {
@@ -166,7 +162,6 @@ test("discovery types compose for command availability and next-input options", 
       progression: { current: "turn", rootId: "turn", segments: {} },
       rng: { seed: "seed", cursor: 0 },
       history: { entries: [] },
-      pending: { choices: [] },
     },
     commandType: "play_card",
     actorId: "p1",
@@ -275,9 +270,6 @@ test("internal command definitions still expose canonical state separately from 
         history: {
           entries: [],
         },
-        pending: {
-          choices: [],
-        },
       },
     },
     game: {
@@ -295,9 +287,6 @@ test("internal command definitions still expose canonical state separately from 
       },
       history: {
         entries: [],
-      },
-      pending: {
-        choices: [],
       },
     },
     commandInput: {

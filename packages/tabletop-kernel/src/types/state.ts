@@ -11,21 +11,10 @@ export interface HistoryState {
   entries: HistoryEntry[];
 }
 
-export interface PendingChoice {
-  id: string;
-  type: string;
-  actorId?: string;
-}
-
-export interface PendingState {
-  choices: PendingChoice[];
-}
-
 export interface RuntimeState {
   progression: ProgressionState;
   rng: RNGState;
   history: HistoryState;
-  pending: PendingState;
 }
 
 export interface CanonicalState<

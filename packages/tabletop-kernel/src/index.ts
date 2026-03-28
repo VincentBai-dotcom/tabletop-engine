@@ -37,8 +37,6 @@ export type {
   CanonicalState,
   HistoryEntry,
   HistoryState,
-  PendingChoice,
-  PendingState,
   RuntimeState,
 } from "./types/state";
 export type {

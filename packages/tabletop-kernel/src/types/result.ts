@@ -1,5 +1,5 @@
 import type { KernelEvent } from "./event";
-import type { CanonicalState, PendingChoice } from "./state";
+import type { CanonicalState } from "./state";
 
 export interface ValidationResult {
   ok: true;
@@ -13,20 +13,22 @@ export interface ValidationError {
 
 export type ValidationOutcome = ValidationResult | ValidationError;
 
-export interface ExecutionSuccess<State extends CanonicalState = CanonicalState> {
+export interface ExecutionSuccess<
+  State extends CanonicalState = CanonicalState,
+> {
   ok: true;
   state: State;
   events: KernelEvent[];
-  pendingChoices: PendingChoice[];
 }
 
-export interface ExecutionFailure<State extends CanonicalState = CanonicalState> {
+export interface ExecutionFailure<
+  State extends CanonicalState = CanonicalState,
+> {
   ok: false;
   state: State;
   reason: string;
   metadata?: unknown;
   events: KernelEvent[];
-  pendingChoices: PendingChoice[];
 }
 
 export type ExecutionResult<State extends CanonicalState = CanonicalState> =

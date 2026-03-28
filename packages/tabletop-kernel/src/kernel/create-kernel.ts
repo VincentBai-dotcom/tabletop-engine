@@ -112,9 +112,6 @@ function createInitialRuntimeState<
     history: {
       entries: [],
     },
-    pending: {
-      choices: [],
-    },
   };
 
   return runtime;
@@ -247,7 +244,6 @@ export function createGameExecutor<
           reason: "unknown_command",
           metadata: { commandType: commandInput.type },
           events: [],
-          pendingChoices: state.runtime.pending.choices,
         };
 
         return failure;
@@ -276,7 +272,6 @@ export function createGameExecutor<
           reason: validation.reason,
           metadata: validation.metadata,
           events: [],
-          pendingChoices: state.runtime.pending.choices,
         };
 
         return failure;
@@ -347,7 +342,6 @@ export function createGameExecutor<
         ok: true,
         state: workingState,
         events: collector.list(),
-        pendingChoices: workingState.runtime.pending.choices,
       };
 
       return success;
