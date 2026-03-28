@@ -1,5 +1,6 @@
 import type { CompiledStateFacadeDefinition } from "./compile";
 import type { FieldType, StateClass, VisibilityMode } from "./metadata";
+import { hydrateStateNode } from "./hydrate";
 import type { CanonicalState } from "../types/state";
 import type { HiddenValue, Viewer, VisibleState } from "../types/visibility";
 
@@ -38,6 +39,17 @@ function projectStateNode(
     throw new Error(`compiled_state_not_found:${target.name || "anonymous"}`);
   }
 
+  const customProjection = projectStateNodeWithCustomHook(
+    compiled,
+    target,
+    backing,
+    viewer,
+  );
+
+  if (customProjection !== undefined) {
+    return customProjection;
+  }
+
   const nextOwnerPlayerId = definition.ownedByPlayer
     ? readOwnerPlayerId(backing)
     : ownerPlayerId;
@@ -62,6 +74,25 @@ function projectStateNode(
   }
 
   return projected;
+}
+
+function projectStateNodeWithCustomHook(
+  compiled: CompiledStateFacadeDefinition,
+  target: StateClass,
+  backing: unknown,
+  viewer: Viewer,
+): unknown {
+  if (typeof target.prototype.projectForViewer !== "function") {
+    return undefined;
+  }
+
+  const facade = hydrateStateNode<{
+    projectForViewer(viewer: Viewer): unknown;
+  }>(compiled, target, backing as object, {
+    readonly: true,
+  });
+
+  return facade.projectForViewer(viewer);
 }
 
 function projectFieldValue(

@@ -10,6 +10,7 @@ import { createEventCollector } from "../src/kernel/events";
 import { createRNGService } from "../src/rng/service";
 import {
   field,
+  hidden,
   OwnedByPlayer,
   State,
   t,
@@ -63,6 +64,38 @@ class VisibleRootState {
     ),
   )
   players!: Record<string, VisiblePlayerState>;
+}
+
+@State()
+class HiddenDeckState {
+  @hidden()
+  @field(t.array(t.string()))
+  cards!: string[];
+}
+
+@State()
+class HiddenDeckRootState {
+  @field(t.state(() => HiddenDeckState))
+  deck!: HiddenDeckState;
+}
+
+@State()
+class CustomVisibleDeckState {
+  @hidden()
+  @field(t.array(t.string()))
+  cards!: string[];
+
+  projectForViewer() {
+    return {
+      count: this.cards.length,
+    };
+  }
+}
+
+@State()
+class CustomVisibleDeckRootState {
+  @field(t.state(() => CustomVisibleDeckState))
+  deck!: CustomVisibleDeckState;
 }
 
 test("createGameExecutor hydrates decorated state facades for execution", () => {
@@ -232,6 +265,103 @@ test("createGameExecutor projects visibleToSelf fields for the owner only", () =
   });
   expect(visibleForSpectator.game.players.p2?.hand).toEqual({
     __hidden: true,
+  });
+});
+
+test("createGameExecutor projects hidden fields for every viewer", () => {
+  const game = new GameDefinitionBuilder<{
+    deck: {
+      cards: string[];
+    };
+  }>("hidden-deck-game")
+    .rootState(HiddenDeckRootState)
+    .initialState(() => ({
+      deck: {
+        cards: ["a", "b", "c"],
+      },
+    }))
+    .commands({})
+    .progression({
+      root: {
+        id: "turn",
+        kind: "turn",
+        children: [],
+      },
+    })
+    .build();
+
+  const executor = createGameExecutor(game) as {
+    createInitialState(): unknown;
+    projectStateForViewer(
+      state: unknown,
+      viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
+    ): {
+      game: {
+        deck: {
+          cards: { __hidden: true; value?: unknown };
+        };
+      };
+    };
+  };
+  const state = executor.createInitialState();
+  const visibleForPlayer = executor.projectStateForViewer(state, {
+    kind: "player",
+    playerId: "p1",
+  });
+  const visibleForSpectator = executor.projectStateForViewer(state, {
+    kind: "spectator",
+  });
+
+  expect(visibleForPlayer.game.deck.cards).toEqual({
+    __hidden: true,
+  });
+  expect(visibleForSpectator.game.deck.cards).toEqual({
+    __hidden: true,
+  });
+});
+
+test("createGameExecutor lets a state override its visible projection shape", () => {
+  const game = new GameDefinitionBuilder<{
+    deck: {
+      cards: string[];
+    };
+  }>("custom-visible-deck-game")
+    .rootState(CustomVisibleDeckRootState)
+    .initialState(() => ({
+      deck: {
+        cards: ["a", "b", "c"],
+      },
+    }))
+    .commands({})
+    .progression({
+      root: {
+        id: "turn",
+        kind: "turn",
+        children: [],
+      },
+    })
+    .build();
+
+  const executor = createGameExecutor(game) as {
+    createInitialState(): unknown;
+    projectStateForViewer(
+      state: unknown,
+      viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
+    ): {
+      game: {
+        deck: {
+          count: number;
+        };
+      };
+    };
+  };
+  const state = executor.createInitialState();
+  const visibleState = executor.projectStateForViewer(state, {
+    kind: "spectator",
+  });
+
+  expect(visibleState.game.deck).toEqual({
+    count: 3,
   });
 });
 

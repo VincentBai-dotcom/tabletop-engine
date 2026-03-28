@@ -24,6 +24,27 @@ export function hydrateStateFacade<TState extends object>(
   ) as TState;
 }
 
+export function hydrateStateNode<TState extends object>(
+  compiled: CompiledStateFacadeDefinition,
+  target: StateClass,
+  backing: object,
+  options?: {
+    readonly?: boolean;
+  },
+): TState {
+  const mutationContext: MutationContext = {
+    readonlyMode: options?.readonly ?? false,
+    mutationDepth: 0,
+  };
+
+  return hydrateStateInstance(
+    compiled,
+    target,
+    backing,
+    mutationContext,
+  ) as TState;
+}
+
 function hydrateStateInstance(
   compiled: CompiledStateFacadeDefinition,
   target: StateClass,
