@@ -1,6 +1,14 @@
 export { GameDefinitionBuilder } from "./game-definition";
 export { createGameExecutor, createKernel } from "./kernel/create-kernel";
-export { field, getStateMetadata, State, t } from "./state-facade/metadata";
+export {
+  field,
+  getStateMetadata,
+  hidden,
+  OwnedByPlayer,
+  State,
+  t,
+  visibleToSelf,
+} from "./state-facade/metadata";
 export {
   appendReplayStep,
   createReplayRecord,
@@ -39,6 +47,13 @@ export type {
   HistoryState,
   RuntimeState,
 } from "./types/state";
+export type {
+  HiddenValue,
+  PlayerViewer,
+  SpectatorViewer,
+  Viewer,
+  VisibleState,
+} from "./types/visibility";
 export type {
   BuiltInProgressionCompletionPolicy,
   ProgressionCompletionCallback,

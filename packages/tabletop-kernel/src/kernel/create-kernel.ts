@@ -27,8 +27,10 @@ import type {
   ExecutionSuccess,
 } from "../types/result";
 import type { CanonicalState, RuntimeState } from "../types/state";
+import type { Viewer, VisibleState } from "../types/visibility";
 import { createRNGService } from "../rng/service";
 import { hydrateStateFacade } from "../state-facade/hydrate";
+import { projectStateForViewer as projectVisibleStateForViewer } from "../state-facade/project";
 
 type CommandDefinitions<
   CanonicalGameState extends object,
@@ -47,6 +49,10 @@ export interface GameExecutor<GameState extends object> {
   createInitialState(options?: {
     playerIds?: readonly string[];
   }): CanonicalState<GameState>;
+  projectStateForViewer(
+    state: CanonicalState<GameState>,
+    viewer: Viewer,
+  ): VisibleState<object>;
   listAvailableCommands(
     state: CanonicalState<GameState>,
     options?: {
@@ -159,6 +165,10 @@ export function createGameExecutor<
         game: gameState,
         runtime,
       };
+    },
+
+    projectStateForViewer(state, viewer) {
+      return projectVisibleStateForViewer(state, viewer, game.stateFacade);
     },
 
     listAvailableCommands(state, options) {

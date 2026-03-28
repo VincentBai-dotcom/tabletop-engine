@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import * as visibilityMetadata from "../src/state-facade/metadata";
 import {
   field,
   getStateMetadata,
@@ -137,4 +138,16 @@ test("state facades lazily hydrate nested state arrays", () => {
   facade.cards[0]?.rename("renamed-card");
 
   expect(backing.cards[0]?.id).toBe("renamed-card");
+});
+
+test("state facade metadata exports visibility decorators", () => {
+  expect(typeof (visibilityMetadata as Record<string, unknown>).hidden).toBe(
+    "function",
+  );
+  expect(
+    typeof (visibilityMetadata as Record<string, unknown>).visibleToSelf,
+  ).toBe("function");
+  expect(
+    typeof (visibilityMetadata as Record<string, unknown>).OwnedByPlayer,
+  ).toBe("function");
 });

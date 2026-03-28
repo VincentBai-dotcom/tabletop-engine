@@ -2,7 +2,13 @@ import { expect, test } from "bun:test";
 import { createGameExecutor } from "../src/kernel/create-kernel";
 import { GameDefinitionBuilder } from "../src/game-definition";
 import type { CommandDefinition } from "../src/types/command";
-import { field, State, t } from "../src/state-facade/metadata";
+import {
+  field,
+  OwnedByPlayer,
+  State,
+  t,
+  visibleToSelf,
+} from "../src/state-facade/metadata";
 
 class IncrementScoreCommand implements CommandDefinition<{ score: number }> {
   readonly commandId = "increment_score";
@@ -63,6 +69,20 @@ class TestCardState {
 class TestCollectionRootState {
   @field(t.array(t.state(() => TestCardState)))
   cards!: TestCardState[];
+}
+
+@State()
+class VisibleToSelfWithoutOwnerRootState {
+  @visibleToSelf()
+  @field(t.array(t.number()))
+  hiddenCards!: number[];
+}
+
+@OwnedByPlayer()
+@State()
+class OwnedPlayerStateWithoutId {
+  @field(t.number())
+  score!: number;
 }
 
 test("GameDefinitionBuilder preserves the supplied configuration", () => {
@@ -276,4 +296,32 @@ test("GameDefinitionBuilder compiles nested state references inside array field 
   expect(game.stateFacade?.states[TestCardState.name]?.fields.id?.kind).toBe(
     "string",
   );
+});
+
+test("GameDefinitionBuilder rejects visibleToSelf fields without a player-owned ancestor", () => {
+  expect(() =>
+    new GameDefinitionBuilder<{
+      hiddenCards: number[];
+    }>("visible-to-self-without-owner-game")
+      .rootState(VisibleToSelfWithoutOwnerRootState)
+      .initialState(() => ({
+        hiddenCards: [],
+      }))
+      .commands({})
+      .build(),
+  ).toThrow("visible_to_self_requires_owned_player_ancestor:hiddenCards");
+});
+
+test("GameDefinitionBuilder rejects owned player states without a string id field", () => {
+  expect(() =>
+    new GameDefinitionBuilder<{
+      score: number;
+    }>("owned-player-without-id-game")
+      .rootState(OwnedPlayerStateWithoutId)
+      .initialState(() => ({
+        score: 0,
+      }))
+      .commands({})
+      .build(),
+  ).toThrow("owned_player_requires_string_id_field:OwnedPlayerStateWithoutId");
 });

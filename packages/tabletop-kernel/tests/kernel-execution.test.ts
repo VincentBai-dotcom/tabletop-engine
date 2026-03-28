@@ -8,7 +8,13 @@ import {
 } from "../src/kernel/contexts";
 import { createEventCollector } from "../src/kernel/events";
 import { createRNGService } from "../src/rng/service";
-import { field, State, t } from "../src/state-facade/metadata";
+import {
+  field,
+  OwnedByPlayer,
+  State,
+  t,
+  visibleToSelf,
+} from "../src/state-facade/metadata";
 
 @State()
 class CounterStateFacade {
@@ -32,6 +38,31 @@ class RootCounterStateFacade {
   hasCounterValueAtLeast(minimum: number) {
     return this.counter.value >= minimum;
   }
+}
+
+@OwnedByPlayer()
+@State()
+class VisiblePlayerState {
+  @field(t.string())
+  id!: string;
+
+  @visibleToSelf()
+  @field(t.array(t.string()))
+  hand!: string[];
+
+  @field(t.number())
+  score!: number;
+}
+
+@State()
+class VisibleRootState {
+  @field(
+    t.record(
+      t.string(),
+      t.state(() => VisiblePlayerState),
+    ),
+  )
+  players!: Record<string, VisiblePlayerState>;
 }
 
 test("createGameExecutor hydrates decorated state facades for execution", () => {
@@ -74,6 +105,134 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
   expect(initialState.game.counter.value).toBe(0);
   expect(result.ok).toBe(true);
   expect(result.state.game.counter.value).toBe(3);
+});
+
+test("createGameExecutor can project viewer-safe visible state", () => {
+  const game = new GameDefinitionBuilder<{
+    counter: {
+      value: number;
+    };
+  }>("visible-state-game")
+    .rootState(RootCounterStateFacade)
+    .initialState(() => ({
+      counter: {
+        value: 2,
+      },
+    }))
+    .commands({})
+    .progression({
+      root: {
+        id: "turn",
+        kind: "turn",
+        children: [],
+      },
+    })
+    .build();
+
+  const executor = createGameExecutor(game) as {
+    createInitialState(): {
+      game: { counter: { value: number } };
+      runtime: {
+        progression: unknown;
+        rng: unknown;
+        history: unknown;
+      };
+    };
+    projectStateForViewer(
+      state: unknown,
+      viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
+    ): unknown;
+  };
+  const state = executor.createInitialState();
+  const visibleState = executor.projectStateForViewer(state, {
+    kind: "spectator",
+  }) as {
+    game: { counter: { value: number } };
+    progression: unknown;
+    rng?: unknown;
+    history?: unknown;
+  };
+
+  expect(visibleState.game.counter.value).toBe(2);
+  expect(visibleState.progression).toBeDefined();
+  expect("rng" in visibleState).toBe(false);
+  expect("history" in visibleState).toBe(false);
+});
+
+test("createGameExecutor projects visibleToSelf fields for the owner only", () => {
+  const game = new GameDefinitionBuilder<{
+    players: Record<
+      string,
+      {
+        id: string;
+        hand: string[];
+        score: number;
+      }
+    >;
+  }>("private-hand-game")
+    .rootState(VisibleRootState)
+    .initialState(() => ({
+      players: {
+        p1: {
+          id: "p1",
+          hand: ["a", "b"],
+          score: 3,
+        },
+        p2: {
+          id: "p2",
+          hand: ["x"],
+          score: 2,
+        },
+      },
+    }))
+    .commands({})
+    .progression({
+      root: {
+        id: "turn",
+        kind: "turn",
+        children: [],
+      },
+    })
+    .build();
+
+  const executor = createGameExecutor(game) as {
+    createInitialState(): unknown;
+    projectStateForViewer(
+      state: unknown,
+      viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
+    ): {
+      game: {
+        players: Record<
+          string,
+          {
+            id: string;
+            score: number;
+            hand: string[] | { __hidden: true; value?: unknown };
+          }
+        >;
+      };
+      progression: unknown;
+    };
+  };
+  const state = executor.createInitialState();
+  const visibleForP1 = executor.projectStateForViewer(state, {
+    kind: "player",
+    playerId: "p1",
+  });
+  const visibleForSpectator = executor.projectStateForViewer(state, {
+    kind: "spectator",
+  });
+
+  expect(visibleForP1.game.players.p1?.hand).toEqual(["a", "b"]);
+  expect(visibleForP1.game.players.p2?.hand).toEqual({
+    __hidden: true,
+  });
+  expect(visibleForSpectator.game.players.p1?.hand).toEqual({
+    __hidden: true,
+  });
+  expect(visibleForSpectator.game.players.p2?.hand).toEqual({
+    __hidden: true,
+  });
 });
 
 test("availability and discovery contexts hydrate readonly decorated state facades", () => {
