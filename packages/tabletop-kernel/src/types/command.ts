@@ -12,43 +12,66 @@ export interface CommandInput<
 }
 
 export interface InternalValidationContext<
-  GameState extends object = object,
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
   Runtime extends RuntimeState = RuntimeState,
   TCommandInput extends CommandInput = CommandInput,
 > {
-  state: CanonicalState<GameState, Runtime>;
+  state: CanonicalState<CanonicalGameState, Runtime>;
+  game: Readonly<FacadeGameState>;
+  runtime: Readonly<Runtime>;
   commandInput: TCommandInput;
 }
 
 export type ValidationContext<
-  GameState extends object = object,
+  FacadeGameState extends object = object,
   TCommandInput extends CommandInput = CommandInput,
-> = InternalValidationContext<GameState, RuntimeState, TCommandInput>;
+> = {
+  game: Readonly<FacadeGameState>;
+  runtime: Readonly<RuntimeState>;
+  commandInput: TCommandInput;
+};
 
 export interface InternalCommandAvailabilityContext<
-  GameState extends object = object,
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
   Runtime extends RuntimeState = RuntimeState,
 > {
-  state: CanonicalState<GameState, Runtime>;
+  state: CanonicalState<CanonicalGameState, Runtime>;
+  game: Readonly<FacadeGameState>;
+  runtime: Readonly<Runtime>;
   commandType: string;
   actorId?: string;
 }
 
-export type CommandAvailabilityContext<GameState extends object = object> =
-  InternalCommandAvailabilityContext<GameState, RuntimeState>;
+export type CommandAvailabilityContext<
+  FacadeGameState extends object = object,
+> = {
+  game: Readonly<FacadeGameState>;
+  runtime: Readonly<RuntimeState>;
+  commandType: string;
+  actorId?: string;
+};
 
 export interface InternalDiscoveryContext<
-  GameState extends object = object,
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
   Runtime extends RuntimeState = RuntimeState,
   TPartialCommandInput extends CommandInput = CommandInput,
-> extends InternalCommandAvailabilityContext<GameState, Runtime> {
+> extends InternalCommandAvailabilityContext<
+  CanonicalGameState,
+  FacadeGameState,
+  Runtime
+> {
   partialCommand: TPartialCommandInput;
 }
 
 export type DiscoveryContext<
-  GameState extends object = object,
+  FacadeGameState extends object = object,
   TPartialCommandInput extends CommandInput = CommandInput,
-> = InternalDiscoveryContext<GameState, RuntimeState, TPartialCommandInput>;
+> = CommandAvailabilityContext<FacadeGameState> & {
+  partialCommand: TPartialCommandInput;
+};
 
 export interface CommandDiscoveryResult<Option = unknown> {
   step: string;
@@ -59,11 +82,17 @@ export interface CommandDiscoveryResult<Option = unknown> {
 }
 
 export interface InternalExecuteContext<
-  GameState extends object = object,
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
   Runtime extends RuntimeState = RuntimeState,
   TCommandInput extends CommandInput = CommandInput,
-> extends InternalValidationContext<GameState, Runtime, TCommandInput> {
-  game: GameState;
+> extends InternalValidationContext<
+  CanonicalGameState,
+  FacadeGameState,
+  Runtime,
+  TCommandInput
+> {
+  game: FacadeGameState;
   runtime: Readonly<Runtime>;
   rng: RNGApi;
   setCurrentSegmentOwner(ownerId?: string): void;
@@ -71,31 +100,68 @@ export interface InternalExecuteContext<
 }
 
 export type ExecuteContext<
-  GameState extends object = object,
+  FacadeGameState extends object = object,
   TCommandInput extends CommandInput = CommandInput,
-> = InternalExecuteContext<GameState, RuntimeState, TCommandInput>;
+> = {
+  game: FacadeGameState;
+  runtime: Readonly<RuntimeState>;
+  commandInput: TCommandInput;
+  rng: RNGApi;
+  setCurrentSegmentOwner(ownerId?: string): void;
+  emitEvent(event: KernelEvent): void;
+};
 
 export interface InternalCommandDefinition<
-  GameState extends object = object,
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
   Runtime extends RuntimeState = RuntimeState,
   TCommandInput extends CommandInput = CommandInput,
 > {
   commandId: string;
   isAvailable?(
-    context: InternalCommandAvailabilityContext<GameState, Runtime>,
+    context: InternalCommandAvailabilityContext<
+      CanonicalGameState,
+      FacadeGameState,
+      Runtime
+    >,
   ): boolean;
   discover?(
-    context: InternalDiscoveryContext<GameState, Runtime, TCommandInput>,
+    context: InternalDiscoveryContext<
+      CanonicalGameState,
+      FacadeGameState,
+      Runtime,
+      TCommandInput
+    >,
   ): CommandDiscoveryResult | null;
   validate(
-    context: InternalValidationContext<GameState, Runtime, TCommandInput>,
+    context: InternalValidationContext<
+      CanonicalGameState,
+      FacadeGameState,
+      Runtime,
+      TCommandInput
+    >,
   ): ValidationOutcome;
   execute(
-    context: InternalExecuteContext<GameState, Runtime, TCommandInput>,
+    context: InternalExecuteContext<
+      CanonicalGameState,
+      FacadeGameState,
+      Runtime,
+      TCommandInput
+    >,
   ): void;
 }
 
 export type CommandDefinition<
-  GameState extends object = object,
+  FacadeGameState extends object = object,
   TCommandInput extends CommandInput = CommandInput,
-> = InternalCommandDefinition<GameState, RuntimeState, TCommandInput>;
+> = {
+  commandId: string;
+  isAvailable?(context: CommandAvailabilityContext<FacadeGameState>): boolean;
+  discover?(
+    context: DiscoveryContext<FacadeGameState, TCommandInput>,
+  ): CommandDiscoveryResult | null;
+  validate(
+    context: ValidationContext<FacadeGameState, TCommandInput>,
+  ): ValidationOutcome;
+  execute(context: ExecuteContext<FacadeGameState, TCommandInput>): void;
+};

@@ -18,6 +18,7 @@
     "moduleDetection": "force",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "experimentalDecorators": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
     "strict": true,

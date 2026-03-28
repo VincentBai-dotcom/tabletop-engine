@@ -1,5 +1,9 @@
 # State Facade Authoring Design
 
+> Superseded in field-metadata details by
+> `docs/design/2026-03-27-field-runtime-type-authoring-design.md`. This
+> document still captures the broader state-facade execution model.
+
 ## Purpose
 
 This document records the target direction for game-state authoring ergonomics
@@ -37,7 +41,7 @@ of the existing plain canonical state tree.
 The chosen authoring model is:
 
 - `@State()` class decorators to mark state classes
-- field decorators to mark scalar fields and nested state fields
+- `@field(...)` plus runtime field types from `t`
 - one explicit `rootState(...)` entrypoint on the builder
 
 The consumer experience should look more like:
@@ -45,10 +49,10 @@ The consumer experience should look more like:
 ```ts
 @State()
 class PlayerState {
-  @scalar()
+  @field(t.number())
   health!: number;
 
-  @state(() => HandState)
+  @field(t.state(() => HandState))
   hand!: HandState;
 
   dealDamage(amount: number) {
@@ -136,7 +140,7 @@ The object layer exists only for consumer ergonomics.
 The locked metadata direction is:
 
 - use `@State()` to mark state classes
-- use field decorators like `@scalar()` and `@state(...)`
+- use `@field(...)` with kernel-owned runtime field types from `t`
 - do not rely on TypeScript field types alone
 
 Reason:

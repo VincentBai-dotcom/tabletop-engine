@@ -2,19 +2,24 @@ import type { CommandDefinition, CommandInput } from "./types/command";
 import type { ProgressionDefinition } from "./types/progression";
 import type { RuntimeState } from "./types/state";
 import type { RNGApi } from "./types/rng";
+import {
+  compileStateFacadeDefinition,
+  type CompiledStateFacadeDefinition,
+} from "./state-facade/compile";
+import type { StateClass } from "./state-facade/metadata";
 
-type AnyCommandDefinition<GameState extends object> = CommandDefinition<
-  GameState,
+type AnyCommandDefinition<FacadeGameState extends object> = CommandDefinition<
+  FacadeGameState,
   CommandInput
 >;
 
-type CommandDefinitionMap<GameState extends object> = Record<
+type CommandDefinitionMap<FacadeGameState extends object> = Record<
   string,
-  AnyCommandDefinition<GameState>
+  AnyCommandDefinition<FacadeGameState>
 >;
 
-type CommandDefinitionList<GameState extends object> =
-  readonly AnyCommandDefinition<GameState>[];
+type CommandDefinitionList<FacadeGameState extends object> =
+  readonly AnyCommandDefinition<FacadeGameState>[];
 
 export interface GameSetupContext<GameState extends object = object> {
   game: GameState;
@@ -24,41 +29,56 @@ export interface GameSetupContext<GameState extends object = object> {
 }
 
 export interface GameDefinition<
-  GameState extends object = object,
-  Commands extends CommandDefinitionMap<GameState> =
-    CommandDefinitionMap<GameState>,
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
+  Commands extends CommandDefinitionMap<FacadeGameState> =
+    CommandDefinitionMap<FacadeGameState>,
 > {
   name: string;
-  initialState: () => GameState;
+  initialState: () => CanonicalGameState;
   commands: Commands;
-  progression?: ProgressionDefinition;
+  stateFacade?: CompiledStateFacadeDefinition;
+  progression?: ProgressionDefinition<FacadeGameState>;
   rngSeed?: string | number;
-  setup?: (context: GameSetupContext<GameState>) => void;
+  setup?: (context: GameSetupContext<CanonicalGameState>) => void;
 }
 
 export interface GameDefinitionInput<
-  GameState extends object = object,
-  Commands extends CommandDefinitionMap<GameState> =
-    CommandDefinitionMap<GameState>,
-> extends Omit<GameDefinition<GameState, Commands>, "name"> {
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
+  Commands extends CommandDefinitionMap<FacadeGameState> =
+    CommandDefinitionMap<FacadeGameState>,
+> extends Omit<
+  GameDefinition<CanonicalGameState, FacadeGameState, Commands>,
+  "name"
+> {
   name: string;
 }
 
 interface GameDefinitionBuilderState<
-  GameState extends object = object,
-  Commands extends CommandDefinitionMap<GameState> =
-    CommandDefinitionMap<GameState>,
-> extends Partial<GameDefinition<GameState, Commands>> {
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
+  Commands extends CommandDefinitionMap<FacadeGameState> =
+    CommandDefinitionMap<FacadeGameState>,
+> extends Partial<
+  GameDefinition<CanonicalGameState, FacadeGameState, Commands>
+> {
   name: string;
-  commandList?: CommandDefinitionList<GameState>;
+  commandList?: CommandDefinitionList<FacadeGameState>;
+  rootState?: StateClass;
 }
 
 export class GameDefinitionBuilder<
-  GameState extends object = object,
-  Commands extends CommandDefinitionMap<GameState> =
-    CommandDefinitionMap<GameState>,
+  CanonicalGameState extends object = object,
+  FacadeGameState extends object = CanonicalGameState,
+  Commands extends CommandDefinitionMap<FacadeGameState> =
+    CommandDefinitionMap<FacadeGameState>,
 > {
-  private readonly config: GameDefinitionBuilderState<GameState, Commands>;
+  private readonly config: GameDefinitionBuilderState<
+    CanonicalGameState,
+    FacadeGameState,
+    Commands
+  >;
 
   constructor(name: string) {
     this.config = {
@@ -66,60 +86,114 @@ export class GameDefinitionBuilder<
     };
   }
 
-  initialState<NextGameState extends object>(
-    initialState: () => NextGameState,
-  ): GameDefinitionBuilder<NextGameState, CommandDefinitionMap<NextGameState>> {
+  initialState<NextCanonicalGameState extends object>(
+    initialState: () => NextCanonicalGameState,
+  ): GameDefinitionBuilder<
+    NextCanonicalGameState,
+    FacadeGameState extends CanonicalGameState
+      ? NextCanonicalGameState
+      : FacadeGameState,
+    CommandDefinitionMap<
+      FacadeGameState extends CanonicalGameState
+        ? NextCanonicalGameState
+        : FacadeGameState
+    >
+  > {
     (
       this.config as unknown as GameDefinitionBuilderState<
-        NextGameState,
-        CommandDefinitionMap<NextGameState>
+        NextCanonicalGameState,
+        FacadeGameState extends CanonicalGameState
+          ? NextCanonicalGameState
+          : FacadeGameState,
+        CommandDefinitionMap<
+          FacadeGameState extends CanonicalGameState
+            ? NextCanonicalGameState
+            : FacadeGameState
+        >
       >
     ).initialState = initialState;
 
     return this as unknown as GameDefinitionBuilder<
-      NextGameState,
-      CommandDefinitionMap<NextGameState>
+      NextCanonicalGameState,
+      FacadeGameState extends CanonicalGameState
+        ? NextCanonicalGameState
+        : FacadeGameState,
+      CommandDefinitionMap<
+        FacadeGameState extends CanonicalGameState
+          ? NextCanonicalGameState
+          : FacadeGameState
+      >
     >;
   }
 
   commands(
-    commands: CommandDefinitionMap<GameState>,
-  ): GameDefinitionBuilder<GameState, CommandDefinitionMap<GameState>>;
+    commands: CommandDefinitionMap<FacadeGameState>,
+  ): GameDefinitionBuilder<
+    CanonicalGameState,
+    FacadeGameState,
+    CommandDefinitionMap<FacadeGameState>
+  >;
   commands(
-    commands: CommandDefinitionList<GameState>,
-  ): GameDefinitionBuilder<GameState, CommandDefinitionMap<GameState>>;
+    commands: CommandDefinitionList<FacadeGameState>,
+  ): GameDefinitionBuilder<
+    CanonicalGameState,
+    FacadeGameState,
+    CommandDefinitionMap<FacadeGameState>
+  >;
   commands(
     commands:
-      | CommandDefinitionMap<GameState>
-      | CommandDefinitionList<GameState>,
+      | CommandDefinitionMap<FacadeGameState>
+      | CommandDefinitionList<FacadeGameState>,
   ):
-    | GameDefinitionBuilder<GameState, CommandDefinitionMap<GameState>>
-    | GameDefinitionBuilder<GameState, Commands> {
+    | GameDefinitionBuilder<
+        CanonicalGameState,
+        FacadeGameState,
+        CommandDefinitionMap<FacadeGameState>
+      >
+    | GameDefinitionBuilder<CanonicalGameState, FacadeGameState, Commands> {
     if (Array.isArray(commands)) {
       this.config.commandList = commands;
       delete this.config.commands;
 
       return this as unknown as GameDefinitionBuilder<
-        GameState,
-        CommandDefinitionMap<GameState>
+        CanonicalGameState,
+        FacadeGameState,
+        CommandDefinitionMap<FacadeGameState>
       >;
     }
 
     (
       this.config as unknown as GameDefinitionBuilderState<
-        GameState,
-        CommandDefinitionMap<GameState>
+        CanonicalGameState,
+        FacadeGameState,
+        CommandDefinitionMap<FacadeGameState>
       >
-    ).commands = commands as CommandDefinitionMap<GameState>;
+    ).commands = commands as CommandDefinitionMap<FacadeGameState>;
     delete this.config.commandList;
 
     return this as unknown as GameDefinitionBuilder<
-      GameState,
-      CommandDefinitionMap<GameState>
+      CanonicalGameState,
+      FacadeGameState,
+      CommandDefinitionMap<FacadeGameState>
     >;
   }
 
-  progression(progression: ProgressionDefinition): this {
+  rootState<NextFacadeGameState extends object>(
+    rootState: StateClass<NextFacadeGameState>,
+  ): GameDefinitionBuilder<
+    CanonicalGameState,
+    NextFacadeGameState,
+    CommandDefinitionMap<NextFacadeGameState>
+  > {
+    this.config.rootState = rootState;
+    return this as unknown as GameDefinitionBuilder<
+      CanonicalGameState,
+      NextFacadeGameState,
+      CommandDefinitionMap<NextFacadeGameState>
+    >;
+  }
+
+  progression(progression: ProgressionDefinition<FacadeGameState>): this {
     this.config.progression = progression;
     return this;
   }
@@ -129,12 +203,12 @@ export class GameDefinitionBuilder<
     return this;
   }
 
-  setup(setup: (context: GameSetupContext<GameState>) => void): this {
+  setup(setup: (context: GameSetupContext<CanonicalGameState>) => void): this {
     this.config.setup = setup;
     return this;
   }
 
-  build(): GameDefinition<GameState, Commands> {
+  build(): GameDefinition<CanonicalGameState, FacadeGameState, Commands> {
     if (!this.config.initialState) {
       throw new Error("initial_state_required");
     }
@@ -146,11 +220,15 @@ export class GameDefinitionBuilder<
     const commands = this.config.commandList
       ? compileCommandList(this.config.commandList)
       : this.config.commands;
+    const stateFacade = this.config.rootState
+      ? compileStateFacadeDefinition(this.config.rootState)
+      : undefined;
 
     return {
       name: this.config.name,
       initialState: this.config.initialState,
       commands: commands as Commands,
+      stateFacade,
       progression: this.config.progression,
       rngSeed: this.config.rngSeed,
       setup: this.config.setup,
@@ -158,10 +236,10 @@ export class GameDefinitionBuilder<
   }
 }
 
-function compileCommandList<GameState extends object>(
-  commands: CommandDefinitionList<GameState>,
-): CommandDefinitionMap<GameState> {
-  const commandMap: CommandDefinitionMap<GameState> = {};
+function compileCommandList<FacadeGameState extends object>(
+  commands: CommandDefinitionList<FacadeGameState>,
+): CommandDefinitionMap<FacadeGameState> {
+  const commandMap: CommandDefinitionMap<FacadeGameState> = {};
 
   for (const command of commands) {
     if (command.commandId in commandMap) {

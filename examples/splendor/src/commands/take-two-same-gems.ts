@@ -6,11 +6,10 @@ import {
 } from "../discovery.ts";
 import type {
   ReturnTokensPayload,
-  SplendorGameState,
+  SplendorGameStateFacade,
   TakeTwoSameGemsPayload,
 } from "../state.ts";
 import { PlayerOps } from "../model/player-ops.ts";
-import { SplendorGameOps } from "../model/game-ops.ts";
 import { applyReturnTokens, validateReturnTokens } from "../model/token-ops.ts";
 import {
   assertAvailableActor,
@@ -25,14 +24,16 @@ import {
   type SplendorValidationContext,
 } from "./shared.ts";
 
-export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameState> {
+export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameStateFacade> {
   readonly commandId = "take_two_same_gems";
 
   isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {
       assertAvailableActor(context);
+      const game = context.game;
+      const bankEntries = Object.entries(game.bank) as Array<[string, number]>;
 
-      return Object.entries(context.state.game.bank).some(
+      return bankEntries.some(
         ([color, count]) => color !== "gold" && count >= 4,
       );
     });
@@ -40,6 +41,7 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
 
   discover(context: SplendorDiscoveryContext) {
     const actorId = assertAvailableActor(context);
+    const game = context.game;
     const payload = readPayload<
       Partial<TakeTwoSameGemsPayload> & {
         returnTokens?: ReturnTokensPayload;
@@ -47,9 +49,11 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
     >(context.partialCommand);
 
     if (!payload.color) {
+      const bankEntries = Object.entries(game.bank) as Array<[string, number]>;
+
       return {
         step: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
-        options: Object.entries(context.state.game.bank)
+        options: bankEntries
           .filter(([color, count]) => color !== "gold" && count >= 4)
           .map(([color]) => ({
             id: color,
@@ -65,7 +69,7 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
       };
     }
 
-    const player = PlayerOps.clone(context.state.game.players[actorId]!);
+    const player = PlayerOps.clone(game.players[actorId]!);
     player.tokens[payload.color] += 2;
     const requiredReturnCount = Math.max(
       new PlayerOps(player).getTokenCount() - 10,
@@ -80,21 +84,21 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
     return returnDiscovery ?? completeDiscovery(payload);
   }
 
-  validate({ state, commandInput }: SplendorValidationContext) {
+  validate({ runtime, game, commandInput }: SplendorValidationContext) {
     return guardedValidate(() => {
-      assertGameActive(state.game);
-      const actorId = assertActivePlayer(state, commandInput.actorId);
+      assertGameActive(game);
+      const actorId = assertActivePlayer(runtime, commandInput.actorId);
       const payload = readPayload<TakeTwoSameGemsPayload>(commandInput);
 
       if (!payload.color) {
         return { ok: false, reason: "color_required" };
       }
 
-      if (state.game.bank[payload.color] < 4) {
+      if (game.bank[payload.color] < 4) {
         return { ok: false, reason: "not_enough_tokens_for_double_take" };
       }
 
-      const player = PlayerOps.clone(state.game.players[actorId]!);
+      const player = PlayerOps.clone(game.players[actorId]!);
       player.tokens[payload.color] += 2;
       const requiredReturnCount = Math.max(
         new PlayerOps(player).getTokenCount() - 10,
@@ -114,10 +118,9 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameSta
   execute({ game, commandInput, emitEvent }: SplendorExecuteContext) {
     const actorId = commandInput.actorId!;
     const payload = readPayload<TakeTwoSameGemsPayload>(commandInput);
-    const gameOps = new SplendorGameOps(game);
-    const player = gameOps.getPlayer(actorId).state;
+    const player = game.getPlayer(actorId).state;
 
-    game.bank[payload.color] -= 2;
+    game.bank.adjustColor(payload.color, -2);
     player.tokens[payload.color] += 2;
     applyReturnTokens(player, game.bank, payload.returnTokens);
     emitEvent({

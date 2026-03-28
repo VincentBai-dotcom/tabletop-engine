@@ -8,6 +8,170 @@ import {
 } from "../src/kernel/contexts";
 import { createEventCollector } from "../src/kernel/events";
 import { createRNGService } from "../src/rng/service";
+import { field, State, t } from "../src/state-facade/metadata";
+
+@State()
+class CounterStateFacade {
+  @field(t.number())
+  value!: number;
+
+  increment(amount: number) {
+    this.value += amount;
+  }
+}
+
+@State()
+class RootCounterStateFacade {
+  @field(t.state(() => CounterStateFacade))
+  counter!: CounterStateFacade;
+
+  incrementCounter(amount: number) {
+    this.counter.increment(amount);
+  }
+
+  hasCounterValueAtLeast(minimum: number) {
+    return this.counter.value >= minimum;
+  }
+}
+
+test("createGameExecutor hydrates decorated state facades for execution", () => {
+  const game = new GameDefinitionBuilder<{
+    counter: {
+      value: number;
+    };
+  }>("facade-counter-game")
+    .rootState(RootCounterStateFacade)
+    .initialState(() => ({
+      counter: {
+        value: 0,
+      },
+    }))
+    .commands({
+      increment_counter: {
+        commandId: "increment_counter",
+        validate: () => ({ ok: true as const }),
+        execute: ({ game, commandInput }) => {
+          const amount =
+            typeof commandInput.payload?.amount === "number"
+              ? commandInput.payload.amount
+              : 1;
+
+          (game as RootCounterStateFacade).incrementCounter(amount);
+        },
+      },
+    })
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+  const result = executor.executeCommand(initialState, {
+    type: "increment_counter",
+    payload: {
+      amount: 3,
+    },
+  });
+
+  expect(initialState.game.counter.value).toBe(0);
+  expect(result.ok).toBe(true);
+  expect(result.state.game.counter.value).toBe(3);
+});
+
+test("availability and discovery contexts hydrate readonly decorated state facades", () => {
+  const game = new GameDefinitionBuilder<{
+    counter: {
+      value: number;
+    };
+  }>("readonly-facade-discovery-game")
+    .rootState(RootCounterStateFacade)
+    .initialState(() => ({
+      counter: {
+        value: 2,
+      },
+    }))
+    .commands({
+      increment_counter: {
+        commandId: "increment_counter",
+        isAvailable: ({ game }) =>
+          (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
+        discover: ({ game, partialCommand }) => {
+          if ((game as RootCounterStateFacade).hasCounterValueAtLeast(2)) {
+            return {
+              step: "select_amount",
+              options: [{ id: "two", value: 2 }],
+              nextPartialCommand: partialCommand,
+            };
+          }
+
+          return {
+            step: "select_amount",
+            options: [{ id: "one", value: 1 }],
+          };
+        },
+        validate: () => ({ ok: true as const }),
+        execute: ({ game, commandInput }) => {
+          const amount =
+            typeof commandInput.payload?.amount === "number"
+              ? commandInput.payload.amount
+              : 1;
+
+          (game as RootCounterStateFacade).incrementCounter(amount);
+        },
+      },
+    })
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+
+  expect(executor.listAvailableCommands(initialState)).toEqual([
+    "increment_counter",
+  ]);
+  expect(
+    executor.discoverCommand(initialState, {
+      type: "increment_counter",
+      payload: {},
+    }),
+  ).toMatchObject({
+    step: "select_amount",
+    options: [{ id: "two", value: 2 }],
+  });
+  expect(initialState.game.counter.value).toBe(2);
+});
+
+test("readonly decorated facades reject mutation during validation", () => {
+  const game = new GameDefinitionBuilder<{
+    counter: {
+      value: number;
+    };
+  }>("readonly-facade-validation-game")
+    .rootState(RootCounterStateFacade)
+    .initialState(() => ({
+      counter: {
+        value: 0,
+      },
+    }))
+    .commands({
+      increment_counter: {
+        commandId: "increment_counter",
+        validate: ({ game }) => {
+          (game as RootCounterStateFacade).incrementCounter(1);
+          return { ok: true as const };
+        },
+        execute: () => {},
+      },
+    })
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+
+  expect(() =>
+    executor.executeCommand(initialState, {
+      type: "increment_counter",
+    }),
+  ).toThrow("readonly_state_facade_mutation:value");
+  expect(initialState.game.counter.value).toBe(0);
+});
 
 test("createGameExecutor creates initial state and commits successful commands", () => {
   const game = new GameDefinitionBuilder<{
@@ -36,8 +200,8 @@ test("createGameExecutor creates initial state and commits successful commands",
       },
       decrement_counter: {
         commandId: "decrement_counter",
-        validate: ({ state }) =>
-          state.game.counter > 0
+        validate: ({ game }) =>
+          game.counter > 0
             ? { ok: true as const }
             : {
                 ok: false as const,
@@ -76,8 +240,8 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
     .commands({
       decrement_counter: {
         commandId: "decrement_counter",
-        validate: ({ state }) =>
-          state.game.counter > 0
+        validate: ({ game }) =>
+          game.counter > 0
             ? { ok: true as const }
             : {
                 ok: false as const,
@@ -189,12 +353,14 @@ test("built-in progression completion policies evaluate through lifecycle contex
   };
   const completionContext = createProgressionCompletionContext(
     state,
+    state.game,
     commandInput,
     state.runtime.progression.segments.turn!,
   );
   const collector = createEventCollector();
   const lifecycleContext = createProgressionLifecycleHookContext(
     state,
+    state.game,
     commandInput,
     state.runtime.progression.segments.turn!,
     createRNGService(state.runtime.rng),
@@ -297,6 +463,68 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
       ownerId: "player-2",
     },
   });
+});
+
+test("progression lifecycle hooks hydrate decorated state facades", () => {
+  const game = new GameDefinitionBuilder<{
+    counter: {
+      value: number;
+    };
+  }>("facade-progression-game")
+    .rootState(RootCounterStateFacade)
+    .initialState(() => ({
+      counter: {
+        value: 0,
+      },
+    }))
+    .progression({
+      root: {
+        id: "turn",
+        kind: "turn",
+        completionPolicy: "after_successful_command",
+        onExit: ({ game }) => {
+          (game as RootCounterStateFacade).incrementCounter(2);
+        },
+        resolveNext: ({ game }) => ({
+          nextSegmentId: "turn",
+          ownerId: (game as RootCounterStateFacade).hasCounterValueAtLeast(3)
+            ? "player-2"
+            : "player-1",
+        }),
+        children: [],
+      },
+    })
+    .setup(({ runtime }) => {
+      runtime.progression.segments.turn!.ownerId = "player-1";
+    })
+    .commands({
+      increment_counter: {
+        commandId: "increment_counter",
+        validate: () => ({ ok: true as const }),
+        execute: ({ game }) => {
+          (game as RootCounterStateFacade).incrementCounter(1);
+        },
+      },
+    })
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+  const result = executor.executeCommand(initialState, {
+    type: "increment_counter",
+    actorId: "player-1",
+  });
+
+  expect(result.ok).toBe(true);
+
+  if (!result.ok) {
+    throw new Error("expected lifecycle progression to succeed");
+  }
+
+  expect(result.state.game.counter.value).toBe(3);
+  expect(result.state.runtime.progression.segments.turn?.ownerId).toBe(
+    "player-2",
+  );
 });
 
 test("nested progression can cascade through multiple segment transitions", () => {
@@ -482,9 +710,9 @@ test("game executor can list available commands through per-command availability
       },
       spend_energy: {
         commandId: "spend_energy",
-        isAvailable: ({ state }) => state.game.energy > 0,
-        validate: ({ state }) =>
-          state.game.energy > 0
+        isAvailable: ({ game }) => game.energy > 0,
+        validate: ({ game }) =>
+          game.energy > 0
             ? { ok: true as const }
             : { ok: false as const, reason: "no_energy" },
         execute: ({ game }) => {
@@ -533,7 +761,7 @@ test("game executor can discover the next semantic options for a command", () =>
     .commands({
       play_card: {
         commandId: "play_card",
-        isAvailable: ({ state }) => state.game.canPlay,
+        isAvailable: ({ game }) => game.canPlay,
         discover: ({ partialCommand }) => {
           const cardId = partialCommand.payload?.cardId;
 

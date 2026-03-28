@@ -4,9 +4,11 @@ import {
   createNobleDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type { BuyFaceUpCardPayload, SplendorGameState } from "../state.ts";
+import type {
+  BuyFaceUpCardPayload,
+  SplendorGameStateFacade,
+} from "../state.ts";
 import { PlayerOps } from "../model/player-ops.ts";
-import { SplendorGameOps } from "../model/game-ops.ts";
 import { applyTokenDelta } from "../model/token-ops.ts";
 import {
   assertAvailableActor,
@@ -21,92 +23,93 @@ import {
   type SplendorValidationContext,
 } from "./shared.ts";
 
-export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameState> {
+export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameStateFacade> {
   readonly commandId = "buy_face_up_card";
 
   isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
-      const gameOps = new SplendorGameOps(context.state.game);
-      const player = gameOps.getPlayer(actorId);
+      const game = context.game;
+      const player = game.getPlayer(actorId);
+      const faceUpEntries = Object.entries(game.board.faceUpByLevel) as Array<
+        [string, number[]]
+      >;
 
-      return Object.entries(context.state.game.board.faceUpByLevel).some(
-        ([level, cardIds]) =>
-          cardIds.some((cardId) => {
-            const card = gameOps.getCard(cardId);
+      return faceUpEntries.some(([level, cardIds]) =>
+        cardIds.some((cardId: number) => {
+          const card = game.getCard(cardId);
 
-            return (
-              card.level === Number(level) &&
-              player.getAffordablePayment(card) !== null
-            );
-          }),
+          return (
+            card.level === Number(level) &&
+            player.getAffordablePayment(card) !== null
+          );
+        }),
       );
     });
   }
 
   discover(context: SplendorDiscoveryContext) {
     const actorId = assertAvailableActor(context);
+    const game = context.game;
     const payload = readPayload<Partial<BuyFaceUpCardPayload>>(
       context.partialCommand,
     );
-    const gameOps = new SplendorGameOps(context.state.game);
-    const player = gameOps.getPlayer(actorId);
+    const player = game.getPlayer(actorId);
+    const faceUpEntries = Object.entries(game.board.faceUpByLevel) as Array<
+      [string, number[]]
+    >;
 
     if (!payload.level || !payload.cardId) {
       return {
         step: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
-        options: Object.entries(context.state.game.board.faceUpByLevel).flatMap(
-          ([level, cardIds]) =>
-            cardIds
-              .filter((cardId) => {
-                const card = gameOps.getCard(cardId);
+        options: faceUpEntries.flatMap(([level, cardIds]) =>
+          cardIds
+            .filter((cardId: number) => {
+              const card = game.getCard(cardId);
 
-                return player.getAffordablePayment(card) !== null;
-              })
-              .map((cardId) => ({
-                id: `${level}:${cardId}`,
-                value: {
-                  ...payload,
-                  level: Number(level),
-                  cardId,
-                },
-                metadata: {
-                  level: Number(level),
-                  cardId,
-                  source: "face_up",
-                },
-              })),
+              return player.getAffordablePayment(card) !== null;
+            })
+            .map((cardId: number) => ({
+              id: `${level}:${cardId}`,
+              value: {
+                ...payload,
+                level: Number(level),
+                cardId,
+              },
+              metadata: {
+                level: Number(level),
+                cardId,
+                source: "face_up",
+              },
+            })),
         ),
       };
     }
 
     const hypotheticalPlayer = new PlayerOps(PlayerOps.clone(player.state));
     hypotheticalPlayer.buyCard(payload.cardId);
-    const eligibleNobles = gameOps.getEligibleNobles(hypotheticalPlayer);
+    const eligibleNobles = game.getEligibleNobles(hypotheticalPlayer);
     const nobleDiscovery = createNobleDiscovery(payload, eligibleNobles);
 
     return nobleDiscovery ?? completeDiscovery(payload);
   }
 
-  validate({ state, commandInput }: SplendorValidationContext) {
+  validate({ runtime, game, commandInput }: SplendorValidationContext) {
     return guardedValidate(() => {
-      assertGameActive(state.game);
-      const actorId = assertActivePlayer(state, commandInput.actorId);
+      assertGameActive(game);
+      const actorId = assertActivePlayer(runtime, commandInput.actorId);
       const payload = readPayload<BuyFaceUpCardPayload>(commandInput);
-      const gameOps = new SplendorGameOps(state.game);
 
       if (!payload.cardId || !payload.level) {
         return { ok: false, reason: "level_and_card_required" };
       }
 
-      if (
-        !state.game.board.faceUpByLevel[payload.level].includes(payload.cardId)
-      ) {
+      if (!game.board.faceUpByLevel[payload.level].includes(payload.cardId)) {
         return { ok: false, reason: "card_not_face_up" };
       }
 
-      const player = gameOps.getPlayer(actorId);
-      const card = gameOps.getCard(payload.cardId);
+      const player = game.getPlayer(actorId);
+      const card = game.getCard(payload.cardId);
 
       if (!player.getAffordablePayment(card)) {
         return { ok: false, reason: "card_not_affordable" };
@@ -115,7 +118,7 @@ export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameState
       const hypotheticalPlayer = new PlayerOps(PlayerOps.clone(player.state));
       hypotheticalPlayer.buyCard(payload.cardId);
 
-      const eligibleNobles = gameOps.getEligibleNobles(hypotheticalPlayer);
+      const eligibleNobles = game.getEligibleNobles(hypotheticalPlayer);
 
       if (eligibleNobles.length > 1 && !payload.chosenNobleId) {
         return { ok: false, reason: "chosen_noble_required" };
@@ -123,7 +126,9 @@ export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameState
 
       if (
         payload.chosenNobleId &&
-        !eligibleNobles.some((noble) => noble.id === payload.chosenNobleId)
+        !eligibleNobles.some(
+          (noble: { id: number }) => noble.id === payload.chosenNobleId,
+        )
       ) {
         return { ok: false, reason: "invalid_chosen_noble" };
       }
@@ -135,9 +140,8 @@ export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameState
   execute({ game, commandInput, emitEvent }: SplendorExecuteContext) {
     const actorId = commandInput.actorId!;
     const payload = readPayload<BuyFaceUpCardPayload>(commandInput);
-    const gameOps = new SplendorGameOps(game);
-    const player = gameOps.getPlayer(actorId);
-    const card = gameOps.getCard(payload.cardId);
+    const player = game.getPlayer(actorId);
+    const card = game.getCard(payload.cardId);
     const payment = player.getAffordablePayment(card);
 
     if (!payment) {
@@ -147,8 +151,8 @@ export class BuyFaceUpCardCommand implements CommandDefinition<SplendorGameState
     applyTokenDelta(player.state.tokens, payment, -1);
     applyTokenDelta(game.bank, payment, 1);
     player.buyCard(card.id);
-    gameOps.removeFaceUpCard(payload.level, card.id);
-    gameOps.replenishFaceUpCard(payload.level);
+    game.board.removeFaceUpCard(payload.level, card.id);
+    game.board.replenishFaceUpCard(payload.level);
     emitEvent({
       category: "domain",
       type: "card_purchased",

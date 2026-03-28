@@ -1,4 +1,17 @@
-import { TOKEN_COLORS, type SplendorPlayerState, type TokenColor, type TokenCounts } from "../state.ts";
+import {
+  TOKEN_COLORS,
+  type SplendorPlayerState,
+  type TokenColor,
+  type TokenCounts,
+} from "../state.ts";
+
+interface MutableTokenContainer extends TokenCounts {
+  applyDelta?(
+    delta: Partial<Record<TokenColor, number>>,
+    multiplier?: number,
+  ): void;
+  adjustColor?(color: TokenColor, amount: number): void;
+}
 
 export function emptyTokens(): TokenCounts {
   return {
@@ -46,10 +59,15 @@ export function createBank(playerCount: number): TokenCounts {
 }
 
 export function applyTokenDelta(
-  target: TokenCounts,
+  target: MutableTokenContainer,
   delta: Partial<Record<TokenColor, number>>,
   multiplier = 1,
 ): void {
+  if (typeof target.applyDelta === "function") {
+    target.applyDelta(delta, multiplier);
+    return;
+  }
+
   for (const color of TOKEN_COLORS) {
     target[color] += (delta[color] ?? 0) * multiplier;
   }
@@ -69,7 +87,11 @@ export function validateReturnTokens(
   for (const color of TOKEN_COLORS) {
     const amount = normalizedReturnTokens[color] ?? 0;
 
-    if (!Number.isInteger(amount) || amount < 0 || amount > player.tokens[color]) {
+    if (
+      !Number.isInteger(amount) ||
+      amount < 0 ||
+      amount > player.tokens[color]
+    ) {
       return false;
     }
   }
@@ -79,7 +101,7 @@ export function validateReturnTokens(
 
 export function applyReturnTokens(
   player: SplendorPlayerState,
-  bank: TokenCounts,
+  bank: MutableTokenContainer,
   returnTokens: Partial<TokenCounts> | undefined,
 ): void {
   if (!returnTokens) {
@@ -89,6 +111,12 @@ export function applyReturnTokens(
   for (const color of TOKEN_COLORS) {
     const amount = returnTokens[color] ?? 0;
     player.tokens[color] -= amount;
+
+    if (typeof bank.adjustColor === "function") {
+      bank.adjustColor(color, amount);
+      continue;
+    }
+
     bank[color] += amount;
   }
 }

@@ -2,9 +2,9 @@ import { expect, test } from "bun:test";
 import type {
   CommandAvailabilityContext,
   CommandDefinition,
-  CanonicalState,
   CommandInput,
   CommandDiscoveryResult,
+  CanonicalState,
   DiscoveryContext,
   ExecutionResult,
   KernelEvent,
@@ -14,6 +14,11 @@ import type {
   ProgressionResolveNextResult,
   ValidationOutcome,
 } from "../src/index";
+import type {
+  InternalCommandDefinition,
+  InternalExecuteContext,
+} from "../src/types/command";
+import type { RuntimeState } from "../src/types/state";
 
 test("foundational runtime types compose", () => {
   const event: KernelEvent = {
@@ -76,14 +81,6 @@ test("progression lifecycle types support nested segment authoring", () => {
     { progression: { current: string | null } },
     CommandInput<{ amount: number }>
   > = {
-    state: {
-      game: { score: 0 },
-      runtime: {
-        progression: {
-          current: "turn",
-        },
-      },
-    },
     game: { score: 0 },
     runtime: {
       progression: {
@@ -164,14 +161,12 @@ test("discovery types compose for command availability and next-input options", 
   const availabilityContext: CommandAvailabilityContext<{
     handCount: number;
   }> = {
-    state: {
-      game: { handCount: 3 },
-      runtime: {
-        progression: { current: "turn", rootId: "turn", segments: {} },
-        rng: { seed: "seed", cursor: 0 },
-        history: { entries: [] },
-        pending: { choices: [] },
-      },
+    game: { handCount: 3 },
+    runtime: {
+      progression: { current: "turn", rootId: "turn", segments: {} },
+      rng: { seed: "seed", cursor: 0 },
+      history: { entries: [] },
+      pending: { choices: [] },
     },
     commandType: "play_card",
     actorId: "p1",
@@ -217,7 +212,7 @@ test("discovery types compose for command availability and next-input options", 
 
 test("consumer command definitions only expose game state and command input generics", () => {
   const definition: CommandDefinition<
-    { score: number },
+    { increment(): void },
     CommandInput<{ amount: number }>
   > = {
     commandId: "gain_score",
@@ -226,9 +221,106 @@ test("consumer command definitions only expose game state and command input gene
       reason: "amount_required",
     }),
     execute: ({ game, commandInput }) => {
-      game.score += commandInput.payload?.amount ?? 0;
+      game.increment();
+      void commandInput.payload?.amount;
     },
   };
 
+  expect(definition.commandId).toBe("gain_score");
+});
+
+test("internal command definitions still expose canonical state separately from facade state", () => {
+  const definition: InternalCommandDefinition<
+    { score: number },
+    { increment(): void },
+    RuntimeState,
+    CommandInput<{ amount: number }>
+  > = {
+    commandId: "gain_score",
+    validate: ({ game, state, commandInput }) => {
+      void game.increment;
+      void state.game.score;
+      return {
+        ok: typeof commandInput.payload?.amount === "number",
+        reason: "amount_required",
+      };
+    },
+    execute: ({ game, state, commandInput }) => {
+      game.increment();
+      void state.game.score;
+      void commandInput.payload?.amount;
+    },
+  };
+
+  const context: InternalExecuteContext<
+    { score: number },
+    { increment(): void },
+    RuntimeState,
+    CommandInput<{ amount: number }>
+  > = {
+    state: {
+      game: {
+        score: 1,
+      },
+      runtime: {
+        progression: {
+          current: null,
+          rootId: null,
+          segments: {},
+        },
+        rng: {
+          seed: "seed",
+          cursor: 0,
+        },
+        history: {
+          entries: [],
+        },
+        pending: {
+          choices: [],
+        },
+      },
+    },
+    game: {
+      increment() {},
+    },
+    runtime: {
+      progression: {
+        current: null,
+        rootId: null,
+        segments: {},
+      },
+      rng: {
+        seed: "seed",
+        cursor: 0,
+      },
+      history: {
+        entries: [],
+      },
+      pending: {
+        choices: [],
+      },
+    },
+    commandInput: {
+      type: "gain_score",
+      payload: {
+        amount: 2,
+      },
+    },
+    rng: {
+      number() {
+        return 0.5;
+      },
+      die() {
+        return 1;
+      },
+      shuffle<T>(items: readonly T[]) {
+        return [...items];
+      },
+    },
+    setCurrentSegmentOwner() {},
+    emitEvent() {},
+  };
+
+  definition.execute(context);
   expect(definition.commandId).toBe("gain_score");
 });

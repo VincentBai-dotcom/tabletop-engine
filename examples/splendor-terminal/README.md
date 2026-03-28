@@ -17,3 +17,7 @@ The client runs one local in-memory match with:
 
 It consumes the kernel's command discovery APIs to prompt for command families
 and follow-up inputs.
+
+The terminal client stays on the plain executor/session model. It does not need
+to know whether the Splendor rules package is authored against plain state or a
+decorated root-state facade.

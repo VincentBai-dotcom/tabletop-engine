@@ -1,19 +1,26 @@
-import { GameDefinitionBuilder, type CommandInput } from "tabletop-kernel";
+import {
+  GameDefinitionBuilder,
+  type CommandInput,
+  type GameDefinition,
+} from "tabletop-kernel";
 import { createCommands } from "./commands/index.ts";
-import { SplendorGameOps } from "./model/game-ops.ts";
 import { createInitialGameState, setupSplendorGame } from "./setup.ts";
 import type {
   BuyFaceUpCardPayload,
   BuyReservedCardPayload,
   SplendorGameState,
+  SplendorGameStateFacade,
 } from "./state.ts";
+import { SplendorGameStateFacade as SplendorRootState } from "./state.ts";
 
 export interface CreateSplendorGameOptions {
   playerIds: string[];
   seed?: string | number;
 }
 
-export function createSplendorGame(options: CreateSplendorGameOptions) {
+export function createSplendorGame(
+  options: CreateSplendorGameOptions,
+): GameDefinition<SplendorGameState, SplendorGameStateFacade> {
   const { playerIds, seed } = options;
 
   if (playerIds.length < 2 || playerIds.length > 4) {
@@ -21,6 +28,7 @@ export function createSplendorGame(options: CreateSplendorGameOptions) {
   }
 
   return new GameDefinitionBuilder<SplendorGameState>("splendor")
+    .rootState(SplendorRootState)
     .rngSeed(seed)
     .progression({
       root: {
@@ -29,14 +37,12 @@ export function createSplendorGame(options: CreateSplendorGameOptions) {
         completionPolicy: "after_successful_command",
         onExit: ({ commandInput, emitEvent, game }) => {
           const actorId = commandInput.actorId;
-          const splendorGame = game as SplendorGameState;
 
           if (!actorId) {
             throw new Error("actor_id_required");
           }
 
-          const gameOps = new SplendorGameOps(splendorGame);
-          gameOps.resolveTurnEnd(
+          game.resolveTurnEnd(
             actorId,
             emitEvent,
             readChosenNobleId(commandInput),
@@ -44,19 +50,16 @@ export function createSplendorGame(options: CreateSplendorGameOptions) {
         },
         resolveNext: ({ commandInput, game }) => {
           const actorId = commandInput.actorId;
-          const splendorGame = game as SplendorGameState;
 
-          if (!actorId || splendorGame.winnerIds) {
+          if (!actorId || game.winnerIds) {
             return {
               nextSegmentId: null,
             };
           }
 
-          const gameOps = new SplendorGameOps(splendorGame);
-
           return {
             nextSegmentId: "turn",
-            ownerId: gameOps.getNextPlayerId(actorId),
+            ownerId: game.getNextPlayerId(actorId),
           };
         },
         children: [],

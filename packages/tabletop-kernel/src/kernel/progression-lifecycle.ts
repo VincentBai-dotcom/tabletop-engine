@@ -12,7 +12,7 @@ import type { CanonicalState, RuntimeState } from "../types/state";
 import type { CommandInput } from "../types/command";
 import type {
   BuiltInProgressionCompletionPolicy,
-  ProgressionCompletionContext,
+  InternalProgressionCompletionContext,
   ProgressionCompletionPolicy,
 } from "../types/progression";
 import type { KernelEvent } from "../types/event";
@@ -24,14 +24,20 @@ export type {
 } from "./progression-normalize";
 
 export function evaluateCompletionPolicy<
-  GameState extends object,
+  CanonicalGameState extends object,
+  FacadeGameState extends object,
   Runtime,
   TCommandInput extends CommandInput,
 >(
   policy:
-    | ProgressionCompletionPolicy<GameState, Runtime, TCommandInput>
+    | ProgressionCompletionPolicy<FacadeGameState, Runtime, TCommandInput>
     | undefined,
-  context: ProgressionCompletionContext<GameState, Runtime, TCommandInput>,
+  context: InternalProgressionCompletionContext<
+    CanonicalGameState,
+    FacadeGameState,
+    Runtime,
+    TCommandInput
+  >,
 ): boolean {
   if (!policy) {
     return false;
@@ -45,14 +51,17 @@ export function evaluateCompletionPolicy<
 }
 
 export function resolveProgressionLifecycle<
-  GameState extends object,
+  CanonicalGameState extends object,
+  FacadeGameState extends object,
   Runtime extends RuntimeState,
   TCommandInput extends CommandInput,
 >(
-  state: CanonicalState<GameState, Runtime>,
+  state: CanonicalState<CanonicalGameState, Runtime>,
+  readonlyGame: Readonly<FacadeGameState>,
+  mutableGame: FacadeGameState,
   commandInput: TCommandInput,
   progression: NormalizedProgressionDefinition<
-    GameState,
+    FacadeGameState,
     Runtime,
     TCommandInput
   >,
@@ -71,6 +80,7 @@ export function resolveProgressionLifecycle<
 
     const completionContext = createProgressionCompletionContext(
       state,
+      readonlyGame,
       commandInput,
       segment,
     );
@@ -83,6 +93,7 @@ export function resolveProgressionLifecycle<
 
     const lifecycleContext = createProgressionLifecycleHookContext(
       state,
+      mutableGame,
       commandInput,
       segment,
       rng,
@@ -146,6 +157,7 @@ export function resolveProgressionLifecycle<
 
       const enteredContext = createProgressionLifecycleHookContext(
         state,
+        mutableGame,
         commandInput,
         enteredSegment,
         rng,
@@ -160,12 +172,18 @@ export function resolveProgressionLifecycle<
 }
 
 function evaluateBuiltInCompletionPolicy<
-  GameState extends object,
+  CanonicalGameState extends object,
+  FacadeGameState extends object,
   Runtime,
   TCommandInput extends CommandInput,
 >(
   policy: BuiltInProgressionCompletionPolicy,
-  context: ProgressionCompletionContext<GameState, Runtime, TCommandInput>,
+  context: InternalProgressionCompletionContext<
+    CanonicalGameState,
+    FacadeGameState,
+    Runtime,
+    TCommandInput
+  >,
 ): boolean {
   void context;
 
@@ -220,12 +238,12 @@ function applyActivePath(
 }
 
 function resolveExplicitTargetSegmentId<
-  GameState extends object,
+  FacadeGameState extends object,
   Runtime,
   TCommandInput extends CommandInput,
 >(
   progression: NormalizedProgressionDefinition<
-    GameState,
+    FacadeGameState,
     Runtime,
     TCommandInput
   >,

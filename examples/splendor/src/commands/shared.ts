@@ -6,25 +6,25 @@ import type {
   ValidationContext,
   ValidationOutcome,
 } from "tabletop-kernel";
-import type { SplendorGameState } from "../state.ts";
+import type { SplendorGameStateFacade } from "../state.ts";
 
-interface ProgressionAwareState {
-  runtime: {
-    progression: {
-      current: string | null;
-      segments: Record<string, { ownerId?: string }>;
-    };
+type ProgressionRuntime = {
+  progression: {
+    current: string | null;
+    segments: Record<string, { ownerId?: string }>;
   };
-}
+};
 
 export type SplendorAvailabilityContext =
-  CommandAvailabilityContext<SplendorGameState>;
+  CommandAvailabilityContext<SplendorGameStateFacade>;
 
-export type SplendorDiscoveryContext = DiscoveryContext<SplendorGameState>;
+export type SplendorDiscoveryContext =
+  DiscoveryContext<SplendorGameStateFacade>;
 
-export type SplendorValidationContext = ValidationContext<SplendorGameState>;
+export type SplendorValidationContext =
+  ValidationContext<SplendorGameStateFacade>;
 
-export type SplendorExecuteContext = ExecuteContext<SplendorGameState>;
+export type SplendorExecuteContext = ExecuteContext<SplendorGameStateFacade>;
 
 export function readPayload<T>(commandInput: CommandInput): T {
   return (commandInput.payload ?? {}) as T;
@@ -51,28 +51,30 @@ export function guardedAvailability(run: () => boolean): boolean {
   }
 }
 
-export function assertGameActive(game: SplendorGameState): void {
+export function assertGameActive(
+  game: Readonly<SplendorGameStateFacade>,
+): void {
   if (game.winnerIds) {
     throw new Error("game_finished");
   }
 }
 
 export function assertActivePlayer(
-  state: ProgressionAwareState,
+  runtime: ProgressionRuntime,
   actorId: string | undefined,
 ): string {
   if (!actorId) {
     throw new Error("actor_id_required");
   }
 
-  const currentSegmentId = state.runtime.progression.current;
+  const currentSegmentId = runtime.progression.current;
 
   if (!currentSegmentId) {
     throw new Error("no_active_segment");
   }
 
   const currentOwnerId =
-    state.runtime.progression.segments[currentSegmentId]?.ownerId;
+    runtime.progression.segments[currentSegmentId]?.ownerId;
 
   if (!currentOwnerId || actorId !== currentOwnerId) {
     throw new Error("not_active_player");
@@ -82,8 +84,8 @@ export function assertActivePlayer(
 }
 
 export function assertAvailableActor(
-  context: CommandAvailabilityContext<SplendorGameState>,
+  context: CommandAvailabilityContext<SplendorGameStateFacade>,
 ): string {
-  assertGameActive(context.state.game);
-  return assertActivePlayer(context.state, context.actorId);
+  assertGameActive(context.game);
+  return assertActivePlayer(context.runtime, context.actorId);
 }
