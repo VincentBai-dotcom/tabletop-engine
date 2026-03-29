@@ -1,4 +1,4 @@
-import type { CommandDefinition } from "tabletop-kernel";
+import { t, type CommandDefinition } from "tabletop-kernel";
 import {
   completeDiscovery,
   createNobleDiscovery,
@@ -18,8 +18,14 @@ import {
   type SplendorValidationContext,
 } from "./shared.ts";
 
+const buyReservedCardPayloadSchema = t.object({
+  cardId: t.optional(t.number()),
+  chosenNobleId: t.optional(t.number()),
+});
+
 export class BuyReservedCardCommand implements CommandDefinition<SplendorGameState> {
   readonly commandId = "buy_reserved_card";
+  readonly payloadSchema = buyReservedCardPayloadSchema;
 
   isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {

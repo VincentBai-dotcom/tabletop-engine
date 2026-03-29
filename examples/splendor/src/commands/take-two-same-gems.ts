@@ -1,4 +1,4 @@
-import type { CommandDefinition } from "tabletop-kernel";
+import { t, type CommandDefinition } from "tabletop-kernel";
 import {
   completeDiscovery,
   createReturnTokenDiscovery,
@@ -22,8 +22,14 @@ import {
   type SplendorValidationContext,
 } from "./shared.ts";
 
+const takeTwoSameGemsPayloadSchema = t.object({
+  color: t.optional(t.string()),
+  returnTokens: t.optional(t.record(t.string(), t.number())),
+});
+
 export class TakeTwoSameGemsCommand implements CommandDefinition<SplendorGameState> {
   readonly commandId = "take_two_same_gems";
+  readonly payloadSchema = takeTwoSameGemsPayloadSchema;
 
   isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {

@@ -2,6 +2,7 @@ import type { KernelEvent } from "./event";
 import type { ValidationOutcome } from "./result";
 import type { CanonicalState, RuntimeState } from "./state";
 import type { RNGApi } from "./rng";
+import type { ObjectFieldType } from "../schema";
 
 export interface CommandInput<
   Payload extends Record<string, unknown> = Record<string, unknown>,
@@ -10,6 +11,13 @@ export interface CommandInput<
   actorId?: string;
   payload?: Payload;
 }
+
+type PayloadFromSchema<TPayloadSchema extends ObjectFieldType> =
+  TPayloadSchema extends ObjectFieldType ? Record<string, unknown> : never;
+
+export type CommandInputFromSchema<
+  TPayloadSchema extends ObjectFieldType = ObjectFieldType,
+> = CommandInput<PayloadFromSchema<TPayloadSchema>>;
 
 export interface InternalValidationContext<
   CanonicalGameState extends object = object,
@@ -115,9 +123,10 @@ export interface InternalCommandDefinition<
   CanonicalGameState extends object = object,
   FacadeGameState extends object = CanonicalGameState,
   Runtime extends RuntimeState = RuntimeState,
-  TCommandInput extends CommandInput = CommandInput,
+  TPayloadSchema extends ObjectFieldType = ObjectFieldType,
 > {
   commandId: string;
+  payloadSchema: TPayloadSchema;
   isAvailable?(
     context: InternalCommandAvailabilityContext<
       CanonicalGameState,
@@ -130,7 +139,7 @@ export interface InternalCommandDefinition<
       CanonicalGameState,
       FacadeGameState,
       Runtime,
-      TCommandInput
+      CommandInputFromSchema<TPayloadSchema>
     >,
   ): CommandDiscoveryResult | null;
   validate(
@@ -138,7 +147,7 @@ export interface InternalCommandDefinition<
       CanonicalGameState,
       FacadeGameState,
       Runtime,
-      TCommandInput
+      CommandInputFromSchema<TPayloadSchema>
     >,
   ): ValidationOutcome;
   execute(
@@ -146,22 +155,34 @@ export interface InternalCommandDefinition<
       CanonicalGameState,
       FacadeGameState,
       Runtime,
-      TCommandInput
+      CommandInputFromSchema<TPayloadSchema>
     >,
   ): void;
 }
 
 export type CommandDefinition<
   FacadeGameState extends object = object,
-  TCommandInput extends CommandInput = CommandInput,
+  TPayloadSchema extends ObjectFieldType = ObjectFieldType,
 > = {
   commandId: string;
+  payloadSchema: TPayloadSchema;
   isAvailable?(context: CommandAvailabilityContext<FacadeGameState>): boolean;
   discover?(
-    context: DiscoveryContext<FacadeGameState, TCommandInput>,
+    context: DiscoveryContext<
+      FacadeGameState,
+      CommandInputFromSchema<TPayloadSchema>
+    >,
   ): CommandDiscoveryResult | null;
   validate(
-    context: ValidationContext<FacadeGameState, TCommandInput>,
+    context: ValidationContext<
+      FacadeGameState,
+      CommandInputFromSchema<TPayloadSchema>
+    >,
   ): ValidationOutcome;
-  execute(context: ExecuteContext<FacadeGameState, TCommandInput>): void;
+  execute(
+    context: ExecuteContext<
+      FacadeGameState,
+      CommandInputFromSchema<TPayloadSchema>
+    >,
+  ): void;
 };

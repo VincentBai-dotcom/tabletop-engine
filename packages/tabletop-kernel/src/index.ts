@@ -1,5 +1,6 @@
 export { GameDefinitionBuilder } from "./game-definition";
 export { createGameExecutor, createKernel } from "./kernel/create-kernel";
+export { describeGameProtocol } from "./protocol/describe";
 export { t } from "./schema";
 export {
   field,
@@ -23,6 +24,17 @@ export type {
   GameSetupContext,
 } from "./game-definition";
 export type { GameExecutor, Kernel } from "./kernel/create-kernel";
+export type {
+  GameProtocolDescriptor,
+  ProtocolCommandDescriptor,
+} from "./protocol/describe";
+export type {
+  FieldType,
+  InferSchema,
+  ObjectFieldType,
+  SerializableSchema,
+  StateFieldMetadata,
+} from "./schema";
 export type {
   CommandAvailabilityContext,
   CommandDefinition,

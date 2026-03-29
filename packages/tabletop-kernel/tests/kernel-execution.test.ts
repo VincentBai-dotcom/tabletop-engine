@@ -17,6 +17,14 @@ import {
   visibleToSelf,
 } from "../src/state-facade/metadata";
 
+const emptyPayload = t.object({});
+const amountPayload = t.object({
+  amount: t.optional(t.number()),
+});
+const playCardPayload = t.object({
+  cardId: t.optional(t.number()),
+});
+
 @State()
 class CounterStateFacade {
   @field(t.number())
@@ -113,6 +121,7 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
     .commands({
       increment_counter: {
         commandId: "increment_counter",
+        payloadSchema: amountPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game, commandInput }) => {
           const amount =
@@ -421,6 +430,7 @@ test("availability and discovery contexts hydrate readonly decorated state facad
     .commands({
       increment_counter: {
         commandId: "increment_counter",
+        payloadSchema: amountPayload,
         isAvailable: ({ game }) =>
           (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
         discover: ({ game, partialCommand }) => {
@@ -483,6 +493,7 @@ test("readonly decorated facades reject mutation during validation", () => {
     .commands({
       increment_counter: {
         commandId: "increment_counter",
+        payloadSchema: emptyPayload,
         validate: ({ game }) => {
           (game as RootCounterStateFacade).incrementCounter(1);
           return { ok: true as const };
@@ -513,6 +524,7 @@ test("createGameExecutor creates initial state and commits successful commands",
     .commands({
       increment_counter: {
         commandId: "increment_counter",
+        payloadSchema: amountPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game, commandInput, emitEvent }) => {
           const amount =
@@ -530,6 +542,7 @@ test("createGameExecutor creates initial state and commits successful commands",
       },
       decrement_counter: {
         commandId: "decrement_counter",
+        payloadSchema: emptyPayload,
         validate: ({ game }) =>
           game.counter > 0
             ? { ok: true as const }
@@ -570,6 +583,7 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
     .commands({
       decrement_counter: {
         commandId: "decrement_counter",
+        payloadSchema: emptyPayload,
         validate: ({ game }) =>
           game.counter > 0
             ? { ok: true as const }
@@ -624,6 +638,7 @@ test("execute context can update current progression owner through controlled AP
     .commands({
       pass_turn: {
         commandId: "pass_turn",
+        payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ setCurrentSegmentOwner }) => {
           setCurrentSegmentOwner("player-2");
@@ -743,6 +758,7 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
     .commands({
       take_action: {
         commandId: "take_action",
+        payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game, emitEvent }) => {
           game.actions += 1;
@@ -827,6 +843,7 @@ test("progression lifecycle hooks hydrate decorated state facades", () => {
     .commands({
       increment_counter: {
         commandId: "increment_counter",
+        payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           (game as RootCounterStateFacade).incrementCounter(1);
@@ -892,6 +909,7 @@ test("nested progression can cascade through multiple segment transitions", () =
     .commands({
       resolve_step: {
         commandId: "resolve_step",
+        payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           game.resolved += 1;
@@ -961,6 +979,7 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
     .commands({
       take_action: {
         commandId: "take_action",
+        payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           game.actions += 1;
@@ -968,6 +987,7 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
       },
       end_turn: {
         commandId: "end_turn",
+        payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           game.requestedTurnEnd = true;
@@ -1031,12 +1051,14 @@ test("game executor can list available commands through per-command availability
     .commands({
       pass_turn: {
         commandId: "pass_turn",
+        payloadSchema: emptyPayload,
         isAvailable: () => true,
         validate: () => ({ ok: true as const }),
         execute: () => {},
       },
       spend_energy: {
         commandId: "spend_energy",
+        payloadSchema: emptyPayload,
         isAvailable: ({ game }) => game.energy > 0,
         validate: ({ game }) =>
           game.energy > 0
@@ -1048,6 +1070,7 @@ test("game executor can list available commands through per-command availability
       },
       impossible_action: {
         commandId: "impossible_action",
+        payloadSchema: emptyPayload,
         isAvailable: () => false,
         validate: () => ({ ok: true as const }),
         execute: () => {},
@@ -1088,6 +1111,7 @@ test("game executor can discover the next semantic options for a command", () =>
     .commands({
       play_card: {
         commandId: "play_card",
+        payloadSchema: playCardPayload,
         isAvailable: ({ game }) => game.canPlay,
         discover: ({ partialCommand }) => {
           const cardId = partialCommand.payload?.cardId;

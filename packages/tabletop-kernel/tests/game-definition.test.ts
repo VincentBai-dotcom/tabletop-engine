@@ -10,8 +10,11 @@ import {
   visibleToSelf,
 } from "../src/state-facade/metadata";
 
+const emptyPayload = t.object({});
+
 class IncrementScoreCommand implements CommandDefinition<{ score: number }> {
   readonly commandId = "increment_score";
+  readonly payloadSchema = emptyPayload;
 
   validate() {
     return { ok: true as const };
@@ -24,6 +27,7 @@ class IncrementScoreCommand implements CommandDefinition<{ score: number }> {
 
 class DecrementScoreCommand implements CommandDefinition<{ score: number }> {
   readonly commandId = "decrement_score";
+  readonly payloadSchema = emptyPayload;
 
   validate() {
     return { ok: true as const };

@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
-import { createGameExecutor, GameDefinitionBuilder } from "../src/index";
+import { createGameExecutor, GameDefinitionBuilder, t } from "../src/index";
 
 test("game executor rng is deterministic for the same seed and command sequence", () => {
+  const emptyPayload = t.object({});
+
   const game = new GameDefinitionBuilder<{
     roll: number;
     value: number;
@@ -16,6 +18,7 @@ test("game executor rng is deterministic for the same seed and command sequence"
     .commands({
       sample_randomness: {
         commandId: "sample_randomness",
+        payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();
@@ -48,6 +51,8 @@ test("game executor rng is deterministic for the same seed and command sequence"
 });
 
 test("game executor rng cursor advances when randomness is consumed", () => {
+  const emptyPayload = t.object({});
+
   const game = new GameDefinitionBuilder<{
     value: number;
   }>("rng-game")
@@ -58,6 +63,7 @@ test("game executor rng cursor advances when randomness is consumed", () => {
     .commands({
       sample_randomness: {
         commandId: "sample_randomness",
+        payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();

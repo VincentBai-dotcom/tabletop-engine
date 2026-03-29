@@ -7,9 +7,15 @@ import {
   createSnapshot,
   replayRecord,
   restoreSnapshot,
+  t,
 } from "../src/index";
 
 test("snapshots restore canonical state and replay reproduces final state", () => {
+  const incrementPayload = t.object({
+    amount: t.optional(t.number()),
+  });
+  const emptyPayload = t.object({});
+
   const game = new GameDefinitionBuilder<{
     counter: number;
     value: number;
@@ -22,6 +28,7 @@ test("snapshots restore canonical state and replay reproduces final state", () =
     .commands({
       increment_counter: {
         commandId: "increment_counter",
+        payloadSchema: incrementPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game, commandInput }) => {
           const amount =
@@ -34,6 +41,7 @@ test("snapshots restore canonical state and replay reproduces final state", () =
       },
       sample_randomness: {
         commandId: "sample_randomness",
+        payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();

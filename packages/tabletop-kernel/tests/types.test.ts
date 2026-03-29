@@ -14,7 +14,9 @@ import type {
   ProgressionResolveNextResult,
   ValidationOutcome,
 } from "../src/index";
+import { t } from "../src/index";
 import type {
+  CommandInputFromSchema,
   InternalCommandDefinition,
   InternalExecuteContext,
 } from "../src/types/command";
@@ -206,11 +208,16 @@ test("discovery types compose for command availability and next-input options", 
 });
 
 test("consumer command definitions only expose game state and command input generics", () => {
+  const gainScorePayload = t.object({
+    amount: t.number(),
+  });
+
   const definition: CommandDefinition<
     { increment(): void },
-    CommandInput<{ amount: number }>
+    typeof gainScorePayload
   > = {
     commandId: "gain_score",
+    payloadSchema: gainScorePayload,
     validate: ({ commandInput }) => ({
       ok: typeof commandInput.payload?.amount === "number",
       reason: "amount_required",
@@ -225,13 +232,18 @@ test("consumer command definitions only expose game state and command input gene
 });
 
 test("internal command definitions still expose canonical state separately from facade state", () => {
+  const gainScorePayload = t.object({
+    amount: t.number(),
+  });
+
   const definition: InternalCommandDefinition<
     { score: number },
     { increment(): void },
     RuntimeState,
-    CommandInput<{ amount: number }>
+    typeof gainScorePayload
   > = {
     commandId: "gain_score",
+    payloadSchema: gainScorePayload,
     validate: ({ game, state, commandInput }) => {
       void game.increment;
       void state.game.score;
@@ -251,7 +263,7 @@ test("internal command definitions still expose canonical state separately from 
     { score: number },
     { increment(): void },
     RuntimeState,
-    CommandInput<{ amount: number }>
+    CommandInputFromSchema<typeof gainScorePayload>
   > = {
     state: {
       game: {

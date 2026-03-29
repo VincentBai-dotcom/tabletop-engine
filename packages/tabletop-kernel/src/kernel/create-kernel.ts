@@ -31,6 +31,7 @@ import type { Viewer, VisibleState } from "../types/visibility";
 import { createRNGService } from "../rng/service";
 import { hydrateStateFacade } from "../state-facade/hydrate";
 import { getView as getVisibleStateView } from "../state-facade/project";
+import type { ObjectFieldType } from "../schema";
 
 type CommandDefinitions<
   CanonicalGameState extends object,
@@ -41,7 +42,7 @@ type CommandDefinitions<
     CanonicalGameState,
     FacadeGameState,
     RuntimeState,
-    CommandInput
+    ObjectFieldType
   >
 >;
 
@@ -128,8 +129,8 @@ export function createGameExecutor<
   FacadeGameState extends object = CanonicalGameState,
   Commands extends Record<
     string,
-    CommandDefinition<FacadeGameState, CommandInput>
-  > = Record<string, CommandDefinition<FacadeGameState, CommandInput>>,
+    CommandDefinition<FacadeGameState, ObjectFieldType>
+  > = Record<string, CommandDefinition<FacadeGameState, ObjectFieldType>>,
 >(
   game: GameDefinition<CanonicalGameState, FacadeGameState, Commands>,
 ): GameExecutor<CanonicalGameState> {

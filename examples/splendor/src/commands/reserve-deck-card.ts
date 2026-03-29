@@ -1,4 +1,4 @@
-import type { CommandDefinition } from "tabletop-kernel";
+import { t, type CommandDefinition } from "tabletop-kernel";
 import {
   completeDiscovery,
   createReturnTokenDiscovery,
@@ -18,8 +18,14 @@ import {
   type SplendorValidationContext,
 } from "./shared.ts";
 
+const reserveDeckCardPayloadSchema = t.object({
+  level: t.optional(t.number()),
+  returnTokens: t.optional(t.record(t.string(), t.number())),
+});
+
 export class ReserveDeckCardCommand implements CommandDefinition<SplendorGameState> {
   readonly commandId = "reserve_deck_card";
+  readonly payloadSchema = reserveDeckCardPayloadSchema;
 
   isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {

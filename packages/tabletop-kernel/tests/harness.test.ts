@@ -3,9 +3,14 @@ import {
   createGameExecutor,
   GameDefinitionBuilder,
   runScenario,
+  t,
 } from "../src/index";
 
 test("runScenario applies commands in order and returns per-command results", () => {
+  const incrementPayload = t.object({
+    amount: t.optional(t.number()),
+  });
+
   const game = new GameDefinitionBuilder<{
     counter: number;
   }>("counter-game")
@@ -15,6 +20,7 @@ test("runScenario applies commands in order and returns per-command results", ()
     .commands({
       increment_counter: {
         commandId: "increment_counter",
+        payloadSchema: incrementPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game, commandInput }) => {
           const amount =
