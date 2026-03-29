@@ -62,3 +62,55 @@ export type FieldType =
   | OptionalFieldType;
 
 export type StateFieldMetadata = FieldType;
+
+export type SerializableSchema =
+  | PrimitiveFieldType
+  | ArrayFieldType
+  | RecordFieldType
+  | ObjectFieldType
+  | OptionalFieldType;
+
+type InferSerializableSchema<TSchema extends FieldType> =
+  TSchema extends NumberFieldType
+    ? number
+    : TSchema extends StringFieldType
+      ? string
+      : TSchema extends BooleanFieldType
+        ? boolean
+        : TSchema extends OptionalFieldType
+          ? InferSerializableSchema<
+              Extract<TSchema["item"], SerializableSchema>
+            >
+          : TSchema extends ArrayFieldType
+            ? Array<
+                InferSerializableSchema<
+                  Extract<TSchema["item"], SerializableSchema>
+                >
+              >
+            : TSchema extends RecordFieldType
+              ? Record<
+                  string,
+                  InferSerializableSchema<
+                    Extract<TSchema["value"], SerializableSchema>
+                  >
+                >
+              : TSchema extends ObjectFieldType
+                ? InferObjectSchema<TSchema["properties"]>
+                : never;
+
+type InferObjectSchema<TProperties extends Record<string, FieldType>> = {
+  [K in keyof TProperties as TProperties[K] extends OptionalFieldType
+    ? never
+    : K]: InferSerializableSchema<Extract<TProperties[K], SerializableSchema>>;
+} & {
+  [K in keyof TProperties as TProperties[K] extends OptionalFieldType
+    ? K
+    : never]?: TProperties[K] extends OptionalFieldType
+    ? InferSerializableSchema<
+        Extract<TProperties[K]["item"], SerializableSchema>
+      >
+    : never;
+};
+
+export type InferSchema<TSchema extends SerializableSchema> =
+  InferSerializableSchema<TSchema>;
