@@ -5,6 +5,7 @@ import {
   OwnedByPlayer,
   State,
   field,
+  visibleToSelf,
   viewSchema,
 } from "../src/state-facade/metadata";
 import { t } from "../src/schema";
@@ -25,7 +26,7 @@ class ProtocolPlayerState {
   @field(t.string())
   id!: string;
 
-  @hidden()
+  @visibleToSelf()
   @field(t.array(t.number()))
   hand!: number[];
 }
@@ -146,6 +147,17 @@ test("describeGameProtocol returns command payload schemas", () => {
 
   expect(protocol.name).toBe("protocol-game");
   expect(protocol.commands.gain_score?.payloadSchema).toBe(gainScorePayload);
+  expect(protocol.viewSchema.type).toBe("object");
+  expect(protocol.viewSchema.properties.game.type).toBe("object");
+  expect(protocol.viewSchema.properties.progression.type).toBe("object");
+
+  const playersSchema = protocol.viewSchema.properties.game.properties.players;
+  const playerSchema = playersSchema.patternProperties["^(.*)$"];
+
+  expect(playersSchema.type).toBe("object");
+  expect(playerSchema.type).toBe("object");
+  expect(playerSchema.properties.id.type).toBe("string");
+  expect(playerSchema.properties.hand.anyOf).toHaveLength(2);
 });
 
 test("describeGameProtocol includes custom view schemas when provided", () => {
@@ -167,6 +179,9 @@ test("describeGameProtocol includes custom view schemas when provided", () => {
 
   expect(protocol.customViews.SchemaProtocolDeckState).toBe(
     customDeckViewSchema,
+  );
+  expect(protocol.viewSchema.properties.game.properties.deck).toEqual(
+    customDeckViewSchema.schema,
   );
 });
 
