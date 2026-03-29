@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
-import { createGameExecutor } from "../src/kernel/game-executor";
+import { createGameExecutor } from "../src/runtime/game-executor";
 import { GameDefinitionBuilder } from "../src/game-definition";
-import { evaluateCompletionPolicy } from "../src/kernel/progression-lifecycle";
+import { evaluateCompletionPolicy } from "../src/runtime/progression-lifecycle";
 import {
   createProgressionCompletionContext,
   createProgressionLifecycleHookContext,
-} from "../src/kernel/contexts";
-import { createEventCollector } from "../src/kernel/events";
+} from "../src/runtime/contexts";
+import { createEventCollector } from "../src/runtime/events";
 import { createRNGService } from "../src/rng/service";
 import {
   field,
