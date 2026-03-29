@@ -29,16 +29,16 @@ test("game executor rng is deterministic for the same seed and command sequence"
     })
     .build();
 
-  const kernelA = createGameExecutor(game);
-  const kernelB = createGameExecutor(game);
+  const gameExecutorA = createGameExecutor(game);
+  const gameExecutorB = createGameExecutor(game);
 
-  const initialA = kernelA.createInitialState();
-  const initialB = kernelB.createInitialState();
+  const initialA = gameExecutorA.createInitialState();
+  const initialB = gameExecutorB.createInitialState();
 
-  const resultA = kernelA.executeCommand(initialA, {
+  const resultA = gameExecutorA.executeCommand(initialA, {
     type: "sample_randomness",
   });
-  const resultB = kernelB.executeCommand(initialB, {
+  const resultB = gameExecutorB.executeCommand(initialB, {
     type: "sample_randomness",
   });
 
