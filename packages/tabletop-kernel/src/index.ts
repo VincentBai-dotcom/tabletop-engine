@@ -8,6 +8,7 @@ export {
   hidden,
   OwnedByPlayer,
   State,
+  viewSchema,
   visibleToSelf,
 } from "./state-facade/metadata";
 export {

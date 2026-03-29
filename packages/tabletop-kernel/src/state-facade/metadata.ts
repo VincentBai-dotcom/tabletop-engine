@@ -3,7 +3,11 @@ export type StateClass<TState extends object = object> = new (
 ) => TState;
 
 import { t } from "../schema";
-import type { FieldType, StateFieldMetadata } from "../schema";
+import type {
+  FieldType,
+  SerializableSchema,
+  StateFieldMetadata,
+} from "../schema";
 
 export { t };
 
@@ -18,6 +22,7 @@ export interface StateMetadata {
   fields: Record<string, StateFieldMetadata>;
   fieldVisibility: Record<string, FieldVisibilityMetadata>;
   ownedByPlayer: boolean;
+  customViewSchema?: SerializableSchema;
 }
 
 const STATE_METADATA = new WeakMap<StateClass, StateMetadata>();
@@ -34,6 +39,7 @@ function ensureStateMetadata(target: StateClass): StateMetadata {
     fields: {},
     fieldVisibility: {},
     ownedByPlayer: false,
+    customViewSchema: undefined,
   };
   STATE_METADATA.set(target, created);
   return created;
@@ -60,6 +66,13 @@ export function field(fieldType: FieldType): PropertyDecorator {
   return (target, propertyKey) => {
     const metadata = ensureStateMetadata(resolveDecoratorTarget(target));
     metadata.fields[String(propertyKey)] = fieldType;
+  };
+}
+
+export function viewSchema(schema: SerializableSchema): MethodDecorator {
+  return (target) => {
+    const metadata = ensureStateMetadata(resolveDecoratorTarget(target));
+    metadata.customViewSchema = schema;
   };
 }
 

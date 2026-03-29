@@ -3,13 +3,18 @@ import {
   getStateMetadata,
   type StateClass,
 } from "./metadata";
-import type { FieldType, StateFieldMetadata } from "../schema";
+import type {
+  FieldType,
+  SerializableSchema,
+  StateFieldMetadata,
+} from "../schema";
 
 export interface CompiledStateDefinition {
   type: StateClass;
   fields: Record<string, StateFieldMetadata>;
   fieldVisibility: Record<string, FieldVisibilityMetadata>;
   ownedByPlayer: boolean;
+  customViewSchema?: SerializableSchema;
 }
 
 export interface CompiledStateFacadeDefinition {
@@ -57,6 +62,7 @@ function visitState(
       ...metadata.fieldVisibility,
     },
     ownedByPlayer: metadata.ownedByPlayer,
+    customViewSchema: metadata.customViewSchema,
   };
 
   for (const field of Object.values(metadata.fields)) {

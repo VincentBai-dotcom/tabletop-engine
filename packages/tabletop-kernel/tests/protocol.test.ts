@@ -5,6 +5,7 @@ import {
   OwnedByPlayer,
   State,
   field,
+  viewSchema,
 } from "../src/state-facade/metadata";
 import { t } from "../src/schema";
 import type { CommandDefinition } from "../src/types/command";
@@ -13,6 +14,9 @@ import { describeGameProtocol } from "../src/index";
 
 const gainScorePayload = t.object({
   amount: t.number(),
+});
+const customDeckViewSchema = t.object({
+  count: t.number(),
 });
 
 @OwnedByPlayer()
@@ -32,6 +36,21 @@ class ProtocolDeckState {
   @field(t.array(t.number()))
   cards!: number[];
 
+  projectCustomView(viewer: Viewer) {
+    void viewer;
+    return {
+      count: this.cards.length,
+    };
+  }
+}
+
+@State()
+class SchemaProtocolDeckState {
+  @hidden()
+  @field(t.array(t.number()))
+  cards!: number[];
+
+  @viewSchema(customDeckViewSchema)
   projectCustomView(viewer: Viewer) {
     void viewer;
     return {
@@ -65,6 +84,37 @@ class ProtocolRootState {
   deck!: ProtocolDeckState;
 }
 
+@State()
+class SchemaProtocolRootState {
+  @field(
+    t.record(
+      t.string(),
+      t.state(() => ProtocolPlayerState),
+    ),
+  )
+  players!: Record<string, ProtocolPlayerState>;
+
+  @field(t.state(() => SchemaProtocolDeckState))
+  deck!: SchemaProtocolDeckState;
+}
+
+@State()
+class OrphanViewSchemaState {
+  @field(t.number())
+  value!: number;
+
+  @viewSchema(t.object({ count: t.number() }))
+  describe(): number {
+    return this.value;
+  }
+}
+
+@State()
+class OrphanViewSchemaRootState {
+  @field(t.state(() => OrphanViewSchemaState))
+  child!: OrphanViewSchemaState;
+}
+
 class GainScoreCommand implements CommandDefinition<
   ProtocolRootState,
   typeof gainScorePayload
@@ -96,6 +146,28 @@ test("describeGameProtocol returns command payload schemas", () => {
 
   expect(protocol.name).toBe("protocol-game");
   expect(protocol.commands.gain_score?.payloadSchema).toBe(gainScorePayload);
+});
+
+test("describeGameProtocol includes custom view schemas when provided", () => {
+  const game = new GameDefinitionBuilder<{
+    players: Record<string, { id: string; hand: number[] }>;
+    deck: { cards: number[] };
+  }>("protocol-view-schema-game")
+    .initialState(() => ({
+      players: {
+        p1: { id: "p1", hand: [1, 2] },
+      },
+      deck: { cards: [1, 2, 3] },
+    }))
+    .rootState(SchemaProtocolRootState)
+    .commands([new GainScoreCommand()])
+    .build();
+
+  const protocol = describeGameProtocol(game);
+
+  expect(protocol.customViews.SchemaProtocolDeckState).toBe(
+    customDeckViewSchema,
+  );
 });
 
 test("describeGameProtocol rejects commands without payloadSchema", () => {
@@ -141,5 +213,21 @@ test("describeGameProtocol rejects custom view methods without view schema", () 
 
   expect(() => describeGameProtocol(game)).toThrow(
     "custom_view_schema_required:ProtocolDeckState",
+  );
+});
+
+test("describeGameProtocol rejects view schemas without projectCustomView", () => {
+  const game = new GameDefinitionBuilder<{
+    child: { value: number };
+  }>("orphan-view-schema-game")
+    .initialState(() => ({
+      child: { value: 1 },
+    }))
+    .rootState(OrphanViewSchemaRootState)
+    .commands([new GainScoreCommand()])
+    .build();
+
+  expect(() => describeGameProtocol(game)).toThrow(
+    "custom_view_schema_requires_project_custom_view:OrphanViewSchemaState",
   );
 });
