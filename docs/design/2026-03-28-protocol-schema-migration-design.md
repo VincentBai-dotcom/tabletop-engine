@@ -96,7 +96,7 @@ ecosystem.
 Current recommendation:
 
 - keep the kernel-facing `t` API
-- use an established schema library underneath, likely TypeBox
+- use TypeBox underneath
 - keep `t.state(...)` as the kernel-specific extension point
 
 Why:
@@ -110,6 +110,10 @@ Why:
 This does not mean exposing the full underlying library surface immediately.
 The first migration should still expose only the narrow `t` subset listed
 above.
+
+This also means the `t` types already supported today should be migrated to use
+TypeBox under the hood, instead of continuing to evolve as a separate bespoke
+schema representation.
 
 ### `t` should move out of `state-facade/metadata.ts`
 
