@@ -64,8 +64,6 @@ export interface GameExecutor<GameState extends object> {
   ): ExecutionResult<CanonicalState<GameState>>;
 }
 
-export type Kernel<GameState extends object> = GameExecutor<GameState>;
-
 function createCommandGameView<
   CanonicalGameState extends object,
   FacadeGameState extends object = CanonicalGameState,
@@ -353,5 +351,3 @@ export function createGameExecutor<
     },
   };
 }
-
-export const createKernel = createGameExecutor;

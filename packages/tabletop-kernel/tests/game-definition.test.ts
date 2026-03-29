@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { createGameExecutor } from "../src/kernel/create-kernel";
+import { createGameExecutor } from "../src/kernel/game-executor";
 import { GameDefinitionBuilder } from "../src/game-definition";
 import type { CommandDefinition } from "../src/types/command";
 import {
