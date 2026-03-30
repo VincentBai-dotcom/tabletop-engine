@@ -1,24 +1,18 @@
-import {
-  t,
-  type CommandDefinition,
-  type NumberFieldType,
-  type ObjectFieldType,
-  type OptionalFieldType,
-  type RecordFieldType,
-  type StringFieldType,
-} from "tabletop-engine";
+import { t, type CommandDefinition } from "tabletop-engine";
 import {
   completeDiscovery,
   createReturnTokenDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type { ReserveDeckCardPayload, SplendorGameState } from "../state.ts";
+import type { SplendorGameState } from "../state.ts";
 import {
+  assertDevelopmentLevel,
   assertAvailableActor,
   assertActivePlayer,
   assertGameActive,
   guardedAvailability,
   guardedValidate,
+  isDevelopmentLevel,
   readPayload,
   type SplendorAvailabilityContext,
   type SplendorDiscoveryContext,
@@ -26,25 +20,19 @@ import {
   type SplendorValidationContext,
 } from "./shared.ts";
 
-type ReserveDeckCardPayloadSchema = ObjectFieldType<{
-  level: OptionalFieldType<NumberFieldType>;
-  returnTokens: OptionalFieldType<
-    RecordFieldType<StringFieldType, NumberFieldType>
-  >;
-}>;
-
-const reserveDeckCardPayloadSchema: ReserveDeckCardPayloadSchema = t.object({
+const reserveDeckCardPayloadSchema = t.object({
   level: t.optional(t.number()),
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
+export type ReserveDeckCardPayload = typeof reserveDeckCardPayloadSchema.static;
+
 export class ReserveDeckCardCommand implements CommandDefinition<
   SplendorGameState,
-  ReserveDeckCardPayloadSchema
+  ReserveDeckCardPayload
 > {
   readonly commandId = "reserve_deck_card";
-  readonly payloadSchema: ReserveDeckCardPayloadSchema =
-    reserveDeckCardPayloadSchema;
+  readonly payloadSchema = reserveDeckCardPayloadSchema;
 
   isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {
@@ -61,7 +49,7 @@ export class ReserveDeckCardCommand implements CommandDefinition<
     });
   }
 
-  discover(context: SplendorDiscoveryContext<ReserveDeckCardPayloadSchema>) {
+  discover(context: SplendorDiscoveryContext<ReserveDeckCardPayload>) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
     const payload = readPayload<Partial<ReserveDeckCardPayload>>(
@@ -110,7 +98,7 @@ export class ReserveDeckCardCommand implements CommandDefinition<
     runtime,
     game,
     commandInput,
-  }: SplendorValidationContext<ReserveDeckCardPayloadSchema>) {
+  }: SplendorValidationContext<ReserveDeckCardPayload>) {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, commandInput.actorId);
@@ -125,7 +113,13 @@ export class ReserveDeckCardCommand implements CommandDefinition<
         return { ok: false, reason: "level_required" };
       }
 
-      if (game.board.deckByLevel[payload.level].length === 0) {
+      const level = payload.level;
+
+      if (!isDevelopmentLevel(level)) {
+        return { ok: false, reason: "invalid_level" };
+      }
+
+      if (game.board.deckByLevel[level].length === 0) {
         return { ok: false, reason: "deck_empty" };
       }
 
@@ -150,11 +144,12 @@ export class ReserveDeckCardCommand implements CommandDefinition<
     game,
     commandInput,
     emitEvent,
-  }: SplendorExecuteContext<ReserveDeckCardPayloadSchema>) {
+  }: SplendorExecuteContext<ReserveDeckCardPayload>) {
     const actorId = commandInput.actorId!;
     const payload = readPayload<ReserveDeckCardPayload>(commandInput);
+    const level = assertDevelopmentLevel(payload.level);
     const player = game.getPlayer(actorId);
-    const reservedCardId = game.board.reserveDeckCard(payload.level);
+    const reservedCardId = game.board.reserveDeckCard(level);
 
     player.reserveCard(reservedCardId);
     const receivedGold = player.gainGoldFrom(game.bank);
@@ -165,7 +160,7 @@ export class ReserveDeckCardCommand implements CommandDefinition<
       payload: {
         actorId,
         source: "deck",
-        level: payload.level,
+        level,
         cardId: reservedCardId,
         receivedGold,
         returnTokens: payload.returnTokens ?? null,

@@ -46,3 +46,10 @@ export {
   TakeThreeDistinctGemsCommand,
   TakeTwoSameGemsCommand,
 };
+
+export type { BuyFaceUpCardPayload } from "./buy-face-up-card.ts";
+export type { BuyReservedCardPayload } from "./buy-reserved-card.ts";
+export type { ReserveDeckCardPayload } from "./reserve-deck-card.ts";
+export type { ReserveFaceUpCardPayload } from "./reserve-face-up-card.ts";
+export type { TakeThreeDistinctGemsPayload } from "./take-three-distinct-gems.ts";
+export type { TakeTwoSameGemsPayload } from "./take-two-same-gems.ts";

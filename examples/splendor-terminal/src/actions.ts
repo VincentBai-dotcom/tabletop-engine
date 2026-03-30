@@ -12,8 +12,6 @@ import {
   SPLENDOR_DISCOVERY_STEPS,
   type BuyFaceUpCardPayload,
   type BuyReservedCardPayload,
-  type DevelopmentLevel,
-  type GemTokenColor,
   type ReserveDeckCardPayload,
   type ReserveFaceUpCardPayload,
   type TakeThreeDistinctGemsPayload,
@@ -216,21 +214,17 @@ function describeFaceUpCard(
   return `L${String(level)} #${String(card.id)} ${card.bonusColor} ${card.prestigePoints}pt`;
 }
 
-function readThreeGemColors(command: SplendorTerminalCommand): GemTokenColor[] {
+function readThreeGemColors(command: SplendorTerminalCommand): string[] {
   const payload = command.payload as TakeThreeDistinctGemsPayload | undefined;
   return payload?.colors ? [...payload.colors] : [];
 }
 
-function readTwoGemColor(
-  command: SplendorTerminalCommand,
-): GemTokenColor | "unknown" {
+function readTwoGemColor(command: SplendorTerminalCommand): string | "unknown" {
   const payload = command.payload as TakeTwoSameGemsPayload | undefined;
   return payload?.color ?? "unknown";
 }
 
-function readDeckLevel(
-  command: SplendorTerminalCommand,
-): DevelopmentLevel | "unknown" {
+function readDeckLevel(command: SplendorTerminalCommand): number | "unknown" {
   const payload = command.payload as ReserveDeckCardPayload | undefined;
   return payload?.level ?? "unknown";
 }

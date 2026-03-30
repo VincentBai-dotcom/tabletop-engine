@@ -4,11 +4,16 @@ import type {
   CommandInputFromSchema,
   DiscoveryContext,
   ExecuteContext,
-  ObjectFieldType,
   ValidationContext,
   ValidationOutcome,
 } from "tabletop-engine";
-import type { SplendorGameState } from "../state.ts";
+import {
+  DEVELOPMENT_LEVELS,
+  GEM_TOKEN_COLORS,
+  type DevelopmentLevel,
+  type GemTokenColor,
+  type SplendorGameState,
+} from "../state.ts";
 
 type ProgressionRuntime = {
   progression: {
@@ -21,22 +26,49 @@ export type SplendorAvailabilityContext =
   CommandAvailabilityContext<SplendorGameState>;
 
 export type SplendorDiscoveryContext<
-  TPayloadSchema extends ObjectFieldType | never = never,
-> = DiscoveryContext<SplendorGameState, CommandInputFromSchema<TPayloadSchema>>;
+  TPayload extends Record<string, unknown> = Record<string, unknown>,
+> = DiscoveryContext<SplendorGameState, CommandInputFromSchema<TPayload>>;
 
 export type SplendorValidationContext<
-  TPayloadSchema extends ObjectFieldType | never = never,
-> = ValidationContext<
-  SplendorGameState,
-  CommandInputFromSchema<TPayloadSchema>
->;
+  TPayload extends Record<string, unknown> = Record<string, unknown>,
+> = ValidationContext<SplendorGameState, CommandInputFromSchema<TPayload>>;
 
 export type SplendorExecuteContext<
-  TPayloadSchema extends ObjectFieldType | never = never,
-> = ExecuteContext<SplendorGameState, CommandInputFromSchema<TPayloadSchema>>;
+  TPayload extends Record<string, unknown> = Record<string, unknown>,
+> = ExecuteContext<SplendorGameState, CommandInputFromSchema<TPayload>>;
 
 export function readPayload<T>(commandInput: CommandInput): T {
   return (commandInput.payload ?? {}) as T;
+}
+
+export function isGemTokenColor(value: unknown): value is GemTokenColor {
+  return (
+    typeof value === "string" &&
+    (GEM_TOKEN_COLORS as readonly string[]).includes(value)
+  );
+}
+
+export function isDevelopmentLevel(value: unknown): value is DevelopmentLevel {
+  return (
+    typeof value === "number" &&
+    (DEVELOPMENT_LEVELS as readonly number[]).includes(value)
+  );
+}
+
+export function assertGemTokenColor(value: unknown): GemTokenColor {
+  if (!isGemTokenColor(value)) {
+    throw new Error("invalid_color");
+  }
+
+  return value;
+}
+
+export function assertDevelopmentLevel(value: unknown): DevelopmentLevel {
+  if (!isDevelopmentLevel(value)) {
+    throw new Error("invalid_level");
+  }
+
+  return value;
 }
 
 export function guardedValidate(

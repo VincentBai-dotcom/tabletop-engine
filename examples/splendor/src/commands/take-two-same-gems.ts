@@ -1,28 +1,18 @@
-import {
-  t,
-  type CommandDefinition,
-  type NumberFieldType,
-  type ObjectFieldType,
-  type OptionalFieldType,
-  type RecordFieldType,
-  type StringFieldType,
-} from "tabletop-engine";
+import { t, type CommandDefinition } from "tabletop-engine";
 import {
   completeDiscovery,
   createReturnTokenDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type {
-  ReturnTokensPayload,
-  SplendorGameState,
-  TakeTwoSameGemsPayload,
-} from "../state.ts";
+import type { SplendorGameState } from "../state.ts";
 import {
+  assertGemTokenColor,
   assertAvailableActor,
   assertActivePlayer,
   assertGameActive,
   guardedAvailability,
   guardedValidate,
+  isGemTokenColor,
   readPayload,
   type SplendorAvailabilityContext,
   type SplendorDiscoveryContext,
@@ -30,25 +20,19 @@ import {
   type SplendorValidationContext,
 } from "./shared.ts";
 
-type TakeTwoSameGemsPayloadSchema = ObjectFieldType<{
-  color: OptionalFieldType<StringFieldType>;
-  returnTokens: OptionalFieldType<
-    RecordFieldType<StringFieldType, NumberFieldType>
-  >;
-}>;
-
-const takeTwoSameGemsPayloadSchema: TakeTwoSameGemsPayloadSchema = t.object({
+const takeTwoSameGemsPayloadSchema = t.object({
   color: t.optional(t.string()),
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
+export type TakeTwoSameGemsPayload = typeof takeTwoSameGemsPayloadSchema.static;
+
 export class TakeTwoSameGemsCommand implements CommandDefinition<
   SplendorGameState,
-  TakeTwoSameGemsPayloadSchema
+  TakeTwoSameGemsPayload
 > {
   readonly commandId = "take_two_same_gems";
-  readonly payloadSchema: TakeTwoSameGemsPayloadSchema =
-    takeTwoSameGemsPayloadSchema;
+  readonly payloadSchema = takeTwoSameGemsPayloadSchema;
 
   isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {
@@ -62,14 +46,12 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<
     });
   }
 
-  discover(context: SplendorDiscoveryContext<TakeTwoSameGemsPayloadSchema>) {
+  discover(context: SplendorDiscoveryContext<TakeTwoSameGemsPayload>) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const payload = readPayload<
-      Partial<TakeTwoSameGemsPayload> & {
-        returnTokens?: ReturnTokensPayload;
-      }
-    >(context.partialCommand);
+    const payload = readPayload<Partial<TakeTwoSameGemsPayload>>(
+      context.partialCommand,
+    );
 
     if (!payload.color) {
       const bankEntries = Object.entries(game.bank) as Array<[string, number]>;
@@ -93,6 +75,9 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<
     }
 
     const player = game.getPlayer(actorId).clone();
+    if (!isGemTokenColor(payload.color)) {
+      throw new Error("invalid_color");
+    }
     player.tokens.adjustColor(payload.color, 2);
     const requiredReturnCount = player.getRequiredReturnCount();
     const returnDiscovery = createReturnTokenDiscovery(
@@ -108,7 +93,7 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<
     runtime,
     game,
     commandInput,
-  }: SplendorValidationContext<TakeTwoSameGemsPayloadSchema>) {
+  }: SplendorValidationContext<TakeTwoSameGemsPayload>) {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, commandInput.actorId);
@@ -118,12 +103,18 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<
         return { ok: false, reason: "color_required" };
       }
 
-      if (game.bank[payload.color] < 4) {
+      const color = payload.color;
+
+      if (!isGemTokenColor(color)) {
+        return { ok: false, reason: "invalid_color" };
+      }
+
+      if (game.bank[color] < 4) {
         return { ok: false, reason: "not_enough_tokens_for_double_take" };
       }
 
       const player = game.getPlayer(actorId).clone();
-      player.tokens.adjustColor(payload.color, 2);
+      player.tokens.adjustColor(color, 2);
 
       if (
         !player.canReturnTokens(
@@ -142,20 +133,21 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<
     game,
     commandInput,
     emitEvent,
-  }: SplendorExecuteContext<TakeTwoSameGemsPayloadSchema>) {
+  }: SplendorExecuteContext<TakeTwoSameGemsPayload>) {
     const actorId = commandInput.actorId!;
     const payload = readPayload<TakeTwoSameGemsPayload>(commandInput);
+    const color = assertGemTokenColor(payload.color);
     const player = game.getPlayer(actorId);
 
-    game.bank.adjustColor(payload.color, -2);
-    player.tokens.adjustColor(payload.color, 2);
+    game.bank.adjustColor(color, -2);
+    player.tokens.adjustColor(color, 2);
     player.returnTokensTo(game.bank, payload.returnTokens);
     emitEvent({
       category: "domain",
       type: "double_gem_taken",
       payload: {
         actorId,
-        color: payload.color,
+        color,
         returnTokens: payload.returnTokens ?? null,
       },
     });
