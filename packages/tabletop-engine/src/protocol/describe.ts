@@ -11,6 +11,10 @@ export interface ProtocolCommandDescriptor {
     readonly static: Record<string, unknown>;
     readonly schema?: TSchema;
   };
+  discoveryDraftSchema?: {
+    readonly static: Record<string, unknown>;
+    readonly schema?: TSchema;
+  };
 }
 
 export interface GameProtocolDescriptor {
@@ -38,9 +42,24 @@ export function describeGameProtocol<
       throw new Error(`command_payload_schema_required:${commandId}`);
     }
 
+    if (
+      typeof command.discover === "function" &&
+      !command.discoveryDraftSchema
+    ) {
+      throw new Error(`command_discovery_draft_schema_required:${commandId}`);
+    }
+
+    if (
+      command.discoveryDraftSchema &&
+      typeof command.discover !== "function"
+    ) {
+      throw new Error(`command_discovery_handler_required:${commandId}`);
+    }
+
     commands[commandId] = {
       commandId,
       payloadSchema: command.payloadSchema,
+      discoveryDraftSchema: command.discoveryDraftSchema,
     };
   }
 

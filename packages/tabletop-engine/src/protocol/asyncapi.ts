@@ -5,6 +5,8 @@ import { describeGameProtocol } from "./describe";
 
 export interface AsyncApiChannelNames {
   submitCommand: string;
+  discoverCommand: string;
+  discoveryResult: string;
   matchView: string;
   commandRejected: string;
 }
@@ -50,6 +52,8 @@ export interface AsyncApiDocument {
 
 const defaultChannels: AsyncApiChannelNames = {
   submitCommand: "command.submit",
+  discoverCommand: "command.discover",
+  discoveryResult: "command.discovered",
   matchView: "match.view",
   commandRejected: "command.rejected",
 };
@@ -76,6 +80,28 @@ export function generateAsyncApi<
       createCommandInputSchema(commandId, command.payloadSchema.schema!),
     ]),
   );
+  const discoveryInputSchemas = Object.fromEntries(
+    Object.entries(protocol.commands)
+      .filter(([, command]) => command.discoveryDraftSchema?.schema)
+      .map(([commandId, command]) => [
+        commandId,
+        createDiscoveryInputSchema(
+          commandId,
+          command.discoveryDraftSchema!.schema!,
+        ),
+      ]),
+  );
+  const discoveryResultSchemas = Object.fromEntries(
+    Object.entries(protocol.commands)
+      .filter(([, command]) => command.discoveryDraftSchema?.schema)
+      .map(([commandId, command]) => [
+        commandId,
+        createDiscoveryResultSchema(
+          command.discoveryDraftSchema!.schema!,
+          command.payloadSchema.schema!,
+        ),
+      ]),
+  );
   const commandInputSchemaList = Object.values(commandInputSchemas);
   const commandInputSchema =
     commandInputSchemaList.length === 0
@@ -83,6 +109,20 @@ export function generateAsyncApi<
       : commandInputSchemaList.length === 1
         ? commandInputSchemaList[0]!
         : Type.Union(commandInputSchemaList);
+  const discoveryInputSchemaList = Object.values(discoveryInputSchemas);
+  const discoveryInputSchema =
+    discoveryInputSchemaList.length === 0
+      ? Type.Never()
+      : discoveryInputSchemaList.length === 1
+        ? discoveryInputSchemaList[0]!
+        : Type.Union(discoveryInputSchemaList);
+  const discoveryResultSchemaList = Object.values(discoveryResultSchemas);
+  const discoveryResultSchema =
+    discoveryResultSchemaList.length === 0
+      ? Type.Never()
+      : discoveryResultSchemaList.length === 1
+        ? discoveryResultSchemaList[0]!
+        : Type.Union(discoveryResultSchemaList);
   const visibleStateSchema = protocol.viewSchema;
   const matchViewSchema = Type.Object({
     type: Type.Literal("match.view"),
@@ -107,6 +147,20 @@ export function generateAsyncApi<
           },
         },
       },
+      [channels.discoverCommand]: {
+        subscribe: {
+          message: {
+            $ref: "#/components/messages/DiscoverCommand",
+          },
+        },
+      },
+      [channels.discoveryResult]: {
+        publish: {
+          message: {
+            $ref: "#/components/messages/DiscoveryResult",
+          },
+        },
+      },
       [channels.matchView]: {
         publish: {
           message: {
@@ -128,6 +182,14 @@ export function generateAsyncApi<
           name: "SubmitCommand",
           payload: commandInputSchema,
         },
+        DiscoverCommand: {
+          name: "DiscoverCommand",
+          payload: discoveryInputSchema,
+        },
+        DiscoveryResult: {
+          name: "DiscoveryResult",
+          payload: discoveryResultSchema,
+        },
         MatchView: {
           name: "MatchView",
           payload: matchViewSchema,
@@ -139,11 +201,24 @@ export function generateAsyncApi<
       },
       schemas: {
         VisibleState: visibleStateSchema,
+        DiscoveryResult: discoveryResultSchema,
         MatchView: matchViewSchema,
         CommandRejected: commandRejectedSchema,
         ...Object.fromEntries(
           Object.entries(commandInputSchemas).map(([commandId, schema]) => [
             `${toPascalCase(commandId)}CommandInput`,
+            schema,
+          ]),
+        ),
+        ...Object.fromEntries(
+          Object.entries(discoveryInputSchemas).map(([commandId, schema]) => [
+            `${toPascalCase(commandId)}DiscoveryInput`,
+            schema,
+          ]),
+        ),
+        ...Object.fromEntries(
+          Object.entries(discoveryResultSchemas).map(([commandId, schema]) => [
+            `${toPascalCase(commandId)}DiscoveryResult`,
             schema,
           ]),
         ),
@@ -158,6 +233,39 @@ function createCommandInputSchema(commandId: string, payloadSchema: TSchema) {
     actorId: Type.Optional(Type.String()),
     payload: payloadSchema,
   });
+}
+
+function createDiscoveryInputSchema(commandId: string, draftSchema: TSchema) {
+  return Type.Object({
+    type: Type.Literal(commandId),
+    actorId: Type.Optional(Type.String()),
+    draft: Type.Optional(draftSchema),
+  });
+}
+
+function createDiscoveryResultSchema(
+  draftSchema: TSchema,
+  payloadSchema: TSchema,
+) {
+  return Type.Union([
+    Type.Object({
+      complete: Type.Literal(false),
+      step: Type.String(),
+      options: Type.Array(
+        Type.Object({
+          id: Type.String(),
+          nextDraft: draftSchema,
+          metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+        }),
+      ),
+      metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    }),
+    Type.Object({
+      complete: Type.Literal(true),
+      payload: payloadSchema,
+      metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    }),
+  ]);
 }
 
 function toPascalCase(value: string): string {

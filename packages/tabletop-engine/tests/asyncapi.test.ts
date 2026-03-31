@@ -15,6 +15,9 @@ import type { Viewer } from "../src/types/visibility";
 const gainScorePayload = t.object({
   amount: t.number(),
 });
+const gainScoreDraft = t.object({
+  selectedAmount: t.optional(t.number()),
+});
 
 const customDeckViewSchema = t.object({
   count: t.number(),
@@ -90,10 +93,21 @@ class MissingViewSchemaRootState {
 
 class GainScoreCommand implements CommandDefinition<
   AsyncApiRootState,
-  typeof gainScorePayload.static
+  typeof gainScorePayload.static,
+  typeof gainScoreDraft.static
 > {
   readonly commandId = "gain_score";
   readonly payloadSchema = gainScorePayload;
+  readonly discoveryDraftSchema = gainScoreDraft;
+
+  discover() {
+    return {
+      complete: true as const,
+      payload: {
+        amount: 1,
+      },
+    };
+  }
 
   validate() {
     return { ok: true as const };
@@ -104,10 +118,21 @@ class GainScoreCommand implements CommandDefinition<
 
 class MissingViewSchemaCommand implements CommandDefinition<
   MissingViewSchemaRootState,
-  typeof gainScorePayload.static
+  typeof gainScorePayload.static,
+  typeof gainScoreDraft.static
 > {
   readonly commandId = "gain_score";
   readonly payloadSchema = gainScorePayload;
+  readonly discoveryDraftSchema = gainScoreDraft;
+
+  discover() {
+    return {
+      complete: true as const,
+      payload: {
+        amount: 1,
+      },
+    };
+  }
 
   validate() {
     return { ok: true as const };
@@ -140,6 +165,12 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
   expect(document.channels["command.submit"]!.subscribe!.message.$ref).toBe(
     "#/components/messages/SubmitCommand",
   );
+  expect(document.channels["command.discover"]!.subscribe!.message.$ref).toBe(
+    "#/components/messages/DiscoverCommand",
+  );
+  expect(document.channels["command.discovered"]!.publish!.message.$ref).toBe(
+    "#/components/messages/DiscoveryResult",
+  );
   expect(document.channels["match.view"]!.publish!.message.$ref).toBe(
     "#/components/messages/MatchView",
   );
@@ -155,6 +186,18 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
   expect(submitVariants[0]!.properties.payload).toEqual(
     gainScorePayload.schema,
   );
+  const discoverPayload = document.components.messages.DiscoverCommand!.payload;
+  const discoverVariants = discoverPayload.anyOf ?? [discoverPayload];
+
+  expect(discoverVariants).toHaveLength(1);
+  expect(discoverVariants[0]!.properties.type.const).toBe("gain_score");
+  expect(discoverVariants[0]!.properties.draft.type).toBe("object");
+  expect(
+    discoverVariants[0]!.properties.draft.properties.selectedAmount.type,
+  ).toBe("number");
+  expect(document.components.schemas.DiscoveryResult).toBeDefined();
+  expect(document.components.schemas.GainScoreDiscoveryInput).toBeDefined();
+  expect(document.components.schemas.GainScoreDiscoveryResult).toBeDefined();
   expect(document.components.schemas.VisibleState).toEqual(protocol.viewSchema);
   expect(document.components.schemas.MatchView!.properties.view).toEqual(
     protocol.viewSchema,

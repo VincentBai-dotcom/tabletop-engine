@@ -16,6 +16,9 @@ import { describeGameProtocol } from "../src/index";
 const gainScorePayload = t.object({
   amount: t.number(),
 });
+const gainScoreDraft = t.object({
+  selectedAmount: t.optional(t.number()),
+});
 const customDeckViewSchema = t.object({
   count: t.number(),
 });
@@ -118,10 +121,21 @@ class OrphanViewSchemaRootState {
 
 class GainScoreCommand implements CommandDefinition<
   ProtocolRootState,
-  typeof gainScorePayload.static
+  typeof gainScorePayload.static,
+  typeof gainScoreDraft.static
 > {
   readonly commandId = "gain_score";
   readonly payloadSchema = gainScorePayload;
+  readonly discoveryDraftSchema = gainScoreDraft;
+
+  discover() {
+    return {
+      complete: true as const,
+      payload: {
+        amount: 1,
+      },
+    };
+  }
 
   validate() {
     return { ok: true as const };
@@ -147,6 +161,9 @@ test("describeGameProtocol returns command payload schemas", () => {
 
   expect(protocol.name).toBe("protocol-game");
   expect(protocol.commands.gain_score?.payloadSchema).toBe(gainScorePayload);
+  expect(protocol.commands.gain_score?.discoveryDraftSchema).toBe(
+    gainScoreDraft,
+  );
   expect(protocol.viewSchema.type).toBe("object");
   expect(protocol.viewSchema.properties.game.type).toBe("object");
   expect(protocol.viewSchema.properties.progression.type).toBe("object");
@@ -208,6 +225,63 @@ test("describeGameProtocol rejects commands without payloadSchema", () => {
 
   expect(() => describeGameProtocol(game)).toThrow(
     "command_payload_schema_required:missing_payload",
+  );
+});
+
+test("describeGameProtocol rejects discovery handlers without draft schemas", () => {
+  const missingDraftCommand = {
+    commandId: "missing_draft",
+    payloadSchema: gainScorePayload,
+    discover: () => ({
+      complete: true as const,
+      payload: {
+        amount: 1,
+      },
+    }),
+    validate: () => ({ ok: true as const }),
+    execute: () => {},
+  } as unknown as CommandDefinition<ProtocolRootState>;
+
+  const game = new GameDefinitionBuilder<{
+    players: Record<string, { id: string; hand: number[] }>;
+  }>("invalid-discovery-protocol-game")
+    .initialState(() => ({
+      players: {
+        p1: { id: "p1", hand: [1, 2] },
+      },
+    }))
+    .rootState(PlainProtocolRootState)
+    .commands([missingDraftCommand])
+    .build();
+
+  expect(() => describeGameProtocol(game)).toThrow(
+    "command_discovery_draft_schema_required:missing_draft",
+  );
+});
+
+test("describeGameProtocol rejects discovery draft schemas without handlers", () => {
+  const orphanDraftCommand = {
+    commandId: "orphan_draft",
+    payloadSchema: gainScorePayload,
+    discoveryDraftSchema: gainScoreDraft,
+    validate: () => ({ ok: true as const }),
+    execute: () => {},
+  } as unknown as CommandDefinition<ProtocolRootState>;
+
+  const game = new GameDefinitionBuilder<{
+    players: Record<string, { id: string; hand: number[] }>;
+  }>("orphan-discovery-draft-protocol-game")
+    .initialState(() => ({
+      players: {
+        p1: { id: "p1", hand: [1, 2] },
+      },
+    }))
+    .rootState(PlainProtocolRootState)
+    .commands([orphanDraftCommand])
+    .build();
+
+  expect(() => describeGameProtocol(game)).toThrow(
+    "command_discovery_handler_required:orphan_draft",
   );
 });
 
