@@ -5,6 +5,7 @@ import type {
   CommandInput,
   CommandDiscoveryResult,
   CanonicalState,
+  DiscoveryInput,
   DiscoveryContext,
   ExecutionResult,
   GameEvent,
@@ -155,7 +156,18 @@ test("progression lifecycle types support nested segment authoring", () => {
   expect(next.ownerId).toBe("player-2");
 });
 
-test("discovery types compose for command availability and next-input options", () => {
+test("discovery types compose for draft-based next-step options and completion", () => {
+  type PlayCardDraft = {
+    step: string;
+    cardId?: number;
+    targets?: number[];
+  };
+
+  type PlayCardPayload = {
+    cardId: number;
+    targets?: number[];
+  };
+
   const availabilityContext: CommandAvailabilityContext<{
     handCount: number;
   }> = {
@@ -169,42 +181,66 @@ test("discovery types compose for command availability and next-input options", 
     actorId: "p1",
   };
 
-  const discoveryContext: DiscoveryContext<{ handCount: number }> = {
-    ...availabilityContext,
-    partialCommand: {
-      type: "play_card",
-      actorId: "p1",
-      payload: {
-        cardId: 12,
-      },
+  const discoveryInput: DiscoveryInput<PlayCardDraft> = {
+    type: "play_card",
+    actorId: "p1",
+    draft: {
+      step: "select_target",
+      cardId: 12,
     },
   };
 
-  const discovery: CommandDiscoveryResult<{
-    id: string;
-    value: number;
-  }> = {
+  const discoveryContext: DiscoveryContext<
+    { handCount: number },
+    PlayCardDraft
+  > = {
+    ...availabilityContext,
+    discoveryInput,
+  };
+
+  const discovery: CommandDiscoveryResult<PlayCardDraft, PlayCardPayload> = {
+    complete: false,
     step: "select_target",
     options: [
       {
         id: "target-1",
-        value: 101,
+        nextDraft: {
+          step: "complete",
+          cardId: 12,
+          targets: [101],
+        },
       },
     ],
-    complete: false,
-    nextPartialCommand: {
-      type: "play_card",
-      actorId: "p1",
-      payload: {
-        cardId: 12,
-      },
+  };
+
+  const completion: CommandDiscoveryResult<PlayCardDraft, PlayCardPayload> = {
+    complete: true,
+    payload: {
+      cardId: 12,
+      targets: [101],
     },
   };
 
   expect(availabilityContext.actorId).toBe("p1");
-  expect(discoveryContext.partialCommand.payload).toEqual({ cardId: 12 });
+  expect(discoveryContext.discoveryInput.draft).toEqual({
+    step: "select_target",
+    cardId: 12,
+  });
   expect(discovery.step).toBe("select_target");
   expect(discovery.options[0]?.id).toBe("target-1");
+  if (!discovery.complete) {
+    expect(discovery.options[0]?.nextDraft).toEqual({
+      step: "complete",
+      cardId: 12,
+      targets: [101],
+    });
+  }
+  if (completion.complete) {
+    expect(completion.payload).toEqual({
+      cardId: 12,
+      targets: [101],
+    });
+  }
 });
 
 test("consumer command definitions only expose game state and command input generics", () => {
@@ -213,24 +249,52 @@ test("consumer command definitions only expose game state and command input gene
   });
   type GainScorePayload = typeof gainScorePayload.static;
 
-  const definition: CommandDefinition<{ increment(): void }, GainScorePayload> =
-    {
-      commandId: "gain_score",
-      payloadSchema: gainScorePayload,
-      validate: ({ commandInput }) => {
-        const amount: number | undefined = commandInput.payload?.amount;
+  type GainScoreDraft = {
+    amount?: number;
+  };
 
+  const definition: CommandDefinition<
+    { increment(): void },
+    GainScorePayload,
+    GainScoreDraft
+  > = {
+    commandId: "gain_score",
+    payloadSchema: gainScorePayload,
+    discover: ({ discoveryInput }) => {
+      if (typeof discoveryInput.draft?.amount !== "number") {
         return {
-          ok: typeof amount === "number",
-          reason: "amount_required",
+          complete: false as const,
+          step: "select_amount",
+          options: [
+            {
+              id: "amount-1",
+              nextDraft: { amount: 1 },
+            },
+          ],
         };
-      },
-      execute: ({ game, commandInput }) => {
-        game.increment();
-        const amount: number | undefined = commandInput.payload?.amount;
-        void amount;
-      },
-    };
+      }
+
+      return {
+        complete: true as const,
+        payload: {
+          amount: discoveryInput.draft.amount,
+        },
+      };
+    },
+    validate: ({ commandInput }) => {
+      const amount: number | undefined = commandInput.payload?.amount;
+
+      return {
+        ok: typeof amount === "number",
+        reason: "amount_required",
+      };
+    },
+    execute: ({ game, commandInput }) => {
+      game.increment();
+      const amount: number | undefined = commandInput.payload?.amount;
+      void amount;
+    },
+  };
 
   expect(definition.commandId).toBe("gain_score");
 });

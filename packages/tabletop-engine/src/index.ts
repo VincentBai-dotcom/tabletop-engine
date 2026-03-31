@@ -51,6 +51,8 @@ export type {
   CommandDefinition,
   CommandDiscoveryResult,
   CommandInput,
+  DiscoveryInput,
+  DiscoveryOption,
   CommandInputFromSchema,
   DiscoveryContext,
   ExecuteContext,

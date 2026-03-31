@@ -13,10 +13,19 @@ export interface CommandInput<
 }
 
 type CommandPayload = Record<string, unknown>;
+type DiscoveryDraft = Record<string, unknown>;
 
 export type CommandInputFromSchema<
   TPayload extends CommandPayload = CommandPayload,
 > = CommandInput<TPayload>;
+
+export interface DiscoveryInput<
+  TDraft extends DiscoveryDraft = DiscoveryDraft,
+> {
+  type: string;
+  actorId?: string;
+  draft?: TDraft;
+}
 
 type CommandPayloadSchema<TPayload extends CommandPayload = CommandPayload> = {
   readonly static: TPayload;
@@ -69,29 +78,45 @@ export interface InternalDiscoveryContext<
   CanonicalGameState extends object = object,
   FacadeGameState extends object = CanonicalGameState,
   Runtime extends RuntimeState = RuntimeState,
-  TPartialCommandInput extends CommandInput = CommandInput,
+  TDraft extends DiscoveryDraft = DiscoveryDraft,
 > extends InternalCommandAvailabilityContext<
   CanonicalGameState,
   FacadeGameState,
   Runtime
 > {
-  partialCommand: TPartialCommandInput;
+  discoveryInput: DiscoveryInput<TDraft>;
 }
 
 export type DiscoveryContext<
   FacadeGameState extends object = object,
-  TPartialCommandInput extends CommandInput = CommandInput,
+  TDraft extends DiscoveryDraft = DiscoveryDraft,
 > = CommandAvailabilityContext<FacadeGameState> & {
-  partialCommand: TPartialCommandInput;
+  discoveryInput: DiscoveryInput<TDraft>;
 };
 
-export interface CommandDiscoveryResult<Option = unknown> {
-  step: string;
-  options: Option[];
-  complete?: boolean;
-  nextPartialCommand?: CommandInput;
+export interface DiscoveryOption<
+  TDraft extends DiscoveryDraft = DiscoveryDraft,
+> {
+  id: string;
+  nextDraft: TDraft;
   metadata?: Record<string, unknown>;
 }
+
+export type CommandDiscoveryResult<
+  TDraft extends DiscoveryDraft = DiscoveryDraft,
+  TPayload extends CommandPayload = CommandPayload,
+> =
+  | {
+      complete: false;
+      step: string;
+      options: DiscoveryOption<TDraft>[];
+      metadata?: Record<string, unknown>;
+    }
+  | {
+      complete: true;
+      payload: TPayload;
+      metadata?: Record<string, unknown>;
+    };
 
 export interface InternalExecuteContext<
   CanonicalGameState extends object = object,
@@ -128,9 +153,11 @@ export interface InternalCommandDefinition<
   FacadeGameState extends object = CanonicalGameState,
   Runtime extends RuntimeState = RuntimeState,
   TPayload extends CommandPayload = CommandPayload,
+  TDraft extends DiscoveryDraft = TPayload,
 > {
   commandId: string;
   payloadSchema: CommandPayloadSchema<TPayload>;
+  discoveryDraftSchema?: CommandPayloadSchema<TDraft>;
   isAvailable?(
     context: InternalCommandAvailabilityContext<
       CanonicalGameState,
@@ -143,9 +170,9 @@ export interface InternalCommandDefinition<
       CanonicalGameState,
       FacadeGameState,
       Runtime,
-      CommandInputFromSchema<TPayload>
+      TDraft
     >,
-  ): CommandDiscoveryResult | null;
+  ): CommandDiscoveryResult<TDraft, TPayload> | null;
   validate(
     context: InternalValidationContext<
       CanonicalGameState,
@@ -167,16 +194,15 @@ export interface InternalCommandDefinition<
 export type CommandDefinition<
   FacadeGameState extends object = object,
   TPayload extends CommandPayload = CommandPayload,
+  TDraft extends DiscoveryDraft = TPayload,
 > = {
   commandId: string;
   payloadSchema: CommandPayloadSchema<TPayload>;
+  discoveryDraftSchema?: CommandPayloadSchema<TDraft>;
   isAvailable?(context: CommandAvailabilityContext<FacadeGameState>): boolean;
   discover?(
-    context: DiscoveryContext<
-      FacadeGameState,
-      CommandInputFromSchema<TPayload>
-    >,
-  ): CommandDiscoveryResult | null;
+    context: DiscoveryContext<FacadeGameState, TDraft>,
+  ): CommandDiscoveryResult<TDraft, TPayload> | null;
   validate(
     context: ValidationContext<
       FacadeGameState,

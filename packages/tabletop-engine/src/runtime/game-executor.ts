@@ -18,6 +18,7 @@ import { cloneCanonicalState } from "./transaction";
 import type {
   CommandDefinition,
   CommandInput,
+  DiscoveryInput,
   InternalCommandDefinition,
 } from "../types/command";
 import type { CommandDiscoveryResult } from "../types/command";
@@ -56,7 +57,7 @@ export interface GameExecutor<GameState extends object> {
   ): string[];
   discoverCommand(
     state: CanonicalState<GameState>,
-    partialCommand: CommandInput,
+    discoveryInput: DiscoveryInput,
   ): CommandDiscoveryResult | null;
   executeCommand(
     state: CanonicalState<GameState>,
@@ -191,8 +192,8 @@ export function createGameExecutor<
         .map(([commandType]) => commandType);
     },
 
-    discoverCommand(state, partialCommand) {
-      const definition = game.commands[partialCommand.type];
+    discoverCommand(state, discoveryInput) {
+      const definition = game.commands[discoveryInput.type];
 
       if (!definition?.discover) {
         return null;
@@ -212,8 +213,8 @@ export function createGameExecutor<
               state,
               { readonly: true },
             ),
-            partialCommand.type,
-            partialCommand.actorId,
+            discoveryInput.type,
+            discoveryInput.actorId,
           ),
         )
       ) {
@@ -232,7 +233,7 @@ export function createGameExecutor<
             state,
             { readonly: true },
           ),
-          partialCommand,
+          discoveryInput,
         ),
       );
     },

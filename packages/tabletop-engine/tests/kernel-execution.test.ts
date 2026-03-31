@@ -433,18 +433,19 @@ test("availability and discovery contexts hydrate readonly decorated state facad
         payloadSchema: amountPayload,
         isAvailable: ({ game }) =>
           (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
-        discover: ({ game, partialCommand }) => {
+        discover: ({ game }) => {
           if ((game as RootCounterStateFacade).hasCounterValueAtLeast(2)) {
             return {
+              complete: false as const,
               step: "select_amount",
-              options: [{ id: "two", value: 2 }],
-              nextPartialCommand: partialCommand,
+              options: [{ id: "two", nextDraft: { amount: 2 } }],
             };
           }
 
           return {
+            complete: false as const,
             step: "select_amount",
-            options: [{ id: "one", value: 1 }],
+            options: [{ id: "one", nextDraft: { amount: 1 } }],
           };
         },
         validate: () => ({ ok: true as const }),
@@ -469,11 +470,11 @@ test("availability and discovery contexts hydrate readonly decorated state facad
   expect(
     executor.discoverCommand(initialState, {
       type: "increment_counter",
-      payload: {},
     }),
   ).toMatchObject({
+    complete: false,
     step: "select_amount",
-    options: [{ id: "two", value: 2 }],
+    options: [{ id: "two", nextDraft: { amount: 2 } }],
   });
   expect(initialState.game.counter.value).toBe(2);
 });
@@ -1115,23 +1116,24 @@ test("game executor can discover the next semantic options for a command", () =>
         commandId: "play_card",
         payloadSchema: playCardPayload,
         isAvailable: ({ game }) => game.canPlay,
-        discover: ({ partialCommand }) => {
-          const cardId = partialCommand.payload?.cardId;
+        discover: ({ discoveryInput }) => {
+          const cardId = discoveryInput.draft?.cardId;
 
           if (typeof cardId !== "number") {
             return {
+              complete: false as const,
               step: "select_card",
               options: [
-                { id: "card-1", value: 1 },
-                { id: "card-2", value: 2 },
+                { id: "card-1", nextDraft: { cardId: 1 } },
+                { id: "card-2", nextDraft: { cardId: 2 } },
               ],
             };
           }
 
           return {
+            complete: false as const,
             step: "select_target",
-            options: [{ id: "target-1", value: 101 }],
-            nextPartialCommand: partialCommand,
+            options: [{ id: "target-1", nextDraft: { cardId, targetId: 101 } }],
           };
         },
         validate: () => ({ ok: true as const }),
@@ -1149,17 +1151,28 @@ test("game executor can discover the next semantic options for a command", () =>
   const secondStep = gameExecutor.discoverCommand(initialState, {
     type: "play_card",
     actorId: "player-1",
-    payload: {
+    draft: {
       cardId: 2,
     },
   });
 
   expect(firstStep).toMatchObject({
+    complete: false,
     step: "select_card",
   });
-  expect(firstStep?.options).toHaveLength(2);
+  if (!firstStep || firstStep.complete) {
+    throw new Error("expected_incomplete_discovery");
+  }
+  expect(firstStep.options).toHaveLength(2);
   expect(secondStep).toMatchObject({
+    complete: false,
     step: "select_target",
   });
-  expect(secondStep?.options[0]).toEqual({ id: "target-1", value: 101 });
+  if (!secondStep || secondStep.complete) {
+    throw new Error("expected_incomplete_discovery");
+  }
+  expect(secondStep.options[0]).toEqual({
+    id: "target-1",
+    nextDraft: { cardId: 2, targetId: 101 },
+  });
 });

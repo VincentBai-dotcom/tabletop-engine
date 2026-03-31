@@ -1,5 +1,6 @@
 import type {
   CommandInput,
+  DiscoveryInput,
   InternalCommandAvailabilityContext,
   InternalDiscoveryContext,
   InternalExecuteContext,
@@ -66,25 +67,25 @@ export function createDiscoveryContext<
   CanonicalGameState extends object,
   FacadeGameState extends object,
   Runtime extends RuntimeState,
-  TPartialCommandInput extends CommandInput,
+  TDraft extends Record<string, unknown>,
 >(
   state: CanonicalState<CanonicalGameState, Runtime>,
   game: Readonly<FacadeGameState>,
-  partialCommand: TPartialCommandInput,
+  discoveryInput: DiscoveryInput<TDraft>,
 ): InternalDiscoveryContext<
   CanonicalGameState,
   FacadeGameState,
   Runtime,
-  TPartialCommandInput
+  TDraft
 > {
   return {
     ...createCommandAvailabilityContext(
       state,
       game,
-      partialCommand.type,
-      partialCommand.actorId,
+      discoveryInput.type,
+      discoveryInput.actorId,
     ),
-    partialCommand,
+    discoveryInput,
   };
 }
 
