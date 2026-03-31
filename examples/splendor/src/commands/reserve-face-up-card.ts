@@ -1,24 +1,18 @@
-import {
-  t,
-  type CommandDefinition,
-  type NumberFieldType,
-  type ObjectFieldType,
-  type OptionalFieldType,
-  type RecordFieldType,
-  type StringFieldType,
-} from "tabletop-engine";
+import { t, type CommandDefinition } from "tabletop-engine";
 import {
   completeDiscovery,
   createReturnTokenDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type { ReserveFaceUpCardPayload, SplendorGameState } from "../state.ts";
+import type { SplendorGameState } from "../state.ts";
 import {
+  assertDevelopmentLevel,
   assertAvailableActor,
   assertActivePlayer,
   assertGameActive,
   guardedAvailability,
   guardedValidate,
+  isDevelopmentLevel,
   readPayload,
   type SplendorAvailabilityContext,
   type SplendorDiscoveryContext,
@@ -26,29 +20,21 @@ import {
   type SplendorValidationContext,
 } from "./shared.ts";
 
-type ReserveFaceUpCardPayloadSchema = ObjectFieldType<{
-  level: OptionalFieldType<NumberFieldType>;
-  cardId: OptionalFieldType<NumberFieldType>;
-  returnTokens: OptionalFieldType<
-    RecordFieldType<StringFieldType, NumberFieldType>
-  >;
-}>;
+const reserveFaceUpCardPayloadSchema = t.object({
+  level: t.optional(t.number()),
+  cardId: t.optional(t.number()),
+  returnTokens: t.optional(t.record(t.string(), t.number())),
+});
 
-const reserveFaceUpCardPayloadSchema: ReserveFaceUpCardPayloadSchema = t.object(
-  {
-    level: t.optional(t.number()),
-    cardId: t.optional(t.number()),
-    returnTokens: t.optional(t.record(t.string(), t.number())),
-  },
-);
+export type ReserveFaceUpCardPayload =
+  typeof reserveFaceUpCardPayloadSchema.static;
 
 export class ReserveFaceUpCardCommand implements CommandDefinition<
   SplendorGameState,
-  ReserveFaceUpCardPayloadSchema
+  ReserveFaceUpCardPayload
 > {
   readonly commandId = "reserve_face_up_card";
-  readonly payloadSchema: ReserveFaceUpCardPayloadSchema =
-    reserveFaceUpCardPayloadSchema;
+  readonly payloadSchema = reserveFaceUpCardPayloadSchema;
 
   isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {
@@ -65,7 +51,7 @@ export class ReserveFaceUpCardCommand implements CommandDefinition<
     });
   }
 
-  discover(context: SplendorDiscoveryContext<ReserveFaceUpCardPayloadSchema>) {
+  discover(context: SplendorDiscoveryContext<ReserveFaceUpCardPayload>) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
     const payload = readPayload<Partial<ReserveFaceUpCardPayload>>(
@@ -116,7 +102,7 @@ export class ReserveFaceUpCardCommand implements CommandDefinition<
     runtime,
     game,
     commandInput,
-  }: SplendorValidationContext<ReserveFaceUpCardPayloadSchema>) {
+  }: SplendorValidationContext<ReserveFaceUpCardPayload>) {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, commandInput.actorId);
@@ -131,7 +117,13 @@ export class ReserveFaceUpCardCommand implements CommandDefinition<
         return { ok: false, reason: "level_and_card_required" };
       }
 
-      if (!game.board.faceUpByLevel[payload.level].includes(payload.cardId)) {
+      const level = payload.level;
+
+      if (!isDevelopmentLevel(level)) {
+        return { ok: false, reason: "invalid_level" };
+      }
+
+      if (!game.board.faceUpByLevel[level].includes(payload.cardId)) {
         return { ok: false, reason: "card_not_face_up" };
       }
 
@@ -156,14 +148,19 @@ export class ReserveFaceUpCardCommand implements CommandDefinition<
     game,
     commandInput,
     emitEvent,
-  }: SplendorExecuteContext<ReserveFaceUpCardPayloadSchema>) {
+  }: SplendorExecuteContext<ReserveFaceUpCardPayload>) {
     const actorId = commandInput.actorId!;
     const payload = readPayload<ReserveFaceUpCardPayload>(commandInput);
+    if (!payload.cardId || !payload.level) {
+      throw new Error("level_and_card_required");
+    }
+
+    const level = assertDevelopmentLevel(payload.level);
     const player = game.getPlayer(actorId);
 
     player.reserveCard(payload.cardId);
-    game.board.removeFaceUpCard(payload.level, payload.cardId);
-    game.board.replenishFaceUpCard(payload.level);
+    game.board.removeFaceUpCard(level, payload.cardId);
+    game.board.replenishFaceUpCard(level);
 
     const receivedGold = player.gainGoldFrom(game.bank);
     player.returnTokensTo(game.bank, payload.returnTokens);
@@ -173,7 +170,7 @@ export class ReserveFaceUpCardCommand implements CommandDefinition<
       payload: {
         actorId,
         source: "face_up",
-        level: payload.level,
+        level,
         cardId: payload.cardId,
         receivedGold,
         returnTokens: payload.returnTokens ?? null,

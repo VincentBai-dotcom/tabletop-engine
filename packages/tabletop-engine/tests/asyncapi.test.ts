@@ -90,7 +90,7 @@ class MissingViewSchemaRootState {
 
 class GainScoreCommand implements CommandDefinition<
   AsyncApiRootState,
-  typeof gainScorePayload
+  typeof gainScorePayload.static
 > {
   readonly commandId = "gain_score";
   readonly payloadSchema = gainScorePayload;
@@ -104,7 +104,7 @@ class GainScoreCommand implements CommandDefinition<
 
 class MissingViewSchemaCommand implements CommandDefinition<
   MissingViewSchemaRootState,
-  typeof gainScorePayload
+  typeof gainScorePayload.static
 > {
   readonly commandId = "gain_score";
   readonly payloadSchema = gainScorePayload;

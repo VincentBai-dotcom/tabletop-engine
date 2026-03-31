@@ -38,7 +38,6 @@ export type {
 export type {
   ArrayFieldType,
   FieldType,
-  InferSchema,
   NumberFieldType,
   ObjectFieldType,
   OptionalFieldType,

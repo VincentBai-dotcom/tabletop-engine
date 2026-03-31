@@ -1,6 +1,5 @@
 import { Type, type TSchema } from "@sinclair/typebox";
 import type { GameDefinition } from "../game-definition";
-import type { ObjectFieldType } from "../schema";
 import type { CommandDefinition } from "../types/command";
 import { describeGameProtocol } from "./describe";
 
@@ -60,7 +59,7 @@ export function generateAsyncApi<
   FacadeGameState extends object,
   Commands extends Record<
     string,
-    CommandDefinition<FacadeGameState, ObjectFieldType>
+    CommandDefinition<FacadeGameState, Record<string, unknown>>
   >,
 >(
   game: GameDefinition<CanonicalGameState, FacadeGameState, Commands>,

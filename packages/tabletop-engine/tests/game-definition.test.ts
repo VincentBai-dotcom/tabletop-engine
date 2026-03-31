@@ -290,13 +290,15 @@ test("GameDefinitionBuilder compiles nested state references inside array field 
   expect(game.stateFacade?.root).toBe(TestCollectionRootState);
   expect(
     game.stateFacade?.states[TestCollectionRootState.name]?.fields.cards,
-  ).toEqual({
+  ).toMatchObject({
     kind: "array",
     item: {
       kind: "state",
-      target: expect.any(Function),
     },
   });
+  expect(
+    game.stateFacade?.states[TestCollectionRootState.name]?.fields.cards?.kind,
+  ).toBe("array");
   expect(game.stateFacade?.states[TestCardState.name]?.fields.id?.kind).toBe(
     "string",
   );

@@ -1,22 +1,18 @@
-import {
-  t,
-  type CommandDefinition,
-  type NumberFieldType,
-  type ObjectFieldType,
-  type OptionalFieldType,
-} from "tabletop-engine";
+import { t, type CommandDefinition } from "tabletop-engine";
 import {
   completeDiscovery,
   createNobleDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type { BuyFaceUpCardPayload, SplendorGameState } from "../state.ts";
+import type { SplendorGameState } from "../state.ts";
 import {
+  assertDevelopmentLevel,
   assertAvailableActor,
   assertActivePlayer,
   assertGameActive,
   guardedAvailability,
   guardedValidate,
+  isDevelopmentLevel,
   readPayload,
   type SplendorAvailabilityContext,
   type SplendorDiscoveryContext,
@@ -24,25 +20,20 @@ import {
   type SplendorValidationContext,
 } from "./shared.ts";
 
-type BuyFaceUpCardPayloadSchema = ObjectFieldType<{
-  level: OptionalFieldType<NumberFieldType>;
-  cardId: OptionalFieldType<NumberFieldType>;
-  chosenNobleId: OptionalFieldType<NumberFieldType>;
-}>;
-
-const buyFaceUpCardPayloadSchema: BuyFaceUpCardPayloadSchema = t.object({
+const buyFaceUpCardPayloadSchema = t.object({
   level: t.optional(t.number()),
   cardId: t.optional(t.number()),
   chosenNobleId: t.optional(t.number()),
 });
 
+export type BuyFaceUpCardPayload = typeof buyFaceUpCardPayloadSchema.static;
+
 export class BuyFaceUpCardCommand implements CommandDefinition<
   SplendorGameState,
-  BuyFaceUpCardPayloadSchema
+  BuyFaceUpCardPayload
 > {
   readonly commandId = "buy_face_up_card";
-  readonly payloadSchema: BuyFaceUpCardPayloadSchema =
-    buyFaceUpCardPayloadSchema;
+  readonly payloadSchema = buyFaceUpCardPayloadSchema;
 
   isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {
@@ -66,7 +57,7 @@ export class BuyFaceUpCardCommand implements CommandDefinition<
     });
   }
 
-  discover(context: SplendorDiscoveryContext<BuyFaceUpCardPayloadSchema>) {
+  discover(context: SplendorDiscoveryContext<BuyFaceUpCardPayload>) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
     const payload = readPayload<Partial<BuyFaceUpCardPayload>>(
@@ -116,7 +107,7 @@ export class BuyFaceUpCardCommand implements CommandDefinition<
     runtime,
     game,
     commandInput,
-  }: SplendorValidationContext<BuyFaceUpCardPayloadSchema>) {
+  }: SplendorValidationContext<BuyFaceUpCardPayload>) {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, commandInput.actorId);
@@ -126,7 +117,13 @@ export class BuyFaceUpCardCommand implements CommandDefinition<
         return { ok: false, reason: "level_and_card_required" };
       }
 
-      if (!game.board.faceUpByLevel[payload.level].includes(payload.cardId)) {
+      const level = payload.level;
+
+      if (!isDevelopmentLevel(level)) {
+        return { ok: false, reason: "invalid_level" };
+      }
+
+      if (!game.board.faceUpByLevel[level].includes(payload.cardId)) {
         return { ok: false, reason: "card_not_face_up" };
       }
 
@@ -163,9 +160,14 @@ export class BuyFaceUpCardCommand implements CommandDefinition<
     game,
     commandInput,
     emitEvent,
-  }: SplendorExecuteContext<BuyFaceUpCardPayloadSchema>) {
+  }: SplendorExecuteContext<BuyFaceUpCardPayload>) {
     const actorId = commandInput.actorId!;
     const payload = readPayload<BuyFaceUpCardPayload>(commandInput);
+    if (!payload.cardId || !payload.level) {
+      throw new Error("level_and_card_required");
+    }
+
+    const level = assertDevelopmentLevel(payload.level);
     const player = game.getPlayer(actorId);
     const card = game.getCard(payload.cardId);
     const payment = player.getAffordablePayment(card);
@@ -176,15 +178,15 @@ export class BuyFaceUpCardCommand implements CommandDefinition<
 
     player.tokens.transferTo(game.bank, payment);
     player.buyCard(card.id);
-    game.board.removeFaceUpCard(payload.level, card.id);
-    game.board.replenishFaceUpCard(payload.level);
+    game.board.removeFaceUpCard(level, card.id);
+    game.board.replenishFaceUpCard(level);
     emitEvent({
       category: "domain",
       type: "card_purchased",
       payload: {
         actorId,
         source: "face_up",
-        level: payload.level,
+        level,
         cardId: card.id,
         payment,
       },

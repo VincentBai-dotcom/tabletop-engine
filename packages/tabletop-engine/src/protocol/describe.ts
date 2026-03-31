@@ -1,13 +1,16 @@
 import { Type, type TSchema } from "@sinclair/typebox";
 import type { GameDefinition } from "../game-definition";
-import type { FieldType, ObjectFieldType, SerializableSchema } from "../schema";
+import type { FieldType, SerializableSchema } from "../schema";
 import type { CommandDefinition } from "../types/command";
 import type { VisibilityMode } from "../state-facade/metadata";
 import type { CompiledStateFacadeDefinition } from "../state-facade/compile";
 
 export interface ProtocolCommandDescriptor {
   commandId: string;
-  payloadSchema: ObjectFieldType;
+  payloadSchema: {
+    readonly static: Record<string, unknown>;
+    readonly schema?: TSchema;
+  };
 }
 
 export interface GameProtocolDescriptor {
@@ -22,7 +25,7 @@ export function describeGameProtocol<
   FacadeGameState extends object,
   Commands extends Record<
     string,
-    CommandDefinition<FacadeGameState, ObjectFieldType>
+    CommandDefinition<FacadeGameState, Record<string, unknown>>
   >,
 >(
   game: GameDefinition<CanonicalGameState, FacadeGameState, Commands>,

@@ -118,7 +118,7 @@ class OrphanViewSchemaRootState {
 
 class GainScoreCommand implements CommandDefinition<
   ProtocolRootState,
-  typeof gainScorePayload
+  typeof gainScorePayload.static
 > {
   readonly commandId = "gain_score";
   readonly payloadSchema = gainScorePayload;

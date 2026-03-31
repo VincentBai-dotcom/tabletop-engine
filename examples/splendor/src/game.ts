@@ -3,13 +3,13 @@ import {
   type CommandInput,
   type GameDefinition,
 } from "tabletop-engine";
-import { createCommands } from "./commands/index.ts";
+import {
+  createCommands,
+  type BuyFaceUpCardPayload,
+  type BuyReservedCardPayload,
+} from "./commands/index.ts";
 import { createInitialGameState, setupSplendorGame } from "./setup.ts";
-import type {
-  BuyFaceUpCardPayload,
-  BuyReservedCardPayload,
-  SplendorGameState,
-} from "./state.ts";
+import type { SplendorGameState } from "./state.ts";
 import { SplendorGameState as SplendorRootState } from "./state.ts";
 
 export interface CreateSplendorGameOptions {

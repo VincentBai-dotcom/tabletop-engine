@@ -1,16 +1,10 @@
-import {
-  t,
-  type CommandDefinition,
-  type NumberFieldType,
-  type ObjectFieldType,
-  type OptionalFieldType,
-} from "tabletop-engine";
+import { t, type CommandDefinition } from "tabletop-engine";
 import {
   completeDiscovery,
   createNobleDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type { BuyReservedCardPayload, SplendorGameState } from "../state.ts";
+import type { SplendorGameState } from "../state.ts";
 import {
   assertAvailableActor,
   assertActivePlayer,
@@ -24,23 +18,19 @@ import {
   type SplendorValidationContext,
 } from "./shared.ts";
 
-type BuyReservedCardPayloadSchema = ObjectFieldType<{
-  cardId: OptionalFieldType<NumberFieldType>;
-  chosenNobleId: OptionalFieldType<NumberFieldType>;
-}>;
-
-const buyReservedCardPayloadSchema: BuyReservedCardPayloadSchema = t.object({
+const buyReservedCardPayloadSchema = t.object({
   cardId: t.optional(t.number()),
   chosenNobleId: t.optional(t.number()),
 });
 
+export type BuyReservedCardPayload = typeof buyReservedCardPayloadSchema.static;
+
 export class BuyReservedCardCommand implements CommandDefinition<
   SplendorGameState,
-  BuyReservedCardPayloadSchema
+  BuyReservedCardPayload
 > {
   readonly commandId = "buy_reserved_card";
-  readonly payloadSchema: BuyReservedCardPayloadSchema =
-    buyReservedCardPayloadSchema;
+  readonly payloadSchema = buyReservedCardPayloadSchema;
 
   isAvailable(context: SplendorAvailabilityContext) {
     return guardedAvailability(() => {
@@ -56,7 +46,7 @@ export class BuyReservedCardCommand implements CommandDefinition<
     });
   }
 
-  discover(context: SplendorDiscoveryContext<BuyReservedCardPayloadSchema>) {
+  discover(context: SplendorDiscoveryContext<BuyReservedCardPayload>) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
     const payload = readPayload<Partial<BuyReservedCardPayload>>(
@@ -100,7 +90,7 @@ export class BuyReservedCardCommand implements CommandDefinition<
     runtime,
     game,
     commandInput,
-  }: SplendorValidationContext<BuyReservedCardPayloadSchema>) {
+  }: SplendorValidationContext<BuyReservedCardPayload>) {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, commandInput.actorId);
@@ -148,9 +138,13 @@ export class BuyReservedCardCommand implements CommandDefinition<
     game,
     commandInput,
     emitEvent,
-  }: SplendorExecuteContext<BuyReservedCardPayloadSchema>) {
+  }: SplendorExecuteContext<BuyReservedCardPayload>) {
     const actorId = commandInput.actorId!;
     const payload = readPayload<BuyReservedCardPayload>(commandInput);
+    if (!payload.cardId) {
+      throw new Error("card_required");
+    }
+
     const player = game.getPlayer(actorId);
     const card = game.getCard(payload.cardId);
     const payment = player.getAffordablePayment(card);

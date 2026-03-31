@@ -1,75 +1,87 @@
-import type { TSchema } from "@sinclair/typebox";
+import type {
+  Static,
+  TArray,
+  TBoolean,
+  TNumber,
+  TObject,
+  TOptional,
+  TRecord,
+  TSchema,
+  TString,
+} from "@sinclair/typebox";
 import type { StateClass } from "../state-facade/metadata";
 
 export type StateFieldTargetFactory = () => StateClass;
 
-interface StaticTypeCarrier<TStatic> {
-  readonly __static?: TStatic;
+type ExtractSchema<TField> = TField extends {
+  readonly schema?: infer TFieldSchema;
 }
+  ? Extract<TFieldSchema, TSchema> extends never
+    ? TSchema
+    : Extract<TFieldSchema, TSchema>
+  : TSchema;
 
-export interface NumberFieldType<
-  TStatic = number,
-> extends StaticTypeCarrier<TStatic> {
+type ObjectSchemaProperties<TProperties> =
+  TProperties extends Record<string, unknown>
+    ? { [K in keyof TProperties]: ExtractSchema<TProperties[K]> }
+    : Record<string, TSchema>;
+
+export type NumberFieldType = TNumber & {
   kind: "number";
-  readonly schema?: TSchema;
-}
+  readonly schema?: TNumber;
+};
 
-export interface StringFieldType<
-  TStatic = string,
-> extends StaticTypeCarrier<TStatic> {
+export type StringFieldType = TString & {
   kind: "string";
-  readonly schema?: TSchema;
-}
+  readonly schema?: TString;
+};
 
-export interface BooleanFieldType<
-  TStatic = boolean,
-> extends StaticTypeCarrier<TStatic> {
+export type BooleanFieldType = TBoolean & {
   kind: "boolean";
-  readonly schema?: TSchema;
-}
+  readonly schema?: TBoolean;
+};
 
 export interface NestedStateFieldType {
   kind: "state";
   target: StateFieldTargetFactory;
 }
 
-export interface ArrayFieldType<
-  TItem extends FieldType = FieldType,
-  TStatic = unknown,
-> extends StaticTypeCarrier<TStatic> {
+// Recursive field composition still needs broad defaults internally.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ArrayFieldType<TItem = any> = TArray<ExtractSchema<TItem>> & {
   kind: "array";
   item: TItem;
-  readonly schema?: TSchema;
-}
+  readonly schema?: TArray<ExtractSchema<TItem>>;
+};
 
-export interface RecordFieldType<
-  TKey extends PrimitiveFieldType = PrimitiveFieldType,
-  TValue extends FieldType = FieldType,
-  TStatic = unknown,
-> extends StaticTypeCarrier<TStatic> {
+export type RecordFieldType<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TKey = any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TValue = any,
+> = TRecord<ExtractSchema<TKey>, ExtractSchema<TValue>> & {
   kind: "record";
   key: TKey;
   value: TValue;
-  readonly schema?: TSchema;
-}
+  readonly schema?: TRecord<ExtractSchema<TKey>, ExtractSchema<TValue>>;
+};
 
-export interface ObjectFieldType<
-  TProperties extends Record<string, FieldType> = Record<string, FieldType>,
-  TStatic = unknown,
-> extends StaticTypeCarrier<TStatic> {
+export type ObjectFieldType<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TProperties extends Record<string, any> = Record<string, any>,
+> = TObject<ObjectSchemaProperties<TProperties>> & {
   kind: "object";
   properties: TProperties;
-  readonly schema?: TSchema;
-}
+  readonly schema?: TObject<ObjectSchemaProperties<TProperties>>;
+};
 
-export interface OptionalFieldType<
-  TItem extends FieldType = FieldType,
-  TStatic = unknown,
-> extends StaticTypeCarrier<TStatic> {
+// Recursive field composition still needs broad defaults internally.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type OptionalFieldType<TItem = any> = TOptional<ExtractSchema<TItem>> & {
   kind: "optional";
   item: TItem;
-  readonly schema?: TSchema;
-}
+  readonly schema?: TOptional<ExtractSchema<TItem>>;
+};
 
 export type PrimitiveFieldType =
   | NumberFieldType
@@ -79,47 +91,38 @@ export type PrimitiveFieldType =
 export type FieldType =
   | PrimitiveFieldType
   | NestedStateFieldType
-  | ArrayFieldType
-  | RecordFieldType
-  | ObjectFieldType
-  | OptionalFieldType;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | ArrayFieldType<any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | RecordFieldType<any, any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | ObjectFieldType<Record<string, any>>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | OptionalFieldType<any>;
 
 export type StateFieldMetadata = FieldType;
 
 export type SerializableSchema =
   | PrimitiveFieldType
-  | ArrayFieldType
-  | RecordFieldType
-  | ObjectFieldType
-  | OptionalFieldType;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | ArrayFieldType<any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | RecordFieldType<any, any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | ObjectFieldType<Record<string, any>>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | OptionalFieldType<any>;
 
-type InferObjectSchema<TProperties extends Record<string, FieldType>> = {
-  [K in keyof TProperties as TProperties[K] extends OptionalFieldType
-    ? never
-    : K]: InferSchema<Extract<TProperties[K], SerializableSchema>>;
-} & {
-  [K in keyof TProperties as TProperties[K] extends OptionalFieldType
-    ? K
-    : never]?: TProperties[K] extends OptionalFieldType
-    ? InferSchema<Extract<TProperties[K]["item"], SerializableSchema>>
-    : never;
-};
+export type ArraySchemaStatic<TItem> = Static<TArray<ExtractSchema<TItem>>>;
 
-export type InferSchema<TSchema extends SerializableSchema> =
-  TSchema extends StaticTypeCarrier<infer TStatic> ? TStatic : never;
-
-export type ArraySchemaStatic<TItem extends FieldType> = Array<
-  InferSchema<Extract<TItem, SerializableSchema>>
+export type RecordSchemaStatic<TKey, TValue> = Static<
+  TRecord<ExtractSchema<TKey>, ExtractSchema<TValue>>
 >;
 
-export type RecordSchemaStatic<TValue extends FieldType> = Record<
-  string,
-  InferSchema<Extract<TValue, SerializableSchema>>
+export type ObjectSchemaStatic<TProperties> = Static<
+  TObject<ObjectSchemaProperties<TProperties>>
 >;
 
-export type ObjectSchemaStatic<TProperties extends Record<string, FieldType>> =
-  InferObjectSchema<TProperties>;
-
-export type OptionalSchemaStatic<TItem extends FieldType> =
-  | InferSchema<Extract<TItem, SerializableSchema>>
-  | undefined;
+export type OptionalSchemaStatic<TItem> = Static<
+  TOptional<ExtractSchema<TItem>>
+>;

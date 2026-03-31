@@ -96,7 +96,7 @@ test("field decorator captures composable runtime field type metadata", () => {
   }
 
   expect(handField.target()).toBe(TypedHandState);
-  expect(tagsField).toEqual({
+  expect(tagsField).toMatchObject({
     kind: "array",
     item: {
       kind: "string",

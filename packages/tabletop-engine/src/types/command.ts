@@ -1,8 +1,8 @@
+import type { TSchema } from "@sinclair/typebox";
 import type { GameEvent } from "./event";
 import type { ValidationOutcome } from "./result";
 import type { CanonicalState, RuntimeState } from "./state";
 import type { RNGApi } from "./rng";
-import type { InferSchema, ObjectFieldType } from "../schema";
 
 export interface CommandInput<
   Payload extends Record<string, unknown> = Record<string, unknown>,
@@ -12,29 +12,16 @@ export interface CommandInput<
   payload?: Payload;
 }
 
-type PayloadFromSchema<TPayloadSchema extends ObjectFieldType | never> = [
-  TPayloadSchema,
-] extends [never]
-  ? Record<string, unknown>
-  : Extract<
-        InferSchema<Extract<TPayloadSchema, ObjectFieldType>>,
-        Record<string, unknown>
-      > extends never
-    ? Record<string, unknown>
-    : Extract<
-        InferSchema<Extract<TPayloadSchema, ObjectFieldType>>,
-        Record<string, unknown>
-      >;
+type CommandPayload = Record<string, unknown>;
 
 export type CommandInputFromSchema<
-  TPayloadSchema extends ObjectFieldType | never = never,
-> = CommandInput<PayloadFromSchema<TPayloadSchema>>;
+  TPayload extends CommandPayload = CommandPayload,
+> = CommandInput<TPayload>;
 
-type CommandPayloadSchema<TPayloadSchema extends ObjectFieldType | never> = [
-  TPayloadSchema,
-] extends [never]
-  ? ObjectFieldType
-  : Extract<TPayloadSchema, ObjectFieldType>;
+type CommandPayloadSchema<TPayload extends CommandPayload = CommandPayload> = {
+  readonly static: TPayload;
+  readonly schema?: TSchema;
+};
 
 export interface InternalValidationContext<
   CanonicalGameState extends object = object,
@@ -140,10 +127,10 @@ export interface InternalCommandDefinition<
   CanonicalGameState extends object = object,
   FacadeGameState extends object = CanonicalGameState,
   Runtime extends RuntimeState = RuntimeState,
-  TPayloadSchema extends ObjectFieldType | never = never,
+  TPayload extends CommandPayload = CommandPayload,
 > {
   commandId: string;
-  payloadSchema: CommandPayloadSchema<TPayloadSchema>;
+  payloadSchema: CommandPayloadSchema<TPayload>;
   isAvailable?(
     context: InternalCommandAvailabilityContext<
       CanonicalGameState,
@@ -156,7 +143,7 @@ export interface InternalCommandDefinition<
       CanonicalGameState,
       FacadeGameState,
       Runtime,
-      CommandInputFromSchema<TPayloadSchema>
+      CommandInputFromSchema<TPayload>
     >,
   ): CommandDiscoveryResult | null;
   validate(
@@ -164,7 +151,7 @@ export interface InternalCommandDefinition<
       CanonicalGameState,
       FacadeGameState,
       Runtime,
-      CommandInputFromSchema<TPayloadSchema>
+      CommandInputFromSchema<TPayload>
     >,
   ): ValidationOutcome;
   execute(
@@ -172,34 +159,31 @@ export interface InternalCommandDefinition<
       CanonicalGameState,
       FacadeGameState,
       Runtime,
-      CommandInputFromSchema<TPayloadSchema>
+      CommandInputFromSchema<TPayload>
     >,
   ): void;
 }
 
 export type CommandDefinition<
   FacadeGameState extends object = object,
-  TPayloadSchema extends ObjectFieldType | never = never,
+  TPayload extends CommandPayload = CommandPayload,
 > = {
   commandId: string;
-  payloadSchema: CommandPayloadSchema<TPayloadSchema>;
+  payloadSchema: CommandPayloadSchema<TPayload>;
   isAvailable?(context: CommandAvailabilityContext<FacadeGameState>): boolean;
   discover?(
     context: DiscoveryContext<
       FacadeGameState,
-      CommandInputFromSchema<TPayloadSchema>
+      CommandInputFromSchema<TPayload>
     >,
   ): CommandDiscoveryResult | null;
   validate(
     context: ValidationContext<
       FacadeGameState,
-      CommandInputFromSchema<TPayloadSchema>
+      CommandInputFromSchema<TPayload>
     >,
   ): ValidationOutcome;
   execute(
-    context: ExecuteContext<
-      FacadeGameState,
-      CommandInputFromSchema<TPayloadSchema>
-    >,
+    context: ExecuteContext<FacadeGameState, CommandInputFromSchema<TPayload>>,
   ): void;
 };

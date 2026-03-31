@@ -224,6 +224,48 @@ test("taking two gems of the same color requires at least four in the bank", () 
   expect(result.state.game.bank.red).toBe(3);
 });
 
+test("taking two gems of the same color rejects invalid gem colors explicitly", () => {
+  const gameExecutor = createTestGameExecutor(["p1", "p2"]);
+  const state = gameExecutor.createInitialState();
+
+  const result = gameExecutor.executeCommand(state, {
+    type: "take_two_same_gems",
+    actorId: "p1",
+    payload: {
+      color: "purple",
+    },
+  });
+
+  expect(result.ok).toBe(false);
+
+  if (result.ok) {
+    throw new Error("expected invalid gem color to fail validation");
+  }
+
+  expect(result.reason).toBe("invalid_color");
+});
+
+test("reserving a deck card rejects invalid development levels explicitly", () => {
+  const gameExecutor = createTestGameExecutor(["p1", "p2"]);
+  const state = gameExecutor.createInitialState();
+
+  const result = gameExecutor.executeCommand(state, {
+    type: "reserve_deck_card",
+    actorId: "p1",
+    payload: {
+      level: 4,
+    },
+  });
+
+  expect(result.ok).toBe(false);
+
+  if (result.ok) {
+    throw new Error("expected invalid deck level to fail validation");
+  }
+
+  expect(result.reason).toBe("invalid_level");
+});
+
 test("reserving a face-up card grants gold and refills the market", () => {
   const gameExecutor = createTestGameExecutor(["p1", "p2"]);
   const state = gameExecutor.createInitialState();

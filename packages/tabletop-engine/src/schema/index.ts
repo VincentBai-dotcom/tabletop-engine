@@ -1,17 +1,13 @@
 import { Type, type TSchema } from "@sinclair/typebox";
 import type {
-  ArraySchemaStatic,
   ArrayFieldType,
   BooleanFieldType,
   FieldType,
   NestedStateFieldType,
   NumberFieldType,
-  ObjectSchemaStatic,
   ObjectFieldType,
-  OptionalSchemaStatic,
   OptionalFieldType,
   PrimitiveFieldType,
-  RecordSchemaStatic,
   RecordFieldType,
   StateFieldTargetFactory,
   StringFieldType,
@@ -22,7 +18,6 @@ export type {
   ArrayFieldType,
   BooleanFieldType,
   FieldType,
-  InferSchema,
   NestedStateFieldType,
   NumberFieldType,
   ObjectSchemaStatic,
@@ -94,7 +89,7 @@ export const t = {
 
   object<TProperties extends Record<string, FieldType>>(
     properties: TProperties,
-  ): ObjectFieldType<TProperties, ObjectSchemaStatic<TProperties>> {
+  ): ObjectFieldType<TProperties> {
     return withSchema(
       {
         kind: "object",
@@ -108,19 +103,17 @@ export const t = {
           ]),
         ),
       ),
-    ) as ObjectFieldType<TProperties, ObjectSchemaStatic<TProperties>>;
+    ) as ObjectFieldType<TProperties>;
   },
 
-  optional<TItem extends FieldType>(
-    item: TItem,
-  ): OptionalFieldType<TItem, OptionalSchemaStatic<TItem>> {
+  optional<TItem extends FieldType>(item: TItem): OptionalFieldType<TItem> {
     return withSchema(
       {
         kind: "optional",
         item,
       },
       Type.Optional(toTypeBoxSchema(item)),
-    ) as OptionalFieldType<TItem, OptionalSchemaStatic<TItem>>;
+    ) as OptionalFieldType<TItem>;
   },
 
   state(target: StateFieldTargetFactory): NestedStateFieldType {
@@ -130,22 +123,20 @@ export const t = {
     };
   },
 
-  array<TItem extends FieldType>(
-    item: TItem,
-  ): ArrayFieldType<TItem, ArraySchemaStatic<TItem>> {
+  array<TItem extends FieldType>(item: TItem): ArrayFieldType<TItem> {
     return withSchema(
       {
         kind: "array",
         item,
       },
       Type.Array(toTypeBoxSchema(item)),
-    ) as ArrayFieldType<TItem, ArraySchemaStatic<TItem>>;
+    ) as ArrayFieldType<TItem>;
   },
 
   record<TKey extends PrimitiveFieldType, TValue extends FieldType>(
     key: TKey,
     value: TValue,
-  ): RecordFieldType<TKey, TValue, RecordSchemaStatic<TValue>> {
+  ): RecordFieldType<TKey, TValue> {
     return withSchema(
       {
         kind: "record",
@@ -153,7 +144,7 @@ export const t = {
         value,
       },
       Type.Record(toTypeBoxRecordKeySchema(key), toTypeBoxSchema(value)),
-    ) as RecordFieldType<TKey, TValue, RecordSchemaStatic<TValue>>;
+    ) as RecordFieldType<TKey, TValue>;
   },
 };
 

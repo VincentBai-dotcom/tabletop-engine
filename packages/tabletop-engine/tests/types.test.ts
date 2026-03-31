@@ -211,27 +211,26 @@ test("consumer command definitions only expose game state and command input gene
   const gainScorePayload = t.object({
     amount: t.number(),
   });
+  type GainScorePayload = typeof gainScorePayload.static;
 
-  const definition: CommandDefinition<
-    { increment(): void },
-    typeof gainScorePayload
-  > = {
-    commandId: "gain_score",
-    payloadSchema: gainScorePayload,
-    validate: ({ commandInput }) => {
-      const amount: number | undefined = commandInput.payload?.amount;
+  const definition: CommandDefinition<{ increment(): void }, GainScorePayload> =
+    {
+      commandId: "gain_score",
+      payloadSchema: gainScorePayload,
+      validate: ({ commandInput }) => {
+        const amount: number | undefined = commandInput.payload?.amount;
 
-      return {
-        ok: typeof amount === "number",
-        reason: "amount_required",
-      };
-    },
-    execute: ({ game, commandInput }) => {
-      game.increment();
-      const amount: number | undefined = commandInput.payload?.amount;
-      void amount;
-    },
-  };
+        return {
+          ok: typeof amount === "number",
+          reason: "amount_required",
+        };
+      },
+      execute: ({ game, commandInput }) => {
+        game.increment();
+        const amount: number | undefined = commandInput.payload?.amount;
+        void amount;
+      },
+    };
 
   expect(definition.commandId).toBe("gain_score");
 });
@@ -240,12 +239,13 @@ test("internal command definitions still expose canonical state separately from 
   const gainScorePayload = t.object({
     amount: t.number(),
   });
+  type GainScorePayload = typeof gainScorePayload.static;
 
   const definition: InternalCommandDefinition<
     { score: number },
     { increment(): void },
     RuntimeState,
-    typeof gainScorePayload
+    GainScorePayload
   > = {
     commandId: "gain_score",
     payloadSchema: gainScorePayload,
@@ -270,7 +270,7 @@ test("internal command definitions still expose canonical state separately from 
     { score: number },
     { increment(): void },
     RuntimeState,
-    CommandInputFromSchema<typeof gainScorePayload>
+    CommandInputFromSchema<GainScorePayload>
   > = {
     state: {
       game: {
