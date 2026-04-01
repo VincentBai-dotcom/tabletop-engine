@@ -171,6 +171,9 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
   expect(document.channels["command.discovered"]!.publish!.message.$ref).toBe(
     "#/components/messages/DiscoveryResult",
   );
+  expect(
+    document.channels["command.discovery_rejected"]!.publish!.message.$ref,
+  ).toBe("#/components/messages/DiscoveryRejected");
   expect(document.channels["match.view"]!.publish!.message.$ref).toBe(
     "#/components/messages/MatchView",
   );
@@ -191,13 +194,25 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
 
   expect(discoverVariants).toHaveLength(1);
   expect(discoverVariants[0]!.properties.type.const).toBe("gain_score");
+  expect(discoverVariants[0]!.properties.requestId.type).toBe("string");
   expect(discoverVariants[0]!.properties.draft.type).toBe("object");
   expect(
     discoverVariants[0]!.properties.draft.properties.selectedAmount.type,
   ).toBe("number");
+  const discoveryResultPayload =
+    document.components.messages.DiscoveryResult!.payload;
+  const discoveryResultVariants = discoveryResultPayload.anyOf ?? [
+    discoveryResultPayload,
+  ];
+  expect(discoveryResultVariants).toHaveLength(1);
+  expect(discoveryResultVariants[0]!.properties.type.const).toBe("gain_score");
+  expect(discoveryResultVariants[0]!.properties.requestId.type).toBe("string");
+  expect(discoveryResultVariants[0]!.properties.result.anyOf).toHaveLength(2);
   expect(document.components.schemas.DiscoveryResult).toBeDefined();
+  expect(document.components.schemas.DiscoveryRejected).toBeDefined();
   expect(document.components.schemas.GainScoreDiscoveryInput).toBeDefined();
   expect(document.components.schemas.GainScoreDiscoveryResult).toBeDefined();
+  expect(document.components.schemas.GainScoreDiscoveryRejected).toBeDefined();
   expect(document.components.schemas.VisibleState).toEqual(protocol.viewSchema);
   expect(document.components.schemas.MatchView!.properties.view).toEqual(
     protocol.viewSchema,

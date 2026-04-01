@@ -12,6 +12,27 @@
         }
       }
     },
+    "command.discover": {
+      "subscribe": {
+        "message": {
+          "$ref": "#/components/messages/DiscoverCommand"
+        }
+      }
+    },
+    "command.discovered": {
+      "publish": {
+        "message": {
+          "$ref": "#/components/messages/DiscoveryResult"
+        }
+      }
+    },
+    "command.discovery_rejected": {
+      "publish": {
+        "message": {
+          "$ref": "#/components/messages/DiscoveryRejected"
+        }
+      }
+    },
     "match.view": {
       "publish": {
         "message": {
@@ -203,6 +224,960 @@
                       "type": "number"
                     }
                   }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "DiscoverCommand": {
+        "name": "DiscoverCommand",
+        "payload": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "const": "take_three_distinct_gems",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "draft": {
+                  "type": "object",
+                  "properties": {
+                    "selectedColors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "returnTokens": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^(.*)$": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "const": "take_two_same_gems",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "draft": {
+                  "type": "object",
+                  "properties": {
+                    "selectedColor": {
+                      "type": "string"
+                    },
+                    "returnTokens": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^(.*)$": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "const": "reserve_face_up_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "draft": {
+                  "type": "object",
+                  "properties": {
+                    "selectedLevel": {
+                      "type": "number"
+                    },
+                    "selectedCardId": {
+                      "type": "number"
+                    },
+                    "returnTokens": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^(.*)$": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "const": "reserve_deck_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "draft": {
+                  "type": "object",
+                  "properties": {
+                    "selectedLevel": {
+                      "type": "number"
+                    },
+                    "returnTokens": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^(.*)$": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "const": "buy_face_up_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "draft": {
+                  "type": "object",
+                  "properties": {
+                    "selectedLevel": {
+                      "type": "number"
+                    },
+                    "selectedCardId": {
+                      "type": "number"
+                    },
+                    "chosenNobleId": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "const": "buy_reserved_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "draft": {
+                  "type": "object",
+                  "properties": {
+                    "selectedCardId": {
+                      "type": "number"
+                    },
+                    "chosenNobleId": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "DiscoveryResult": {
+        "name": "DiscoveryResult",
+        "payload": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": ["type", "result"],
+              "properties": {
+                "type": {
+                  "const": "take_three_distinct_gems",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": ["complete", "step", "options"],
+                      "properties": {
+                        "complete": {
+                          "const": false,
+                          "type": "boolean"
+                        },
+                        "step": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": ["id", "nextDraft"],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "nextDraft": {
+                                "type": "object",
+                                "properties": {
+                                  "selectedColors": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "returnTokens": {
+                                    "type": "object",
+                                    "patternProperties": {
+                                      "^(.*)$": {
+                                        "type": "number"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "metadata": {
+                                "type": "object",
+                                "patternProperties": {
+                                  "^(.*)$": {}
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": ["complete", "payload"],
+                      "properties": {
+                        "complete": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "payload": {
+                          "type": "object",
+                          "properties": {
+                            "colors": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "returnTokens": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "result"],
+              "properties": {
+                "type": {
+                  "const": "take_two_same_gems",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": ["complete", "step", "options"],
+                      "properties": {
+                        "complete": {
+                          "const": false,
+                          "type": "boolean"
+                        },
+                        "step": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": ["id", "nextDraft"],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "nextDraft": {
+                                "type": "object",
+                                "properties": {
+                                  "selectedColor": {
+                                    "type": "string"
+                                  },
+                                  "returnTokens": {
+                                    "type": "object",
+                                    "patternProperties": {
+                                      "^(.*)$": {
+                                        "type": "number"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "metadata": {
+                                "type": "object",
+                                "patternProperties": {
+                                  "^(.*)$": {}
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": ["complete", "payload"],
+                      "properties": {
+                        "complete": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "payload": {
+                          "type": "object",
+                          "properties": {
+                            "color": {
+                              "type": "string"
+                            },
+                            "returnTokens": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "result"],
+              "properties": {
+                "type": {
+                  "const": "reserve_face_up_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": ["complete", "step", "options"],
+                      "properties": {
+                        "complete": {
+                          "const": false,
+                          "type": "boolean"
+                        },
+                        "step": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": ["id", "nextDraft"],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "nextDraft": {
+                                "type": "object",
+                                "properties": {
+                                  "selectedLevel": {
+                                    "type": "number"
+                                  },
+                                  "selectedCardId": {
+                                    "type": "number"
+                                  },
+                                  "returnTokens": {
+                                    "type": "object",
+                                    "patternProperties": {
+                                      "^(.*)$": {
+                                        "type": "number"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "metadata": {
+                                "type": "object",
+                                "patternProperties": {
+                                  "^(.*)$": {}
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": ["complete", "payload"],
+                      "properties": {
+                        "complete": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "payload": {
+                          "type": "object",
+                          "properties": {
+                            "level": {
+                              "type": "number"
+                            },
+                            "cardId": {
+                              "type": "number"
+                            },
+                            "returnTokens": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "result"],
+              "properties": {
+                "type": {
+                  "const": "reserve_deck_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": ["complete", "step", "options"],
+                      "properties": {
+                        "complete": {
+                          "const": false,
+                          "type": "boolean"
+                        },
+                        "step": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": ["id", "nextDraft"],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "nextDraft": {
+                                "type": "object",
+                                "properties": {
+                                  "selectedLevel": {
+                                    "type": "number"
+                                  },
+                                  "returnTokens": {
+                                    "type": "object",
+                                    "patternProperties": {
+                                      "^(.*)$": {
+                                        "type": "number"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "metadata": {
+                                "type": "object",
+                                "patternProperties": {
+                                  "^(.*)$": {}
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": ["complete", "payload"],
+                      "properties": {
+                        "complete": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "payload": {
+                          "type": "object",
+                          "properties": {
+                            "level": {
+                              "type": "number"
+                            },
+                            "returnTokens": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "result"],
+              "properties": {
+                "type": {
+                  "const": "buy_face_up_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": ["complete", "step", "options"],
+                      "properties": {
+                        "complete": {
+                          "const": false,
+                          "type": "boolean"
+                        },
+                        "step": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": ["id", "nextDraft"],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "nextDraft": {
+                                "type": "object",
+                                "properties": {
+                                  "selectedLevel": {
+                                    "type": "number"
+                                  },
+                                  "selectedCardId": {
+                                    "type": "number"
+                                  },
+                                  "chosenNobleId": {
+                                    "type": "number"
+                                  }
+                                }
+                              },
+                              "metadata": {
+                                "type": "object",
+                                "patternProperties": {
+                                  "^(.*)$": {}
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": ["complete", "payload"],
+                      "properties": {
+                        "complete": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "payload": {
+                          "type": "object",
+                          "properties": {
+                            "level": {
+                              "type": "number"
+                            },
+                            "cardId": {
+                              "type": "number"
+                            },
+                            "chosenNobleId": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "result"],
+              "properties": {
+                "type": {
+                  "const": "buy_reserved_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": ["complete", "step", "options"],
+                      "properties": {
+                        "complete": {
+                          "const": false,
+                          "type": "boolean"
+                        },
+                        "step": {
+                          "type": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": ["id", "nextDraft"],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "nextDraft": {
+                                "type": "object",
+                                "properties": {
+                                  "selectedCardId": {
+                                    "type": "number"
+                                  },
+                                  "chosenNobleId": {
+                                    "type": "number"
+                                  }
+                                }
+                              },
+                              "metadata": {
+                                "type": "object",
+                                "patternProperties": {
+                                  "^(.*)$": {}
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": ["complete", "payload"],
+                      "properties": {
+                        "complete": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "payload": {
+                          "type": "object",
+                          "properties": {
+                            "cardId": {
+                              "type": "number"
+                            },
+                            "chosenNobleId": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "DiscoveryRejected": {
+        "name": "DiscoveryRejected",
+        "payload": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": ["type", "reason"],
+              "properties": {
+                "type": {
+                  "const": "take_three_distinct_gems",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "reason"],
+              "properties": {
+                "type": {
+                  "const": "take_two_same_gems",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "reason"],
+              "properties": {
+                "type": {
+                  "const": "reserve_face_up_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "reason"],
+              "properties": {
+                "type": {
+                  "const": "reserve_deck_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "reason"],
+              "properties": {
+                "type": {
+                  "const": "buy_face_up_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "reason"],
+              "properties": {
+                "type": {
+                  "const": "buy_reserved_card",
+                  "type": "string"
+                },
+                "actorId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
                 }
               }
             }
@@ -703,6 +1678,756 @@
           }
         }
       },
+      "DiscoveryResult": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": ["type", "result"],
+            "properties": {
+              "type": {
+                "const": "take_three_distinct_gems",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": ["complete", "step", "options"],
+                    "properties": {
+                      "complete": {
+                        "const": false,
+                        "type": "boolean"
+                      },
+                      "step": {
+                        "type": "string"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": ["id", "nextDraft"],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "nextDraft": {
+                              "type": "object",
+                              "properties": {
+                                "selectedColors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "returnTokens": {
+                                  "type": "object",
+                                  "patternProperties": {
+                                    "^(.*)$": {
+                                      "type": "number"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "metadata": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {}
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["complete", "payload"],
+                    "properties": {
+                      "complete": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "payload": {
+                        "type": "object",
+                        "properties": {
+                          "colors": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "returnTokens": {
+                            "type": "object",
+                            "patternProperties": {
+                              "^(.*)$": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "result"],
+            "properties": {
+              "type": {
+                "const": "take_two_same_gems",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": ["complete", "step", "options"],
+                    "properties": {
+                      "complete": {
+                        "const": false,
+                        "type": "boolean"
+                      },
+                      "step": {
+                        "type": "string"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": ["id", "nextDraft"],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "nextDraft": {
+                              "type": "object",
+                              "properties": {
+                                "selectedColor": {
+                                  "type": "string"
+                                },
+                                "returnTokens": {
+                                  "type": "object",
+                                  "patternProperties": {
+                                    "^(.*)$": {
+                                      "type": "number"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "metadata": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {}
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["complete", "payload"],
+                    "properties": {
+                      "complete": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "payload": {
+                        "type": "object",
+                        "properties": {
+                          "color": {
+                            "type": "string"
+                          },
+                          "returnTokens": {
+                            "type": "object",
+                            "patternProperties": {
+                              "^(.*)$": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "result"],
+            "properties": {
+              "type": {
+                "const": "reserve_face_up_card",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": ["complete", "step", "options"],
+                    "properties": {
+                      "complete": {
+                        "const": false,
+                        "type": "boolean"
+                      },
+                      "step": {
+                        "type": "string"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": ["id", "nextDraft"],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "nextDraft": {
+                              "type": "object",
+                              "properties": {
+                                "selectedLevel": {
+                                  "type": "number"
+                                },
+                                "selectedCardId": {
+                                  "type": "number"
+                                },
+                                "returnTokens": {
+                                  "type": "object",
+                                  "patternProperties": {
+                                    "^(.*)$": {
+                                      "type": "number"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "metadata": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {}
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["complete", "payload"],
+                    "properties": {
+                      "complete": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "payload": {
+                        "type": "object",
+                        "properties": {
+                          "level": {
+                            "type": "number"
+                          },
+                          "cardId": {
+                            "type": "number"
+                          },
+                          "returnTokens": {
+                            "type": "object",
+                            "patternProperties": {
+                              "^(.*)$": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "result"],
+            "properties": {
+              "type": {
+                "const": "reserve_deck_card",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": ["complete", "step", "options"],
+                    "properties": {
+                      "complete": {
+                        "const": false,
+                        "type": "boolean"
+                      },
+                      "step": {
+                        "type": "string"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": ["id", "nextDraft"],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "nextDraft": {
+                              "type": "object",
+                              "properties": {
+                                "selectedLevel": {
+                                  "type": "number"
+                                },
+                                "returnTokens": {
+                                  "type": "object",
+                                  "patternProperties": {
+                                    "^(.*)$": {
+                                      "type": "number"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "metadata": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {}
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["complete", "payload"],
+                    "properties": {
+                      "complete": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "payload": {
+                        "type": "object",
+                        "properties": {
+                          "level": {
+                            "type": "number"
+                          },
+                          "returnTokens": {
+                            "type": "object",
+                            "patternProperties": {
+                              "^(.*)$": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "result"],
+            "properties": {
+              "type": {
+                "const": "buy_face_up_card",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": ["complete", "step", "options"],
+                    "properties": {
+                      "complete": {
+                        "const": false,
+                        "type": "boolean"
+                      },
+                      "step": {
+                        "type": "string"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": ["id", "nextDraft"],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "nextDraft": {
+                              "type": "object",
+                              "properties": {
+                                "selectedLevel": {
+                                  "type": "number"
+                                },
+                                "selectedCardId": {
+                                  "type": "number"
+                                },
+                                "chosenNobleId": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "metadata": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {}
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["complete", "payload"],
+                    "properties": {
+                      "complete": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "payload": {
+                        "type": "object",
+                        "properties": {
+                          "level": {
+                            "type": "number"
+                          },
+                          "cardId": {
+                            "type": "number"
+                          },
+                          "chosenNobleId": {
+                            "type": "number"
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "result"],
+            "properties": {
+              "type": {
+                "const": "buy_reserved_card",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": ["complete", "step", "options"],
+                    "properties": {
+                      "complete": {
+                        "const": false,
+                        "type": "boolean"
+                      },
+                      "step": {
+                        "type": "string"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": ["id", "nextDraft"],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "nextDraft": {
+                              "type": "object",
+                              "properties": {
+                                "selectedCardId": {
+                                  "type": "number"
+                                },
+                                "chosenNobleId": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "metadata": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {}
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["complete", "payload"],
+                    "properties": {
+                      "complete": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "payload": {
+                        "type": "object",
+                        "properties": {
+                          "cardId": {
+                            "type": "number"
+                          },
+                          "chosenNobleId": {
+                            "type": "number"
+                          }
+                        }
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {}
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "DiscoveryRejected": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": ["type", "reason"],
+            "properties": {
+              "type": {
+                "const": "take_three_distinct_gems",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "reason"],
+            "properties": {
+              "type": {
+                "const": "take_two_same_gems",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "reason"],
+            "properties": {
+              "type": {
+                "const": "reserve_face_up_card",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "reason"],
+            "properties": {
+              "type": {
+                "const": "reserve_deck_card",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "reason"],
+            "properties": {
+              "type": {
+                "const": "buy_face_up_card",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "reason"],
+            "properties": {
+              "type": {
+                "const": "buy_reserved_card",
+                "type": "string"
+              },
+              "actorId": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
       "MatchView": {
         "type": "object",
         "required": ["type", "view"],
@@ -1131,6 +2856,939 @@
                 "type": "number"
               }
             }
+          }
+        }
+      },
+      "TakeThreeDistinctGemsDiscoveryInput": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "const": "take_three_distinct_gems",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "object",
+            "properties": {
+              "selectedColors": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "returnTokens": {
+                "type": "object",
+                "patternProperties": {
+                  "^(.*)$": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "TakeTwoSameGemsDiscoveryInput": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "const": "take_two_same_gems",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "object",
+            "properties": {
+              "selectedColor": {
+                "type": "string"
+              },
+              "returnTokens": {
+                "type": "object",
+                "patternProperties": {
+                  "^(.*)$": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ReserveFaceUpCardDiscoveryInput": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "const": "reserve_face_up_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "object",
+            "properties": {
+              "selectedLevel": {
+                "type": "number"
+              },
+              "selectedCardId": {
+                "type": "number"
+              },
+              "returnTokens": {
+                "type": "object",
+                "patternProperties": {
+                  "^(.*)$": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ReserveDeckCardDiscoveryInput": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "const": "reserve_deck_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "object",
+            "properties": {
+              "selectedLevel": {
+                "type": "number"
+              },
+              "returnTokens": {
+                "type": "object",
+                "patternProperties": {
+                  "^(.*)$": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BuyFaceUpCardDiscoveryInput": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "const": "buy_face_up_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "object",
+            "properties": {
+              "selectedLevel": {
+                "type": "number"
+              },
+              "selectedCardId": {
+                "type": "number"
+              },
+              "chosenNobleId": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      },
+      "BuyReservedCardDiscoveryInput": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "const": "buy_reserved_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "object",
+            "properties": {
+              "selectedCardId": {
+                "type": "number"
+              },
+              "chosenNobleId": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      },
+      "TakeThreeDistinctGemsDiscoveryResult": {
+        "type": "object",
+        "required": ["type", "result"],
+        "properties": {
+          "type": {
+            "const": "take_three_distinct_gems",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": ["complete", "step", "options"],
+                "properties": {
+                  "complete": {
+                    "const": false,
+                    "type": "boolean"
+                  },
+                  "step": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id", "nextDraft"],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nextDraft": {
+                          "type": "object",
+                          "properties": {
+                            "selectedColors": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "returnTokens": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["complete", "payload"],
+                "properties": {
+                  "complete": {
+                    "const": true,
+                    "type": "boolean"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {
+                      "colors": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "returnTokens": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "TakeTwoSameGemsDiscoveryResult": {
+        "type": "object",
+        "required": ["type", "result"],
+        "properties": {
+          "type": {
+            "const": "take_two_same_gems",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": ["complete", "step", "options"],
+                "properties": {
+                  "complete": {
+                    "const": false,
+                    "type": "boolean"
+                  },
+                  "step": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id", "nextDraft"],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nextDraft": {
+                          "type": "object",
+                          "properties": {
+                            "selectedColor": {
+                              "type": "string"
+                            },
+                            "returnTokens": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["complete", "payload"],
+                "properties": {
+                  "complete": {
+                    "const": true,
+                    "type": "boolean"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {
+                      "color": {
+                        "type": "string"
+                      },
+                      "returnTokens": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ReserveFaceUpCardDiscoveryResult": {
+        "type": "object",
+        "required": ["type", "result"],
+        "properties": {
+          "type": {
+            "const": "reserve_face_up_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": ["complete", "step", "options"],
+                "properties": {
+                  "complete": {
+                    "const": false,
+                    "type": "boolean"
+                  },
+                  "step": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id", "nextDraft"],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nextDraft": {
+                          "type": "object",
+                          "properties": {
+                            "selectedLevel": {
+                              "type": "number"
+                            },
+                            "selectedCardId": {
+                              "type": "number"
+                            },
+                            "returnTokens": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["complete", "payload"],
+                "properties": {
+                  "complete": {
+                    "const": true,
+                    "type": "boolean"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {
+                      "level": {
+                        "type": "number"
+                      },
+                      "cardId": {
+                        "type": "number"
+                      },
+                      "returnTokens": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ReserveDeckCardDiscoveryResult": {
+        "type": "object",
+        "required": ["type", "result"],
+        "properties": {
+          "type": {
+            "const": "reserve_deck_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": ["complete", "step", "options"],
+                "properties": {
+                  "complete": {
+                    "const": false,
+                    "type": "boolean"
+                  },
+                  "step": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id", "nextDraft"],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nextDraft": {
+                          "type": "object",
+                          "properties": {
+                            "selectedLevel": {
+                              "type": "number"
+                            },
+                            "returnTokens": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["complete", "payload"],
+                "properties": {
+                  "complete": {
+                    "const": true,
+                    "type": "boolean"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {
+                      "level": {
+                        "type": "number"
+                      },
+                      "returnTokens": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "BuyFaceUpCardDiscoveryResult": {
+        "type": "object",
+        "required": ["type", "result"],
+        "properties": {
+          "type": {
+            "const": "buy_face_up_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": ["complete", "step", "options"],
+                "properties": {
+                  "complete": {
+                    "const": false,
+                    "type": "boolean"
+                  },
+                  "step": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id", "nextDraft"],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nextDraft": {
+                          "type": "object",
+                          "properties": {
+                            "selectedLevel": {
+                              "type": "number"
+                            },
+                            "selectedCardId": {
+                              "type": "number"
+                            },
+                            "chosenNobleId": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["complete", "payload"],
+                "properties": {
+                  "complete": {
+                    "const": true,
+                    "type": "boolean"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {
+                      "level": {
+                        "type": "number"
+                      },
+                      "cardId": {
+                        "type": "number"
+                      },
+                      "chosenNobleId": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "BuyReservedCardDiscoveryResult": {
+        "type": "object",
+        "required": ["type", "result"],
+        "properties": {
+          "type": {
+            "const": "buy_reserved_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": ["complete", "step", "options"],
+                "properties": {
+                  "complete": {
+                    "const": false,
+                    "type": "boolean"
+                  },
+                  "step": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id", "nextDraft"],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nextDraft": {
+                          "type": "object",
+                          "properties": {
+                            "selectedCardId": {
+                              "type": "number"
+                            },
+                            "chosenNobleId": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^(.*)$": {}
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["complete", "payload"],
+                "properties": {
+                  "complete": {
+                    "const": true,
+                    "type": "boolean"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "properties": {
+                      "cardId": {
+                        "type": "number"
+                      },
+                      "chosenNobleId": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {}
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "TakeThreeDistinctGemsDiscoveryRejected": {
+        "type": "object",
+        "required": ["type", "reason"],
+        "properties": {
+          "type": {
+            "const": "take_three_distinct_gems",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "TakeTwoSameGemsDiscoveryRejected": {
+        "type": "object",
+        "required": ["type", "reason"],
+        "properties": {
+          "type": {
+            "const": "take_two_same_gems",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "ReserveFaceUpCardDiscoveryRejected": {
+        "type": "object",
+        "required": ["type", "reason"],
+        "properties": {
+          "type": {
+            "const": "reserve_face_up_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "ReserveDeckCardDiscoveryRejected": {
+        "type": "object",
+        "required": ["type", "reason"],
+        "properties": {
+          "type": {
+            "const": "reserve_deck_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "BuyFaceUpCardDiscoveryRejected": {
+        "type": "object",
+        "required": ["type", "reason"],
+        "properties": {
+          "type": {
+            "const": "buy_face_up_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "BuyReservedCardDiscoveryRejected": {
+        "type": "object",
+        "required": ["type", "reason"],
+        "properties": {
+          "type": {
+            "const": "buy_reserved_card",
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
           }
         }
       }

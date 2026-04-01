@@ -7,6 +7,7 @@ export interface AsyncApiChannelNames {
   submitCommand: string;
   discoverCommand: string;
   discoveryResult: string;
+  discoveryRejected: string;
   matchView: string;
   commandRejected: string;
 }
@@ -54,6 +55,7 @@ const defaultChannels: AsyncApiChannelNames = {
   submitCommand: "command.submit",
   discoverCommand: "command.discover",
   discoveryResult: "command.discovered",
+  discoveryRejected: "command.discovery_rejected",
   matchView: "match.view",
   commandRejected: "command.rejected",
 };
@@ -96,10 +98,19 @@ export function generateAsyncApi<
       .filter(([, command]) => command.discoveryDraftSchema?.schema)
       .map(([commandId, command]) => [
         commandId,
-        createDiscoveryResultSchema(
+        createDiscoveryEnvelopeSchema(
+          commandId,
           command.discoveryDraftSchema!.schema!,
           command.payloadSchema.schema!,
         ),
+      ]),
+  );
+  const discoveryRejectedSchemas = Object.fromEntries(
+    Object.entries(protocol.commands)
+      .filter(([, command]) => command.discoveryDraftSchema?.schema)
+      .map(([commandId]) => [
+        commandId,
+        createDiscoveryRejectedSchema(commandId),
       ]),
   );
   const commandInputSchemaList = Object.values(commandInputSchemas);
@@ -123,6 +134,13 @@ export function generateAsyncApi<
       : discoveryResultSchemaList.length === 1
         ? discoveryResultSchemaList[0]!
         : Type.Union(discoveryResultSchemaList);
+  const discoveryRejectedSchemaList = Object.values(discoveryRejectedSchemas);
+  const discoveryRejectedSchema =
+    discoveryRejectedSchemaList.length === 0
+      ? Type.Never()
+      : discoveryRejectedSchemaList.length === 1
+        ? discoveryRejectedSchemaList[0]!
+        : Type.Union(discoveryRejectedSchemaList);
   const visibleStateSchema = protocol.viewSchema;
   const matchViewSchema = Type.Object({
     type: Type.Literal("match.view"),
@@ -161,6 +179,13 @@ export function generateAsyncApi<
           },
         },
       },
+      [channels.discoveryRejected]: {
+        publish: {
+          message: {
+            $ref: "#/components/messages/DiscoveryRejected",
+          },
+        },
+      },
       [channels.matchView]: {
         publish: {
           message: {
@@ -190,6 +215,10 @@ export function generateAsyncApi<
           name: "DiscoveryResult",
           payload: discoveryResultSchema,
         },
+        DiscoveryRejected: {
+          name: "DiscoveryRejected",
+          payload: discoveryRejectedSchema,
+        },
         MatchView: {
           name: "MatchView",
           payload: matchViewSchema,
@@ -202,6 +231,7 @@ export function generateAsyncApi<
       schemas: {
         VisibleState: visibleStateSchema,
         DiscoveryResult: discoveryResultSchema,
+        DiscoveryRejected: discoveryRejectedSchema,
         MatchView: matchViewSchema,
         CommandRejected: commandRejectedSchema,
         ...Object.fromEntries(
@@ -222,6 +252,14 @@ export function generateAsyncApi<
             schema,
           ]),
         ),
+        ...Object.fromEntries(
+          Object.entries(discoveryRejectedSchemas).map(
+            ([commandId, schema]) => [
+              `${toPascalCase(commandId)}DiscoveryRejected`,
+              schema,
+            ],
+          ),
+        ),
       },
     },
   };
@@ -239,11 +277,12 @@ function createDiscoveryInputSchema(commandId: string, draftSchema: TSchema) {
   return Type.Object({
     type: Type.Literal(commandId),
     actorId: Type.Optional(Type.String()),
+    requestId: Type.Optional(Type.String()),
     draft: Type.Optional(draftSchema),
   });
 }
 
-function createDiscoveryResultSchema(
+function createRawDiscoveryResultSchema(
   draftSchema: TSchema,
   payloadSchema: TSchema,
 ) {
@@ -266,6 +305,28 @@ function createDiscoveryResultSchema(
       metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
     }),
   ]);
+}
+
+function createDiscoveryEnvelopeSchema(
+  commandId: string,
+  draftSchema: TSchema,
+  payloadSchema: TSchema,
+) {
+  return Type.Object({
+    type: Type.Literal(commandId),
+    actorId: Type.Optional(Type.String()),
+    requestId: Type.Optional(Type.String()),
+    result: createRawDiscoveryResultSchema(draftSchema, payloadSchema),
+  });
+}
+
+function createDiscoveryRejectedSchema(commandId: string) {
+  return Type.Object({
+    type: Type.Literal(commandId),
+    actorId: Type.Optional(Type.String()),
+    requestId: Type.Optional(Type.String()),
+    reason: Type.String(),
+  });
 }
 
 function toPascalCase(value: string): string {
