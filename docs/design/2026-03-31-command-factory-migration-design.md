@@ -32,6 +32,12 @@ method parameters from the interface.
 
 Adopt a game-bound command factory as the primary authoring API.
 
+This migration is intentionally one-way:
+
+- class-based command authoring will be removed from the public API
+- backward compatibility in command authoring types is not a goal
+- legacy command-authoring code should be deleted rather than preserved
+
 Recommended shape:
 
 ```ts
@@ -138,6 +144,19 @@ engine already uses today:
 - required `execute`
 
 This keeps the migration mostly at the authoring and typing layer.
+
+### Legacy Removal Policy
+
+This migration should remove the old command-authoring path completely.
+
+That means:
+
+- no class-based command authoring as a supported public API
+- no type-layer compatibility effort for `class ... implements CommandDefinition`
+- no docs/examples showing command classes
+- no legacy helper types kept only to support the old command authoring style
+
+State authoring remains class-based. This decision applies to commands only.
 
 ## Dependency Surface Investigation
 
@@ -255,10 +274,9 @@ Required changes:
 - export `createCommandFactory`
 - likely keep `CommandDefinition` as the structural type the factory returns
 
-Open question:
+Decision:
 
-- whether to keep the class-oriented authoring path officially supported or
-  treat it as legacy-only
+- class-oriented command authoring should not remain supported
 
 ## What Probably Does Not Need To Change
 
@@ -275,31 +293,7 @@ execution pipeline.
 
 ## Awkward Or Risky Areas
 
-### 1. Keeping Class Authoring As A First-Class API
-
-If class authoring remains equally blessed:
-
-- consumers will still see two competing ways to write commands
-- the worse DX path remains visible in docs/examples
-- the engine will need to explain why one path infers well and the other does
-  not
-
-Recommendation:
-
-- make `defineCommand(...)` the primary API
-- treat class-based command authoring as legacy compatibility if kept at all
-
-### 2. Full Backward Compatibility In Types
-
-Trying to preserve every current generic pattern while also introducing the new
-factory may make the type surface noisier than necessary.
-
-Recommendation:
-
-- preserve structural runtime compatibility
-- do not over-optimize for every old class-based typing pattern
-
-### 3. Game-Bound Factory Requirement
+### 1. Game-Bound Factory Requirement
 
 The best DX comes from:
 
@@ -323,7 +317,7 @@ Recommended sequence:
 4. migrate Splendor commands first
 5. remove local Splendor command-context aliases
 6. update docs/examples to present factory-based authoring as the default
-7. decide later whether to de-emphasize or remove class-style authoring
+7. remove legacy class-based command authoring code completely
 
 ## Summary
 
