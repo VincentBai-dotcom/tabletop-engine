@@ -98,7 +98,7 @@ test("splendor commands declare explicit discovery draft schemas", () => {
   expect(commands).not.toHaveLength(0);
 
   for (const command of commands) {
-    expect(command.discoveryDraftSchema).toBeDefined();
+    expect(command.discoverySchema).toBeDefined();
   }
 });
 
@@ -113,7 +113,7 @@ test("splendor discovers gem color choices before return tokens for three-distin
   const secondStep = gameExecutor.discoverCommand(state, {
     type: "take_three_distinct_gems",
     actorId: "p1",
-    draft: {
+    input: {
       selectedColors: ["white", "blue", "green"],
     },
   });
@@ -128,7 +128,7 @@ test("splendor discovers gem color choices before return tokens for three-distin
   expect(firstStep.options).toHaveLength(5);
   expect(firstStep.options[0]).toMatchObject({
     id: expect.any(String),
-    nextDraft: {
+    nextInput: {
       selectedColors: [expect.any(String)],
     },
   });
@@ -138,7 +138,7 @@ test("splendor discovers gem color choices before return tokens for three-distin
   if (!secondStep || !secondStep.complete) {
     throw new Error("expected_complete_discovery");
   }
-  expect(secondStep.payload).toEqual({
+  expect(secondStep.input).toEqual({
     colors: ["white", "blue", "green"],
   });
 });
@@ -163,7 +163,7 @@ test("splendor discovers noble selection when a purchase leaves multiple nobles 
   const discovery = gameExecutor.discoverCommand(state, {
     type: "buy_reserved_card",
     actorId: "p1",
-    draft: {
+    input: {
       selectedCardId: 45,
     },
   });
@@ -178,7 +178,7 @@ test("splendor discovers noble selection when a purchase leaves multiple nobles 
   expect(discovery.options).toHaveLength(2);
   expect(discovery.options[0]).toMatchObject({
     id: expect.any(String),
-    nextDraft: {
+    nextInput: {
       selectedCardId: 45,
       chosenNobleId: expect.any(Number),
     },
@@ -191,7 +191,7 @@ test("taking three distinct gems updates tokens and advances the turn", () => {
   const result = gameExecutor.executeCommand(state, {
     type: "take_three_distinct_gems",
     actorId: "p1",
-    payload: {
+    input: {
       colors: ["white", "blue", "green"],
     },
   });
@@ -232,7 +232,7 @@ test("taking two gems of the same color requires at least four in the bank", () 
   const result = gameExecutor.executeCommand(state, {
     type: "take_two_same_gems",
     actorId: "p1",
-    payload: {
+    input: {
       color: "red",
     },
   });
@@ -255,7 +255,7 @@ test("taking two gems of the same color rejects invalid gem colors explicitly", 
   const result = gameExecutor.executeCommand(state, {
     type: "take_two_same_gems",
     actorId: "p1",
-    payload: {
+    input: {
       color: "purple",
     },
   });
@@ -276,7 +276,7 @@ test("reserving a deck card rejects invalid development levels explicitly", () =
   const result = gameExecutor.executeCommand(state, {
     type: "reserve_deck_card",
     actorId: "p1",
-    payload: {
+    input: {
       level: 4,
     },
   });
@@ -300,7 +300,7 @@ test("reserving a face-up card grants gold and refills the market", () => {
   const result = gameExecutor.executeCommand(state, {
     type: "reserve_face_up_card",
     actorId: "p1",
-    payload: {
+    input: {
       level: 1,
       cardId: 1,
     },
@@ -338,7 +338,7 @@ test("buying a reserved card uses discounts and can claim a noble automatically"
   const result = gameExecutor.executeCommand(state, {
     type: "buy_reserved_card",
     actorId: "p1",
-    payload: {
+    input: {
       cardId: 24,
     },
   });
@@ -383,7 +383,7 @@ test("endgame finishes after the final player in turn order and breaks ties by f
   const firstResult = gameExecutor.executeCommand(state, {
     type: "buy_reserved_card",
     actorId: "p1",
-    payload: {
+    input: {
       cardId: 43,
     },
   });
@@ -406,7 +406,7 @@ test("endgame finishes after the final player in turn order and breaks ties by f
   const secondResult = gameExecutor.executeCommand(firstResult.state, {
     type: "buy_reserved_card",
     actorId: "p2",
-    payload: {
+    input: {
       cardId: 52,
     },
   });

@@ -1,4 +1,4 @@
-import type { CommandInput } from "./command";
+import type { Command } from "./command";
 import type { GameEvent } from "./event";
 import type { RNGApi } from "./rng";
 
@@ -40,12 +40,12 @@ export interface InternalProgressionCompletionContext<
   CanonicalGameState extends object = object,
   FacadeGameState extends object = CanonicalGameState,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > {
   state: Readonly<ProgressionExecutionState<CanonicalGameState, Runtime>>;
   game: Readonly<FacadeGameState>;
   runtime: Readonly<Runtime>;
-  commandInput: TCommandInput;
+  command: TCommandInput;
   segment: Readonly<ProgressionSegmentState>;
   progression: ProgressionNavigation;
 }
@@ -53,11 +53,11 @@ export interface InternalProgressionCompletionContext<
 export interface ProgressionCompletionContext<
   FacadeGameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > {
   game: Readonly<FacadeGameState>;
   runtime: Readonly<Runtime>;
-  commandInput: TCommandInput;
+  command: TCommandInput;
   segment: Readonly<ProgressionSegmentState>;
   progression: ProgressionNavigation;
 }
@@ -66,7 +66,7 @@ export interface InternalProgressionLifecycleHookContext<
   CanonicalGameState extends object = object,
   FacadeGameState extends object = CanonicalGameState,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > extends InternalProgressionCompletionContext<
   CanonicalGameState,
   FacadeGameState,
@@ -81,7 +81,7 @@ export interface InternalProgressionLifecycleHookContext<
 export interface ProgressionLifecycleHookContext<
   FacadeGameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > extends ProgressionCompletionContext<
   FacadeGameState,
   Runtime,
@@ -95,7 +95,7 @@ export interface ProgressionLifecycleHookContext<
 export type ProgressionCompletionCallback<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > = (
   context: ProgressionCompletionContext<GameState, Runtime, TCommandInput>,
 ) => boolean;
@@ -103,7 +103,7 @@ export type ProgressionCompletionCallback<
 export type ProgressionCompletionPolicy<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > =
   | BuiltInProgressionCompletionPolicy
   | ProgressionCompletionCallback<GameState, Runtime, TCommandInput>;
@@ -116,7 +116,7 @@ export interface ProgressionResolveNextResult {
 export type ProgressionResolveNext<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > = (
   context: ProgressionLifecycleHookContext<GameState, Runtime, TCommandInput>,
 ) => ProgressionResolveNextResult | void;
@@ -124,7 +124,7 @@ export type ProgressionResolveNext<
 export type ProgressionLifecycleHook<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > = (
   context: ProgressionLifecycleHookContext<GameState, Runtime, TCommandInput>,
 ) => void;
@@ -132,7 +132,7 @@ export type ProgressionLifecycleHook<
 export interface ProgressionSegmentDefinition<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > {
   id: string;
   children: ProgressionSegmentDefinition<GameState, Runtime, TCommandInput>[];
@@ -150,7 +150,7 @@ export interface ProgressionSegmentDefinition<
 export interface ProgressionDefinition<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > {
   root: ProgressionSegmentDefinition<GameState, Runtime, TCommandInput>;
 }

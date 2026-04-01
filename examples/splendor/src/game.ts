@@ -1,12 +1,12 @@
 import {
   GameDefinitionBuilder,
-  type CommandInput,
+  type Command,
   type GameDefinition,
 } from "tabletop-engine";
 import {
   createCommands,
-  type BuyFaceUpCardPayload,
-  type BuyReservedCardPayload,
+  type BuyFaceUpCardInput,
+  type BuyReservedCardInput,
 } from "./commands/index.ts";
 import { createInitialGameState, setupSplendorGame } from "./setup.ts";
 import type { SplendorGameState } from "./state.ts";
@@ -34,21 +34,17 @@ export function createSplendorGame(
         id: "turn",
         kind: "turn",
         completionPolicy: "after_successful_command",
-        onExit: ({ commandInput, emitEvent, game }) => {
-          const actorId = commandInput.actorId;
+        onExit: ({ command, emitEvent, game }) => {
+          const actorId = command.actorId;
 
           if (!actorId) {
             throw new Error("actor_id_required");
           }
 
-          game.resolveTurnEnd(
-            actorId,
-            emitEvent,
-            readChosenNobleId(commandInput),
-          );
+          game.resolveTurnEnd(actorId, emitEvent, readChosenNobleId(command));
         },
-        resolveNext: ({ commandInput, game }) => {
-          const actorId = commandInput.actorId;
+        resolveNext: ({ command, game }) => {
+          const actorId = command.actorId;
 
           if (!actorId || game.winnerIds) {
             return {
@@ -72,13 +68,13 @@ export function createSplendorGame(
     .build();
 }
 
-function readChosenNobleId(commandInput: CommandInput): number | undefined {
-  const payload = commandInput.payload as
-    | BuyFaceUpCardPayload
-    | BuyReservedCardPayload
+function readChosenNobleId(command: Command): number | undefined {
+  const input = command.input as
+    | BuyFaceUpCardInput
+    | BuyReservedCardInput
     | undefined;
 
-  return typeof payload?.chosenNobleId === "number"
-    ? payload.chosenNobleId
+  return typeof input?.chosenNobleId === "number"
+    ? input.chosenNobleId
     : undefined;
 }

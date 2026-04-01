@@ -56,7 +56,7 @@
           "anyOf": [
             {
               "type": "object",
-              "required": ["type", "payload"],
+              "required": ["type", "input"],
               "properties": {
                 "type": {
                   "const": "take_three_distinct_gems",
@@ -65,8 +65,9 @@
                 "actorId": {
                   "type": "string"
                 },
-                "payload": {
+                "input": {
                   "type": "object",
+                  "required": ["colors"],
                   "properties": {
                     "colors": {
                       "type": "array",
@@ -88,7 +89,7 @@
             },
             {
               "type": "object",
-              "required": ["type", "payload"],
+              "required": ["type", "input"],
               "properties": {
                 "type": {
                   "const": "take_two_same_gems",
@@ -97,8 +98,9 @@
                 "actorId": {
                   "type": "string"
                 },
-                "payload": {
+                "input": {
                   "type": "object",
+                  "required": ["color"],
                   "properties": {
                     "color": {
                       "type": "string"
@@ -117,7 +119,7 @@
             },
             {
               "type": "object",
-              "required": ["type", "payload"],
+              "required": ["type", "input"],
               "properties": {
                 "type": {
                   "const": "reserve_face_up_card",
@@ -126,8 +128,9 @@
                 "actorId": {
                   "type": "string"
                 },
-                "payload": {
+                "input": {
                   "type": "object",
+                  "required": ["level", "cardId"],
                   "properties": {
                     "level": {
                       "type": "number"
@@ -149,7 +152,7 @@
             },
             {
               "type": "object",
-              "required": ["type", "payload"],
+              "required": ["type", "input"],
               "properties": {
                 "type": {
                   "const": "reserve_deck_card",
@@ -158,8 +161,9 @@
                 "actorId": {
                   "type": "string"
                 },
-                "payload": {
+                "input": {
                   "type": "object",
+                  "required": ["level"],
                   "properties": {
                     "level": {
                       "type": "number"
@@ -178,7 +182,7 @@
             },
             {
               "type": "object",
-              "required": ["type", "payload"],
+              "required": ["type", "input"],
               "properties": {
                 "type": {
                   "const": "buy_face_up_card",
@@ -187,8 +191,9 @@
                 "actorId": {
                   "type": "string"
                 },
-                "payload": {
+                "input": {
                   "type": "object",
+                  "required": ["level", "cardId"],
                   "properties": {
                     "level": {
                       "type": "number"
@@ -205,7 +210,7 @@
             },
             {
               "type": "object",
-              "required": ["type", "payload"],
+              "required": ["type", "input"],
               "properties": {
                 "type": {
                   "const": "buy_reserved_card",
@@ -214,8 +219,9 @@
                 "actorId": {
                   "type": "string"
                 },
-                "payload": {
+                "input": {
                   "type": "object",
+                  "required": ["cardId"],
                   "properties": {
                     "cardId": {
                       "type": "number"
@@ -248,7 +254,7 @@
                 "requestId": {
                   "type": "string"
                 },
-                "draft": {
+                "input": {
                   "type": "object",
                   "properties": {
                     "selectedColors": {
@@ -283,7 +289,7 @@
                 "requestId": {
                   "type": "string"
                 },
-                "draft": {
+                "input": {
                   "type": "object",
                   "properties": {
                     "selectedColor": {
@@ -315,7 +321,7 @@
                 "requestId": {
                   "type": "string"
                 },
-                "draft": {
+                "input": {
                   "type": "object",
                   "properties": {
                     "selectedLevel": {
@@ -350,7 +356,7 @@
                 "requestId": {
                   "type": "string"
                 },
-                "draft": {
+                "input": {
                   "type": "object",
                   "properties": {
                     "selectedLevel": {
@@ -382,7 +388,7 @@
                 "requestId": {
                   "type": "string"
                 },
-                "draft": {
+                "input": {
                   "type": "object",
                   "properties": {
                     "selectedLevel": {
@@ -412,7 +418,7 @@
                 "requestId": {
                   "type": "string"
                 },
-                "draft": {
+                "input": {
                   "type": "object",
                   "properties": {
                     "selectedCardId": {
@@ -463,12 +469,12 @@
                           "type": "array",
                           "items": {
                             "type": "object",
-                            "required": ["id", "nextDraft"],
+                            "required": ["id", "nextInput"],
                             "properties": {
                               "id": {
                                 "type": "string"
                               },
-                              "nextDraft": {
+                              "nextInput": {
                                 "type": "object",
                                 "properties": {
                                   "selectedColors": {
@@ -506,14 +512,15 @@
                     },
                     {
                       "type": "object",
-                      "required": ["complete", "payload"],
+                      "required": ["complete", "input"],
                       "properties": {
                         "complete": {
                           "const": true,
                           "type": "boolean"
                         },
-                        "payload": {
+                        "input": {
                           "type": "object",
+                          "required": ["colors"],
                           "properties": {
                             "colors": {
                               "type": "array",
@@ -574,12 +581,12 @@
                           "type": "array",
                           "items": {
                             "type": "object",
-                            "required": ["id", "nextDraft"],
+                            "required": ["id", "nextInput"],
                             "properties": {
                               "id": {
                                 "type": "string"
                               },
-                              "nextDraft": {
+                              "nextInput": {
                                 "type": "object",
                                 "properties": {
                                   "selectedColor": {
@@ -614,14 +621,15 @@
                     },
                     {
                       "type": "object",
-                      "required": ["complete", "payload"],
+                      "required": ["complete", "input"],
                       "properties": {
                         "complete": {
                           "const": true,
                           "type": "boolean"
                         },
-                        "payload": {
+                        "input": {
                           "type": "object",
+                          "required": ["color"],
                           "properties": {
                             "color": {
                               "type": "string"
@@ -679,12 +687,12 @@
                           "type": "array",
                           "items": {
                             "type": "object",
-                            "required": ["id", "nextDraft"],
+                            "required": ["id", "nextInput"],
                             "properties": {
                               "id": {
                                 "type": "string"
                               },
-                              "nextDraft": {
+                              "nextInput": {
                                 "type": "object",
                                 "properties": {
                                   "selectedLevel": {
@@ -722,14 +730,15 @@
                     },
                     {
                       "type": "object",
-                      "required": ["complete", "payload"],
+                      "required": ["complete", "input"],
                       "properties": {
                         "complete": {
                           "const": true,
                           "type": "boolean"
                         },
-                        "payload": {
+                        "input": {
                           "type": "object",
+                          "required": ["level", "cardId"],
                           "properties": {
                             "level": {
                               "type": "number"
@@ -790,12 +799,12 @@
                           "type": "array",
                           "items": {
                             "type": "object",
-                            "required": ["id", "nextDraft"],
+                            "required": ["id", "nextInput"],
                             "properties": {
                               "id": {
                                 "type": "string"
                               },
-                              "nextDraft": {
+                              "nextInput": {
                                 "type": "object",
                                 "properties": {
                                   "selectedLevel": {
@@ -830,14 +839,15 @@
                     },
                     {
                       "type": "object",
-                      "required": ["complete", "payload"],
+                      "required": ["complete", "input"],
                       "properties": {
                         "complete": {
                           "const": true,
                           "type": "boolean"
                         },
-                        "payload": {
+                        "input": {
                           "type": "object",
+                          "required": ["level"],
                           "properties": {
                             "level": {
                               "type": "number"
@@ -895,12 +905,12 @@
                           "type": "array",
                           "items": {
                             "type": "object",
-                            "required": ["id", "nextDraft"],
+                            "required": ["id", "nextInput"],
                             "properties": {
                               "id": {
                                 "type": "string"
                               },
-                              "nextDraft": {
+                              "nextInput": {
                                 "type": "object",
                                 "properties": {
                                   "selectedLevel": {
@@ -933,14 +943,15 @@
                     },
                     {
                       "type": "object",
-                      "required": ["complete", "payload"],
+                      "required": ["complete", "input"],
                       "properties": {
                         "complete": {
                           "const": true,
                           "type": "boolean"
                         },
-                        "payload": {
+                        "input": {
                           "type": "object",
+                          "required": ["level", "cardId"],
                           "properties": {
                             "level": {
                               "type": "number"
@@ -996,12 +1007,12 @@
                           "type": "array",
                           "items": {
                             "type": "object",
-                            "required": ["id", "nextDraft"],
+                            "required": ["id", "nextInput"],
                             "properties": {
                               "id": {
                                 "type": "string"
                               },
-                              "nextDraft": {
+                              "nextInput": {
                                 "type": "object",
                                 "properties": {
                                   "selectedCardId": {
@@ -1031,14 +1042,15 @@
                     },
                     {
                       "type": "object",
-                      "required": ["complete", "payload"],
+                      "required": ["complete", "input"],
                       "properties": {
                         "complete": {
                           "const": true,
                           "type": "boolean"
                         },
-                        "payload": {
+                        "input": {
                           "type": "object",
+                          "required": ["cardId"],
                           "properties": {
                             "cardId": {
                               "type": "number"
@@ -1711,12 +1723,12 @@
                         "type": "array",
                         "items": {
                           "type": "object",
-                          "required": ["id", "nextDraft"],
+                          "required": ["id", "nextInput"],
                           "properties": {
                             "id": {
                               "type": "string"
                             },
-                            "nextDraft": {
+                            "nextInput": {
                               "type": "object",
                               "properties": {
                                 "selectedColors": {
@@ -1754,14 +1766,15 @@
                   },
                   {
                     "type": "object",
-                    "required": ["complete", "payload"],
+                    "required": ["complete", "input"],
                     "properties": {
                       "complete": {
                         "const": true,
                         "type": "boolean"
                       },
-                      "payload": {
+                      "input": {
                         "type": "object",
+                        "required": ["colors"],
                         "properties": {
                           "colors": {
                             "type": "array",
@@ -1822,12 +1835,12 @@
                         "type": "array",
                         "items": {
                           "type": "object",
-                          "required": ["id", "nextDraft"],
+                          "required": ["id", "nextInput"],
                           "properties": {
                             "id": {
                               "type": "string"
                             },
-                            "nextDraft": {
+                            "nextInput": {
                               "type": "object",
                               "properties": {
                                 "selectedColor": {
@@ -1862,14 +1875,15 @@
                   },
                   {
                     "type": "object",
-                    "required": ["complete", "payload"],
+                    "required": ["complete", "input"],
                     "properties": {
                       "complete": {
                         "const": true,
                         "type": "boolean"
                       },
-                      "payload": {
+                      "input": {
                         "type": "object",
+                        "required": ["color"],
                         "properties": {
                           "color": {
                             "type": "string"
@@ -1927,12 +1941,12 @@
                         "type": "array",
                         "items": {
                           "type": "object",
-                          "required": ["id", "nextDraft"],
+                          "required": ["id", "nextInput"],
                           "properties": {
                             "id": {
                               "type": "string"
                             },
-                            "nextDraft": {
+                            "nextInput": {
                               "type": "object",
                               "properties": {
                                 "selectedLevel": {
@@ -1970,14 +1984,15 @@
                   },
                   {
                     "type": "object",
-                    "required": ["complete", "payload"],
+                    "required": ["complete", "input"],
                     "properties": {
                       "complete": {
                         "const": true,
                         "type": "boolean"
                       },
-                      "payload": {
+                      "input": {
                         "type": "object",
+                        "required": ["level", "cardId"],
                         "properties": {
                           "level": {
                             "type": "number"
@@ -2038,12 +2053,12 @@
                         "type": "array",
                         "items": {
                           "type": "object",
-                          "required": ["id", "nextDraft"],
+                          "required": ["id", "nextInput"],
                           "properties": {
                             "id": {
                               "type": "string"
                             },
-                            "nextDraft": {
+                            "nextInput": {
                               "type": "object",
                               "properties": {
                                 "selectedLevel": {
@@ -2078,14 +2093,15 @@
                   },
                   {
                     "type": "object",
-                    "required": ["complete", "payload"],
+                    "required": ["complete", "input"],
                     "properties": {
                       "complete": {
                         "const": true,
                         "type": "boolean"
                       },
-                      "payload": {
+                      "input": {
                         "type": "object",
+                        "required": ["level"],
                         "properties": {
                           "level": {
                             "type": "number"
@@ -2143,12 +2159,12 @@
                         "type": "array",
                         "items": {
                           "type": "object",
-                          "required": ["id", "nextDraft"],
+                          "required": ["id", "nextInput"],
                           "properties": {
                             "id": {
                               "type": "string"
                             },
-                            "nextDraft": {
+                            "nextInput": {
                               "type": "object",
                               "properties": {
                                 "selectedLevel": {
@@ -2181,14 +2197,15 @@
                   },
                   {
                     "type": "object",
-                    "required": ["complete", "payload"],
+                    "required": ["complete", "input"],
                     "properties": {
                       "complete": {
                         "const": true,
                         "type": "boolean"
                       },
-                      "payload": {
+                      "input": {
                         "type": "object",
+                        "required": ["level", "cardId"],
                         "properties": {
                           "level": {
                             "type": "number"
@@ -2244,12 +2261,12 @@
                         "type": "array",
                         "items": {
                           "type": "object",
-                          "required": ["id", "nextDraft"],
+                          "required": ["id", "nextInput"],
                           "properties": {
                             "id": {
                               "type": "string"
                             },
-                            "nextDraft": {
+                            "nextInput": {
                               "type": "object",
                               "properties": {
                                 "selectedCardId": {
@@ -2279,14 +2296,15 @@
                   },
                   {
                     "type": "object",
-                    "required": ["complete", "payload"],
+                    "required": ["complete", "input"],
                     "properties": {
                       "complete": {
                         "const": true,
                         "type": "boolean"
                       },
-                      "payload": {
+                      "input": {
                         "type": "object",
+                        "required": ["cardId"],
                         "properties": {
                           "cardId": {
                             "type": "number"
@@ -2686,9 +2704,9 @@
           }
         }
       },
-      "TakeThreeDistinctGemsCommandInput": {
+      "TakeThreeDistinctGemsCommand": {
         "type": "object",
-        "required": ["type", "payload"],
+        "required": ["type", "input"],
         "properties": {
           "type": {
             "const": "take_three_distinct_gems",
@@ -2697,8 +2715,9 @@
           "actorId": {
             "type": "string"
           },
-          "payload": {
+          "input": {
             "type": "object",
+            "required": ["colors"],
             "properties": {
               "colors": {
                 "type": "array",
@@ -2718,9 +2737,9 @@
           }
         }
       },
-      "TakeTwoSameGemsCommandInput": {
+      "TakeTwoSameGemsCommand": {
         "type": "object",
-        "required": ["type", "payload"],
+        "required": ["type", "input"],
         "properties": {
           "type": {
             "const": "take_two_same_gems",
@@ -2729,8 +2748,9 @@
           "actorId": {
             "type": "string"
           },
-          "payload": {
+          "input": {
             "type": "object",
+            "required": ["color"],
             "properties": {
               "color": {
                 "type": "string"
@@ -2747,9 +2767,9 @@
           }
         }
       },
-      "ReserveFaceUpCardCommandInput": {
+      "ReserveFaceUpCardCommand": {
         "type": "object",
-        "required": ["type", "payload"],
+        "required": ["type", "input"],
         "properties": {
           "type": {
             "const": "reserve_face_up_card",
@@ -2758,8 +2778,9 @@
           "actorId": {
             "type": "string"
           },
-          "payload": {
+          "input": {
             "type": "object",
+            "required": ["level", "cardId"],
             "properties": {
               "level": {
                 "type": "number"
@@ -2779,9 +2800,9 @@
           }
         }
       },
-      "ReserveDeckCardCommandInput": {
+      "ReserveDeckCardCommand": {
         "type": "object",
-        "required": ["type", "payload"],
+        "required": ["type", "input"],
         "properties": {
           "type": {
             "const": "reserve_deck_card",
@@ -2790,8 +2811,9 @@
           "actorId": {
             "type": "string"
           },
-          "payload": {
+          "input": {
             "type": "object",
+            "required": ["level"],
             "properties": {
               "level": {
                 "type": "number"
@@ -2808,9 +2830,9 @@
           }
         }
       },
-      "BuyFaceUpCardCommandInput": {
+      "BuyFaceUpCardCommand": {
         "type": "object",
-        "required": ["type", "payload"],
+        "required": ["type", "input"],
         "properties": {
           "type": {
             "const": "buy_face_up_card",
@@ -2819,8 +2841,9 @@
           "actorId": {
             "type": "string"
           },
-          "payload": {
+          "input": {
             "type": "object",
+            "required": ["level", "cardId"],
             "properties": {
               "level": {
                 "type": "number"
@@ -2835,9 +2858,9 @@
           }
         }
       },
-      "BuyReservedCardCommandInput": {
+      "BuyReservedCardCommand": {
         "type": "object",
-        "required": ["type", "payload"],
+        "required": ["type", "input"],
         "properties": {
           "type": {
             "const": "buy_reserved_card",
@@ -2846,8 +2869,9 @@
           "actorId": {
             "type": "string"
           },
-          "payload": {
+          "input": {
             "type": "object",
+            "required": ["cardId"],
             "properties": {
               "cardId": {
                 "type": "number"
@@ -2859,7 +2883,7 @@
           }
         }
       },
-      "TakeThreeDistinctGemsDiscoveryInput": {
+      "TakeThreeDistinctGemsDiscovery": {
         "type": "object",
         "required": ["type"],
         "properties": {
@@ -2873,7 +2897,7 @@
           "requestId": {
             "type": "string"
           },
-          "draft": {
+          "input": {
             "type": "object",
             "properties": {
               "selectedColors": {
@@ -2894,7 +2918,7 @@
           }
         }
       },
-      "TakeTwoSameGemsDiscoveryInput": {
+      "TakeTwoSameGemsDiscovery": {
         "type": "object",
         "required": ["type"],
         "properties": {
@@ -2908,7 +2932,7 @@
           "requestId": {
             "type": "string"
           },
-          "draft": {
+          "input": {
             "type": "object",
             "properties": {
               "selectedColor": {
@@ -2926,7 +2950,7 @@
           }
         }
       },
-      "ReserveFaceUpCardDiscoveryInput": {
+      "ReserveFaceUpCardDiscovery": {
         "type": "object",
         "required": ["type"],
         "properties": {
@@ -2940,7 +2964,7 @@
           "requestId": {
             "type": "string"
           },
-          "draft": {
+          "input": {
             "type": "object",
             "properties": {
               "selectedLevel": {
@@ -2961,7 +2985,7 @@
           }
         }
       },
-      "ReserveDeckCardDiscoveryInput": {
+      "ReserveDeckCardDiscovery": {
         "type": "object",
         "required": ["type"],
         "properties": {
@@ -2975,7 +2999,7 @@
           "requestId": {
             "type": "string"
           },
-          "draft": {
+          "input": {
             "type": "object",
             "properties": {
               "selectedLevel": {
@@ -2993,7 +3017,7 @@
           }
         }
       },
-      "BuyFaceUpCardDiscoveryInput": {
+      "BuyFaceUpCardDiscovery": {
         "type": "object",
         "required": ["type"],
         "properties": {
@@ -3007,7 +3031,7 @@
           "requestId": {
             "type": "string"
           },
-          "draft": {
+          "input": {
             "type": "object",
             "properties": {
               "selectedLevel": {
@@ -3023,7 +3047,7 @@
           }
         }
       },
-      "BuyReservedCardDiscoveryInput": {
+      "BuyReservedCardDiscovery": {
         "type": "object",
         "required": ["type"],
         "properties": {
@@ -3037,7 +3061,7 @@
           "requestId": {
             "type": "string"
           },
-          "draft": {
+          "input": {
             "type": "object",
             "properties": {
               "selectedCardId": {
@@ -3081,12 +3105,12 @@
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": ["id", "nextDraft"],
+                      "required": ["id", "nextInput"],
                       "properties": {
                         "id": {
                           "type": "string"
                         },
-                        "nextDraft": {
+                        "nextInput": {
                           "type": "object",
                           "properties": {
                             "selectedColors": {
@@ -3124,14 +3148,15 @@
               },
               {
                 "type": "object",
-                "required": ["complete", "payload"],
+                "required": ["complete", "input"],
                 "properties": {
                   "complete": {
                     "const": true,
                     "type": "boolean"
                   },
-                  "payload": {
+                  "input": {
                     "type": "object",
+                    "required": ["colors"],
                     "properties": {
                       "colors": {
                         "type": "array",
@@ -3192,12 +3217,12 @@
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": ["id", "nextDraft"],
+                      "required": ["id", "nextInput"],
                       "properties": {
                         "id": {
                           "type": "string"
                         },
-                        "nextDraft": {
+                        "nextInput": {
                           "type": "object",
                           "properties": {
                             "selectedColor": {
@@ -3232,14 +3257,15 @@
               },
               {
                 "type": "object",
-                "required": ["complete", "payload"],
+                "required": ["complete", "input"],
                 "properties": {
                   "complete": {
                     "const": true,
                     "type": "boolean"
                   },
-                  "payload": {
+                  "input": {
                     "type": "object",
+                    "required": ["color"],
                     "properties": {
                       "color": {
                         "type": "string"
@@ -3297,12 +3323,12 @@
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": ["id", "nextDraft"],
+                      "required": ["id", "nextInput"],
                       "properties": {
                         "id": {
                           "type": "string"
                         },
-                        "nextDraft": {
+                        "nextInput": {
                           "type": "object",
                           "properties": {
                             "selectedLevel": {
@@ -3340,14 +3366,15 @@
               },
               {
                 "type": "object",
-                "required": ["complete", "payload"],
+                "required": ["complete", "input"],
                 "properties": {
                   "complete": {
                     "const": true,
                     "type": "boolean"
                   },
-                  "payload": {
+                  "input": {
                     "type": "object",
+                    "required": ["level", "cardId"],
                     "properties": {
                       "level": {
                         "type": "number"
@@ -3408,12 +3435,12 @@
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": ["id", "nextDraft"],
+                      "required": ["id", "nextInput"],
                       "properties": {
                         "id": {
                           "type": "string"
                         },
-                        "nextDraft": {
+                        "nextInput": {
                           "type": "object",
                           "properties": {
                             "selectedLevel": {
@@ -3448,14 +3475,15 @@
               },
               {
                 "type": "object",
-                "required": ["complete", "payload"],
+                "required": ["complete", "input"],
                 "properties": {
                   "complete": {
                     "const": true,
                     "type": "boolean"
                   },
-                  "payload": {
+                  "input": {
                     "type": "object",
+                    "required": ["level"],
                     "properties": {
                       "level": {
                         "type": "number"
@@ -3513,12 +3541,12 @@
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": ["id", "nextDraft"],
+                      "required": ["id", "nextInput"],
                       "properties": {
                         "id": {
                           "type": "string"
                         },
-                        "nextDraft": {
+                        "nextInput": {
                           "type": "object",
                           "properties": {
                             "selectedLevel": {
@@ -3551,14 +3579,15 @@
               },
               {
                 "type": "object",
-                "required": ["complete", "payload"],
+                "required": ["complete", "input"],
                 "properties": {
                   "complete": {
                     "const": true,
                     "type": "boolean"
                   },
-                  "payload": {
+                  "input": {
                     "type": "object",
+                    "required": ["level", "cardId"],
                     "properties": {
                       "level": {
                         "type": "number"
@@ -3614,12 +3643,12 @@
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": ["id", "nextDraft"],
+                      "required": ["id", "nextInput"],
                       "properties": {
                         "id": {
                           "type": "string"
                         },
-                        "nextDraft": {
+                        "nextInput": {
                           "type": "object",
                           "properties": {
                             "selectedCardId": {
@@ -3649,14 +3678,15 @@
               },
               {
                 "type": "object",
-                "required": ["complete", "payload"],
+                "required": ["complete", "input"],
                 "properties": {
                   "complete": {
                     "const": true,
                     "type": "boolean"
                   },
-                  "payload": {
+                  "input": {
                     "type": "object",
+                    "required": ["cardId"],
                     "properties": {
                       "cardId": {
                         "type": "number"

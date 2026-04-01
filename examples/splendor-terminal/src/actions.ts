@@ -1,9 +1,9 @@
 import type { SplendorTerminalSession } from "./session.ts";
 import type {
   MenuOption,
-  SplendorPayload,
+  SplendorCommandData,
   SplendorTerminalCommand,
-  SplendorTerminalDiscoveryInput,
+  SplendorTerminalDiscoveryRequest,
   SplendorTerminalDiscoveryOption,
   SplendorTerminalOpenDiscovery,
 } from "./types.ts";
@@ -11,12 +11,12 @@ import {
   developmentCardsById,
   nobleTilesById,
   SPLENDOR_DISCOVERY_STEPS,
-  type BuyFaceUpCardPayload,
-  type BuyReservedCardPayload,
-  type ReserveDeckCardPayload,
-  type ReserveFaceUpCardPayload,
-  type TakeThreeDistinctGemsPayload,
-  type TakeTwoSameGemsPayload,
+  type BuyFaceUpCardInput,
+  type BuyReservedCardInput,
+  type ReserveDeckCardInput,
+  type ReserveFaceUpCardInput,
+  type TakeThreeDistinctGemsInput,
+  type TakeTwoSameGemsInput,
 } from "splendor-example";
 
 export const COMMAND_LABELS: Record<string, string> = {
@@ -45,13 +45,13 @@ export async function buildCommandFromDiscovery(
     discovery: SplendorTerminalOpenDiscovery,
   ) => Promise<SplendorTerminalDiscoveryOption>,
 ): Promise<SplendorTerminalCommand> {
-  let discoveryInput: SplendorTerminalDiscoveryInput = {
+  let nextDiscovery: SplendorTerminalDiscoveryRequest = {
     type: commandType,
     actorId,
   };
 
   for (;;) {
-    const discovery = session.discoverCommand(discoveryInput);
+    const discovery = session.discoverCommand(nextDiscovery);
 
     if (!discovery) {
       throw new Error(`discovery_unavailable:${commandType}`);
@@ -61,7 +61,7 @@ export async function buildCommandFromDiscovery(
       return {
         type: commandType,
         actorId,
-        payload: discovery.payload,
+        input: discovery.input,
       };
     }
 
@@ -70,9 +70,9 @@ export async function buildCommandFromDiscovery(
     }
 
     const choice = await chooseOption(discovery);
-    discoveryInput = {
-      ...discoveryInput,
-      draft: choice.nextDraft,
+    nextDiscovery = {
+      ...nextDiscovery,
+      input: choice.nextInput,
     };
   }
 }
@@ -110,13 +110,13 @@ export function describeCommand(command: SplendorTerminalCommand): string {
       return `Take 2 ${readTwoGemColor(command)} gems`;
     case "reserve_face_up_card":
       return `Reserve ${describeFaceUpCard(
-        command.payload as unknown as ReserveFaceUpCardPayload,
+        command.input as unknown as ReserveFaceUpCardInput,
       )}`;
     case "reserve_deck_card":
       return `Reserve a level ${readDeckLevel(command)} deck card`;
     case "buy_face_up_card":
       return `Buy ${describeFaceUpCard(
-        command.payload as unknown as BuyFaceUpCardPayload,
+        command.input as unknown as BuyFaceUpCardInput,
       )}`;
     case "buy_reserved_card":
       return `Buy reserved card ${String(readReservedCardId(command))}`;
@@ -158,11 +158,11 @@ export function describeDiscoveryOption(
     case SPLENDOR_DISCOVERY_STEPS.selectGemColor:
       return `Take ${String(metadata.color ?? option.id)}`;
     case SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard:
-      return describeCardSelection(option.nextDraft);
+      return describeCardSelection(option.nextInput);
     case SPLENDOR_DISCOVERY_STEPS.selectDeckLevel:
       return `Level ${String(metadata.level ?? option.id)} deck`;
     case SPLENDOR_DISCOVERY_STEPS.selectReservedCard:
-      return describeReservedCardSelection(option.nextDraft);
+      return describeReservedCardSelection(option.nextInput);
     case SPLENDOR_DISCOVERY_STEPS.selectReturnToken:
       return `Return ${String(metadata.color ?? option.id)}`;
     case SPLENDOR_DISCOVERY_STEPS.selectNoble:
@@ -177,9 +177,9 @@ function pickRandom<T>(items: readonly T[], random: () => number): T {
   return items[index]!;
 }
 
-function describeCardSelection(payload: SplendorPayload): string {
-  const cardId = readCardId(payload);
-  const level = readLevel(payload);
+function describeCardSelection(input: SplendorCommandData): string {
+  const cardId = readCardId(input);
+  const level = readLevel(input);
   const card = developmentCardsById[cardId];
 
   if (!card) {
@@ -189,8 +189,8 @@ function describeCardSelection(payload: SplendorPayload): string {
   return `L${String(level)} #${String(card.id)} ${card.bonusColor} ${card.prestigePoints}pt`;
 }
 
-function describeReservedCardSelection(payload: SplendorPayload): string {
-  const cardId = readCardId(payload);
+function describeReservedCardSelection(input: SplendorCommandData): string {
+  const cardId = readCardId(input);
   const card = developmentCardsById[cardId];
 
   if (!card) {
@@ -201,10 +201,10 @@ function describeReservedCardSelection(payload: SplendorPayload): string {
 }
 
 function describeFaceUpCard(
-  payload: Partial<ReserveFaceUpCardPayload> | Partial<BuyFaceUpCardPayload>,
+  input: Partial<ReserveFaceUpCardInput> | Partial<BuyFaceUpCardInput>,
 ): string {
-  const cardId = readCardId(payload);
-  const level = readLevel(payload);
+  const cardId = readCardId(input);
+  const level = readLevel(input);
 
   if (typeof cardId !== "number" || typeof level !== "number") {
     return "face-up card";
@@ -220,39 +220,39 @@ function describeFaceUpCard(
 }
 
 function readThreeGemColors(command: SplendorTerminalCommand): string[] {
-  const payload = command.payload as TakeThreeDistinctGemsPayload | undefined;
-  return payload?.colors ? [...payload.colors] : [];
+  const input = command.input as TakeThreeDistinctGemsInput | undefined;
+  return input?.colors ? [...input.colors] : [];
 }
 
 function readTwoGemColor(command: SplendorTerminalCommand): string | "unknown" {
-  const payload = command.payload as TakeTwoSameGemsPayload | undefined;
-  return payload?.color ?? "unknown";
+  const input = command.input as TakeTwoSameGemsInput | undefined;
+  return input?.color ?? "unknown";
 }
 
 function readDeckLevel(command: SplendorTerminalCommand): number | "unknown" {
-  const payload = command.payload as ReserveDeckCardPayload | undefined;
-  return payload?.level ?? "unknown";
+  const input = command.input as ReserveDeckCardInput | undefined;
+  return input?.level ?? "unknown";
 }
 
 function readReservedCardId(
   command: SplendorTerminalCommand,
 ): number | "unknown" {
-  const payload = command.payload as BuyReservedCardPayload | undefined;
-  return payload?.cardId ?? "unknown";
+  const input = command.input as BuyReservedCardInput | undefined;
+  return input?.cardId ?? "unknown";
 }
 
-function readCardId(payload: SplendorPayload): number {
+function readCardId(input: SplendorCommandData): number {
   return (
-    (payload.cardId as number | undefined) ??
-    (payload.selectedCardId as number | undefined) ??
+    (input.cardId as number | undefined) ??
+    (input.selectedCardId as number | undefined) ??
     -1
   );
 }
 
-function readLevel(payload: SplendorPayload): number {
+function readLevel(input: SplendorCommandData): number {
   return (
-    (payload.level as number | undefined) ??
-    (payload.selectedLevel as number | undefined) ??
+    (input.level as number | undefined) ??
+    (input.selectedLevel as number | undefined) ??
     -1
   );
 }

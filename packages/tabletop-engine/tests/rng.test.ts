@@ -12,7 +12,7 @@ test("game executor rng is deterministic for the same seed and command sequence"
     value: number;
     deck: string[];
   }>();
-  const emptyPayload = t.object({});
+  const emptyCommandSchema = t.object({});
 
   const game = new GameDefinitionBuilder<{
     roll: number;
@@ -28,7 +28,7 @@ test("game executor rng is deterministic for the same seed and command sequence"
     .commands({
       sample_randomness: defineCommand({
         commandId: "sample_randomness",
-        payloadSchema: emptyPayload,
+        commandSchema: emptyCommandSchema,
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();
@@ -64,7 +64,7 @@ test("game executor rng cursor advances when randomness is consumed", () => {
   const defineCommand = createCommandFactory<{
     value: number;
   }>();
-  const emptyPayload = t.object({});
+  const emptyCommandSchema = t.object({});
 
   const game = new GameDefinitionBuilder<{
     value: number;
@@ -76,7 +76,7 @@ test("game executor rng cursor advances when randomness is consumed", () => {
     .commands({
       sample_randomness: defineCommand({
         commandId: "sample_randomness",
-        payloadSchema: emptyPayload,
+        commandSchema: emptyCommandSchema,
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();

@@ -7,28 +7,28 @@ import {
 } from "../src/actions.ts";
 import type {
   SplendorState,
-  SplendorTerminalDiscovery,
-  SplendorTerminalDiscoveryInput,
+  SplendorTerminalDiscoveryRequest,
+  SplendorTerminalDiscoveryResult,
 } from "../src/types.ts";
 
 test("buildCommandFromDiscovery follows discovered steps until completion", async () => {
-  const discoveryInputs: SplendorTerminalDiscoveryInput[] = [];
+  const discoveryInputs: SplendorTerminalDiscoveryRequest[] = [];
   const session = {
     discoverCommand(
-      discoveryInput: SplendorTerminalDiscoveryInput,
-    ): SplendorTerminalDiscovery | null {
-      discoveryInputs.push(discoveryInput);
+      discovery: SplendorTerminalDiscoveryRequest,
+    ): SplendorTerminalDiscoveryResult | null {
+      discoveryInputs.push(discovery);
 
-      const draft = discoveryInput.draft ?? {};
+      const input = discovery.input ?? {};
 
-      if (!("cardId" in draft)) {
+      if (!("cardId" in input)) {
         return {
           complete: false,
           step: "select_card",
           options: [
             {
               id: "24",
-              nextDraft: {
+              nextInput: {
                 cardId: 24,
               },
             },
@@ -36,14 +36,14 @@ test("buildCommandFromDiscovery follows discovered steps until completion", asyn
         };
       }
 
-      if (!("chosenNobleId" in draft)) {
+      if (!("chosenNobleId" in input)) {
         return {
           complete: false,
           step: "select_noble",
           options: [
             {
               id: "6",
-              nextDraft: {
+              nextInput: {
                 cardId: 24,
                 chosenNobleId: 6,
               },
@@ -54,7 +54,7 @@ test("buildCommandFromDiscovery follows discovered steps until completion", asyn
 
       return {
         complete: true,
-        payload: {
+        input: {
           cardId: 24,
           chosenNobleId: 6,
         },
@@ -77,14 +77,14 @@ test("buildCommandFromDiscovery follows discovered steps until completion", asyn
     {
       type: "buy_reserved_card",
       actorId: "you",
-      draft: {
+      input: {
         cardId: 24,
       },
     },
     {
       type: "buy_reserved_card",
       actorId: "you",
-      draft: {
+      input: {
         cardId: 24,
         chosenNobleId: 6,
       },
@@ -93,7 +93,7 @@ test("buildCommandFromDiscovery follows discovered steps until completion", asyn
   expect(command).toEqual({
     type: "buy_reserved_card",
     actorId: "you",
-    payload: {
+    input: {
       cardId: 24,
       chosenNobleId: 6,
     },
@@ -117,9 +117,9 @@ test("chooseRandom helpers use the provided random function", () => {
       complete: false,
       step: "select",
       options: [
-        { id: "one", nextDraft: {} },
-        { id: "two", nextDraft: {} },
-        { id: "three", nextDraft: {} },
+        { id: "one", nextInput: {} },
+        { id: "two", nextInput: {} },
+        { id: "three", nextInput: {} },
       ],
     },
     () => 0.99,
@@ -131,7 +131,7 @@ test("chooseRandom helpers use the provided random function", () => {
 
 test("buildCommandFromDiscovery fails closed when discovery is unavailable", async () => {
   const session = {
-    discoverCommand(): SplendorTerminalDiscovery | null {
+    discoverCommand(): SplendorTerminalDiscoveryResult | null {
       return null;
     },
   };
@@ -153,7 +153,7 @@ test("describeCommand renders splendor-specific summaries", () => {
     describeCommand({
       type: "take_three_distinct_gems",
       actorId: "you",
-      payload: {
+      input: {
         colors: ["white", "blue", "green"],
       },
     }),

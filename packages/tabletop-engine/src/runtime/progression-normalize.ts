@@ -7,12 +7,12 @@ import type {
   ProgressionSegmentState,
   ProgressionState,
 } from "../types/progression";
-import type { CommandInput } from "../types/command";
+import type { Command } from "../types/command";
 
 export interface NormalizedProgressionSegmentDefinition<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > {
   id: string;
   kind?: string;
@@ -31,7 +31,7 @@ export interface NormalizedProgressionSegmentDefinition<
 export interface NormalizedProgressionDefinition<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > {
   rootId: string | null;
   initialSegmentId: string | null;
@@ -44,7 +44,7 @@ export interface NormalizedProgressionDefinition<
 export function normalizeProgressionDefinition<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 >(
   progression?: ProgressionDefinition<GameState, Runtime, TCommandInput>,
 ): NormalizedProgressionDefinition<GameState, Runtime, TCommandInput> {
@@ -73,7 +73,7 @@ export function normalizeProgressionDefinition<
 export function createProgressionState<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 >(
   progression: NormalizedProgressionDefinition<
     GameState,
@@ -108,7 +108,7 @@ export function createProgressionState<
 export function getNormalizedSegmentPathIds<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 >(
   progression: NormalizedProgressionDefinition<
     GameState,
@@ -123,7 +123,7 @@ export function getNormalizedSegmentPathIds<
 export function getDefaultLeafSegmentId<
   GameState extends object = object,
   Runtime = unknown,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 >(
   progression: NormalizedProgressionDefinition<
     GameState,
@@ -146,7 +146,7 @@ export function getDefaultLeafSegmentId<
 function visitSegment<
   GameState extends object,
   Runtime,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   segment: ProgressionSegmentDefinition<GameState, Runtime, TCommandInput>,
   parentId: string | undefined,
@@ -178,7 +178,7 @@ function visitSegment<
 function findInitialSegmentId<
   GameState extends object,
   Runtime,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   root: ProgressionSegmentDefinition<GameState, Runtime, TCommandInput>,
 ): string {
@@ -194,7 +194,7 @@ function findInitialSegmentId<
 function getSegmentPathIds<
   GameState extends object,
   Runtime,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   segments: Record<
     string,

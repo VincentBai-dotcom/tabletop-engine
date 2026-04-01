@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import type {
   CommandAvailabilityContext,
-  CommandInput,
+  Command,
   CommandDiscoveryResult,
   CanonicalState,
-  DiscoveryInput,
+  Discovery,
   DiscoveryContext,
   ExecutionResult,
   GameEvent,
@@ -16,7 +16,7 @@ import type {
 } from "../src/index";
 import { createCommandFactory, t } from "../src/index";
 import type {
-  CommandInputFromSchema,
+  CommandFromSchema,
   InternalCommandDefinition,
   InternalExecuteContext,
 } from "../src/types/command";
@@ -47,10 +47,10 @@ test("foundational runtime types compose", () => {
     },
   };
 
-  const command: CommandInput = {
+  const command: Command = {
     type: "draw_card",
     actorId: "p1",
-    payload: { count: 1 },
+    input: { count: 1 },
   };
 
   const result: ExecutionResult = {
@@ -77,7 +77,7 @@ test("progression lifecycle types support nested segment authoring", () => {
   const completionContext: ProgressionCompletionContext<
     { score: number },
     { progression: { current: string | null } },
-    CommandInput<{ amount: number }>
+    Command<{ amount: number }>
   > = {
     game: { score: 0 },
     runtime: {
@@ -85,9 +85,9 @@ test("progression lifecycle types support nested segment authoring", () => {
         current: "turn",
       },
     },
-    commandInput: {
+    command: {
       type: "gain_score",
-      payload: { amount: 1 },
+      input: { amount: 1 },
     },
     segment: {
       id: "turn",
@@ -105,7 +105,7 @@ test("progression lifecycle types support nested segment authoring", () => {
   const lifecycleContext: ProgressionLifecycleHookContext<
     { score: number },
     { progression: { current: string | null } },
-    CommandInput<{ amount: number }>
+    Command<{ amount: number }>
   > = {
     ...completionContext,
     rng: {
@@ -124,7 +124,7 @@ test("progression lifecycle types support nested segment authoring", () => {
   const progression: ProgressionDefinition<
     { score: number },
     { progression: { current: string | null } },
-    CommandInput<{ amount: number }>
+    Command<{ amount: number }>
   > = {
     root: {
       id: "round",
@@ -156,13 +156,13 @@ test("progression lifecycle types support nested segment authoring", () => {
 });
 
 test("discovery types compose for draft-based next-step options and completion", () => {
-  type PlayCardDraft = {
+  type PlayCardDiscoveryInput = {
     step: string;
     cardId?: number;
     targets?: number[];
   };
 
-  type PlayCardPayload = {
+  type PlayCardInput = {
     cardId: number;
     targets?: number[];
   };
@@ -180,10 +180,10 @@ test("discovery types compose for draft-based next-step options and completion",
     actorId: "p1",
   };
 
-  const discoveryInput: DiscoveryInput<PlayCardDraft> = {
+  const discoveryRequest: Discovery<PlayCardDiscoveryInput> = {
     type: "play_card",
     actorId: "p1",
-    draft: {
+    input: {
       step: "select_target",
       cardId: 12,
     },
@@ -191,19 +191,22 @@ test("discovery types compose for draft-based next-step options and completion",
 
   const discoveryContext: DiscoveryContext<
     { handCount: number },
-    PlayCardDraft
+    PlayCardDiscoveryInput
   > = {
     ...availabilityContext,
-    discoveryInput,
+    discovery: discoveryRequest,
   };
 
-  const discovery: CommandDiscoveryResult<PlayCardDraft, PlayCardPayload> = {
+  const discoveryResult: CommandDiscoveryResult<
+    PlayCardDiscoveryInput,
+    PlayCardInput
+  > = {
     complete: false,
     step: "select_target",
     options: [
       {
         id: "target-1",
-        nextDraft: {
+        nextInput: {
           step: "complete",
           cardId: 12,
           targets: [101],
@@ -212,30 +215,33 @@ test("discovery types compose for draft-based next-step options and completion",
     ],
   };
 
-  const completion: CommandDiscoveryResult<PlayCardDraft, PlayCardPayload> = {
+  const completion: CommandDiscoveryResult<
+    PlayCardDiscoveryInput,
+    PlayCardInput
+  > = {
     complete: true,
-    payload: {
+    input: {
       cardId: 12,
       targets: [101],
     },
   };
 
   expect(availabilityContext.actorId).toBe("p1");
-  expect(discoveryContext.discoveryInput.draft).toEqual({
+  expect(discoveryContext.discovery.input).toEqual({
     step: "select_target",
     cardId: 12,
   });
-  expect(discovery.step).toBe("select_target");
-  expect(discovery.options[0]?.id).toBe("target-1");
-  if (!discovery.complete) {
-    expect(discovery.options[0]?.nextDraft).toEqual({
+  expect(discoveryResult.step).toBe("select_target");
+  expect(discoveryResult.options[0]?.id).toBe("target-1");
+  if (!discoveryResult.complete) {
+    expect(discoveryResult.options[0]?.nextInput).toEqual({
       step: "complete",
       cardId: 12,
       targets: [101],
     });
   }
   if (completion.complete) {
-    expect(completion.payload).toEqual({
+    expect(completion.input).toEqual({
       cardId: 12,
       targets: [101],
     });
@@ -246,25 +252,25 @@ test("consumer command definitions only expose game state and command input gene
   const defineCommand = createCommandFactory<{
     increment(): void;
   }>();
-  const gainScorePayload = t.object({
+  const gainScoreCommandSchema = t.object({
     amount: t.number(),
   });
 
   const definition = defineCommand({
     commandId: "gain_score",
-    payloadSchema: gainScorePayload,
-    discoveryDraftSchema: t.object({
+    commandSchema: gainScoreCommandSchema,
+    discoverySchema: t.object({
       amount: t.optional(t.number()),
     }),
-    discover: ({ discoveryInput }) => {
-      if (typeof discoveryInput.draft?.amount !== "number") {
+    discover: ({ discovery }) => {
+      if (typeof discovery.input?.amount !== "number") {
         return {
           complete: false as const,
           step: "select_amount",
           options: [
             {
               id: "amount-1",
-              nextDraft: { amount: 1 },
+              nextInput: { amount: 1 },
             },
           ],
         };
@@ -272,22 +278,22 @@ test("consumer command definitions only expose game state and command input gene
 
       return {
         complete: true as const,
-        payload: {
-          amount: discoveryInput.draft.amount,
+        input: {
+          amount: discovery.input.amount,
         },
       };
     },
-    validate: ({ commandInput }) => {
-      const amount: number | undefined = commandInput.payload?.amount;
+    validate: ({ command }) => {
+      const amount: number | undefined = command.input?.amount;
 
       return {
         ok: typeof amount === "number",
         reason: "amount_required",
       };
     },
-    execute: ({ game, commandInput }) => {
+    execute: ({ game, command }) => {
       game.increment();
-      const amount: number | undefined = commandInput.payload?.amount;
+      const amount: number | undefined = command.input?.amount;
       void amount;
     },
   });
@@ -301,7 +307,7 @@ test("command factory contextually types command lifecycle methods", () => {
     increment(): void;
   }>();
 
-  const payloadSchema = t.object({
+  const commandSchema = t.object({
     amount: t.number(),
   });
   const draftSchema = t.object({
@@ -310,8 +316,8 @@ test("command factory contextually types command lifecycle methods", () => {
 
   const command = defineCommand({
     commandId: "gain_score",
-    payloadSchema,
-    discoveryDraftSchema: draftSchema,
+    commandSchema,
+    discoverySchema: draftSchema,
     isAvailable({ game, actorId, runtime, commandType }) {
       expect(typeof game.score).toBe("number");
       void game.increment;
@@ -320,8 +326,8 @@ test("command factory contextually types command lifecycle methods", () => {
       expect(commandType).toBe("gain_score");
       return true;
     },
-    discover({ discoveryInput }) {
-      const selectedAmount = discoveryInput.draft?.selectedAmount;
+    discover({ discovery }) {
+      const selectedAmount = discovery.input?.selectedAmount;
 
       if (typeof selectedAmount !== "number") {
         return {
@@ -330,7 +336,7 @@ test("command factory contextually types command lifecycle methods", () => {
           options: [
             {
               id: "one",
-              nextDraft: {
+              nextInput: {
                 selectedAmount: 1,
               },
             },
@@ -340,53 +346,56 @@ test("command factory contextually types command lifecycle methods", () => {
 
       return {
         complete: true as const,
-        payload: {
+        input: {
           amount: selectedAmount,
         },
       };
     },
-    validate({ commandInput }) {
-      expect(commandInput.payload?.amount).toBeNumber();
+    validate({ command }) {
+      expect(command.input?.amount).toBeNumber();
       return { ok: true as const };
     },
-    execute({ game, commandInput }) {
+    execute({ game, command }) {
       game.increment();
-      expect(commandInput.payload?.amount).toBeNumber();
+      expect(command.input?.amount).toBeNumber();
     },
   });
 
   expect(command.commandId).toBe("gain_score");
-  expect(command.payloadSchema).toBe(payloadSchema);
-  expect(command.discoveryDraftSchema).toBe(draftSchema);
+  expect(command.commandSchema).toBe(commandSchema);
+  if (!("discoverySchema" in command)) {
+    throw new Error("expected_discovery_schema");
+  }
+  expect(command.discoverySchema).toBe(draftSchema);
 });
 
 test("internal command definitions still expose canonical state separately from facade state", () => {
-  const gainScorePayload = t.object({
+  const gainScoreCommandSchema = t.object({
     amount: t.number(),
   });
-  type GainScorePayload = typeof gainScorePayload.static;
+  type GainScoreInput = typeof gainScoreCommandSchema.static;
 
   const definition: InternalCommandDefinition<
     { score: number },
     { increment(): void },
     RuntimeState,
-    GainScorePayload
+    GainScoreInput
   > = {
     commandId: "gain_score",
-    payloadSchema: gainScorePayload,
-    validate: ({ game, state, commandInput }) => {
+    commandSchema: gainScoreCommandSchema,
+    validate: ({ game, state, command }) => {
       void game.increment;
       void state.game.score;
-      const amount: number | undefined = commandInput.payload?.amount;
+      const amount: number | undefined = command.input?.amount;
       return {
         ok: typeof amount === "number",
         reason: "amount_required",
       };
     },
-    execute: ({ game, state, commandInput }) => {
+    execute: ({ game, state, command }) => {
       game.increment();
       void state.game.score;
-      const amount: number | undefined = commandInput.payload?.amount;
+      const amount: number | undefined = command.input?.amount;
       void amount;
     },
   };
@@ -395,7 +404,7 @@ test("internal command definitions still expose canonical state separately from 
     { score: number },
     { increment(): void },
     RuntimeState,
-    CommandInputFromSchema<GainScorePayload>
+    CommandFromSchema<GainScoreInput>
   > = {
     state: {
       game: {
@@ -433,9 +442,9 @@ test("internal command definitions still expose canonical state separately from 
         entries: [],
       },
     },
-    commandInput: {
+    command: {
       type: "gain_score",
-      payload: {
+      input: {
         amount: 2,
       },
     },

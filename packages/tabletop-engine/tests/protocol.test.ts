@@ -12,10 +12,10 @@ import {
 import { t } from "../src/schema";
 import type { Viewer } from "../src/types/visibility";
 
-const gainScorePayload = t.object({
+const gainScoreCommandSchema = t.object({
   amount: t.number(),
 });
-const gainScoreDraft = t.object({
+const gainScoreDiscoverySchema = t.object({
   selectedAmount: t.optional(t.number()),
 });
 const customDeckViewSchema = t.object({
@@ -127,12 +127,12 @@ const defineOrphanViewSchemaCommand =
 test("describeGameProtocol returns command payload schemas", () => {
   const gainScoreCommand = definePlainProtocolCommand({
     commandId: "gain_score",
-    payloadSchema: gainScorePayload,
-    discoveryDraftSchema: gainScoreDraft,
+    commandSchema: gainScoreCommandSchema,
+    discoverySchema: gainScoreDiscoverySchema,
     discover() {
       return {
         complete: true as const,
-        payload: {
+        input: {
           amount: 1,
         },
       };
@@ -158,9 +158,11 @@ test("describeGameProtocol returns command payload schemas", () => {
   const protocol = describeGameProtocol(game);
 
   expect(protocol.name).toBe("protocol-game");
-  expect(protocol.commands.gain_score?.payloadSchema).toBe(gainScorePayload);
-  expect(protocol.commands.gain_score?.discoveryDraftSchema).toBe(
-    gainScoreDraft,
+  expect(protocol.commands.gain_score?.commandSchema).toBe(
+    gainScoreCommandSchema,
+  );
+  expect(protocol.commands.gain_score?.discoverySchema).toBe(
+    gainScoreDiscoverySchema,
   );
   expect(protocol.viewSchema.type).toBe("object");
   expect(protocol.viewSchema.properties.game.type).toBe("object");
@@ -178,12 +180,12 @@ test("describeGameProtocol returns command payload schemas", () => {
 test("describeGameProtocol includes custom view schemas when provided", () => {
   const gainScoreCommand = defineProtocolCommand({
     commandId: "gain_score",
-    payloadSchema: gainScorePayload,
-    discoveryDraftSchema: gainScoreDraft,
+    commandSchema: gainScoreCommandSchema,
+    discoverySchema: gainScoreDiscoverySchema,
     discover() {
       return {
         complete: true as const,
-        payload: {
+        input: {
           amount: 1,
         },
       };
@@ -218,18 +220,18 @@ test("describeGameProtocol includes custom view schemas when provided", () => {
   );
 });
 
-test("describeGameProtocol rejects commands without payloadSchema", () => {
+test("describeGameProtocol rejects commands without commandSchema", () => {
   const missingPayloadCommand = defineProtocolCommand({
     commandId: "missing_payload",
-    payloadSchema: gainScorePayload,
+    commandSchema: gainScoreCommandSchema,
     validate: () => ({ ok: true as const }),
     execute: () => {},
   });
   delete (
     missingPayloadCommand as unknown as {
-      payloadSchema?: typeof gainScorePayload;
+      commandSchema?: typeof gainScoreCommandSchema;
     }
-  ).payloadSchema;
+  ).commandSchema;
 
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
@@ -253,11 +255,11 @@ test("describeGameProtocol rejects commands without payloadSchema", () => {
 test("describeGameProtocol rejects discovery handlers without draft schemas", () => {
   const missingDraftCommand = definePlainProtocolCommand({
     commandId: "missing_draft",
-    payloadSchema: gainScorePayload,
-    discoveryDraftSchema: gainScoreDraft,
+    commandSchema: gainScoreCommandSchema,
+    discoverySchema: gainScoreDiscoverySchema,
     discover: () => ({
       complete: true as const,
-      payload: {
+      input: {
         amount: 1,
       },
     }),
@@ -266,9 +268,9 @@ test("describeGameProtocol rejects discovery handlers without draft schemas", ()
   });
   delete (
     missingDraftCommand as unknown as {
-      discoveryDraftSchema?: typeof gainScoreDraft;
+      discoverySchema?: typeof gainScoreDiscoverySchema;
     }
-  ).discoveryDraftSchema;
+  ).discoverySchema;
 
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
@@ -290,20 +292,20 @@ test("describeGameProtocol rejects discovery handlers without draft schemas", ()
 test("describeGameProtocol rejects discovery draft schemas without handlers", () => {
   const orphanDraftCommand = definePlainProtocolCommand({
     commandId: "orphan_draft",
-    payloadSchema: gainScorePayload,
-    discoveryDraftSchema: gainScoreDraft,
+    commandSchema: gainScoreCommandSchema,
+    discoverySchema: gainScoreDiscoverySchema,
     validate: () => ({ ok: true as const }),
     execute: () => {},
     discover: () => ({
       complete: true as const,
-      payload: {
+      input: {
         amount: 1,
       },
     }),
   });
   delete (
     orphanDraftCommand as unknown as {
-      discover?: () => { complete: true; payload: { amount: number } };
+      discover?: () => { complete: true; input: { amount: number } };
     }
   ).discover;
 
@@ -327,12 +329,12 @@ test("describeGameProtocol rejects discovery draft schemas without handlers", ()
 test("describeGameProtocol rejects custom view methods without view schema", () => {
   const gainScoreCommand = defineProtocolCommand({
     commandId: "gain_score",
-    payloadSchema: gainScorePayload,
-    discoveryDraftSchema: gainScoreDraft,
+    commandSchema: gainScoreCommandSchema,
+    discoverySchema: gainScoreDiscoverySchema,
     discover() {
       return {
         complete: true as const,
-        payload: {
+        input: {
           amount: 1,
         },
       };
@@ -365,12 +367,12 @@ test("describeGameProtocol rejects custom view methods without view schema", () 
 test("describeGameProtocol rejects view schemas without projectCustomView", () => {
   const gainScoreCommand = defineOrphanViewSchemaCommand({
     commandId: "gain_score",
-    payloadSchema: gainScorePayload,
-    discoveryDraftSchema: gainScoreDraft,
+    commandSchema: gainScoreCommandSchema,
+    discoverySchema: gainScoreDiscoverySchema,
     discover() {
       return {
         complete: true as const,
-        payload: {
+        input: {
           amount: 1,
         },
       };

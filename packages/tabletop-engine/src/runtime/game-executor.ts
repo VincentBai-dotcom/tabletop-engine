@@ -17,8 +17,8 @@ import {
 import { cloneCanonicalState } from "./transaction";
 import type {
   CommandDefinitionLike,
-  CommandInput,
-  DiscoveryInput,
+  Command,
+  Discovery,
   InternalCommandDefinition,
 } from "../types/command";
 import type { CommandDiscoveryResult } from "../types/command";
@@ -57,11 +57,11 @@ export interface GameExecutor<GameState extends object> {
   ): string[];
   discoverCommand(
     state: CanonicalState<GameState>,
-    discoveryInput: DiscoveryInput,
+    discovery: Discovery,
   ): CommandDiscoveryResult | null;
   executeCommand(
     state: CanonicalState<GameState>,
-    commandInput: CommandInput,
+    command: Command,
   ): ExecutionResult<CanonicalState<GameState>>;
 }
 
@@ -95,7 +95,7 @@ function createInitialRuntimeState<
   progression: NormalizedProgressionDefinition<
     FacadeGameState,
     RuntimeState,
-    CommandInput
+    Command
   >,
   game: GameDefinition<
     CanonicalGameState,
@@ -190,8 +190,8 @@ export function createGameExecutor<
         .map(([commandType]) => commandType);
     },
 
-    discoverCommand(state, discoveryInput) {
-      const definition = game.commands[discoveryInput.type];
+    discoverCommand(state, discovery) {
+      const definition = game.commands[discovery.type];
 
       if (!definition?.discover) {
         return null;
@@ -211,8 +211,8 @@ export function createGameExecutor<
               state,
               { readonly: true },
             ),
-            discoveryInput.type,
-            discoveryInput.actorId,
+            discovery.type,
+            discovery.actorId,
           ),
         )
       ) {
@@ -231,20 +231,20 @@ export function createGameExecutor<
             state,
             { readonly: true },
           ),
-          discoveryInput,
+          discovery,
         ),
       );
     },
 
-    executeCommand(state, commandInput) {
-      const definition = game.commands[commandInput.type];
+    executeCommand(state, command) {
+      const definition = game.commands[command.type];
 
       if (!definition) {
         const failure: ExecutionFailure<CanonicalState<CanonicalGameState>> = {
           ok: false,
           state,
           reason: "unknown_command",
-          metadata: { commandType: commandInput.type },
+          metadata: { commandType: command.type },
           events: [],
         };
 
@@ -263,7 +263,7 @@ export function createGameExecutor<
             state,
             { readonly: true },
           ),
-          commandInput,
+          command,
         ),
       );
 
@@ -308,7 +308,7 @@ export function createGameExecutor<
             >,
             workingState,
           ),
-          commandInput,
+          command,
           rng,
           setCurrentSegmentOwner,
           collector.emit,
@@ -334,7 +334,7 @@ export function createGameExecutor<
           >,
           workingState,
         ),
-        commandInput,
+        command,
         progression,
         rng,
         collector.emit,

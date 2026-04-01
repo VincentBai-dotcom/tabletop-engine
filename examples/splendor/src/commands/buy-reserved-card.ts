@@ -13,22 +13,22 @@ import {
   guardedValidate,
 } from "./shared.ts";
 
-const buyReservedCardPayloadSchema = t.object({
+const buyReservedCardCommandSchema = t.object({
   cardId: t.number(),
   chosenNobleId: t.optional(t.number()),
 });
 
-export type BuyReservedCardPayload = typeof buyReservedCardPayloadSchema.static;
+export type BuyReservedCardInput = typeof buyReservedCardCommandSchema.static;
 
-const buyReservedCardDraftSchema = t.object({
+const buyReservedCardDiscoverySchema = t.object({
   selectedCardId: t.optional(t.number()),
   chosenNobleId: t.optional(t.number()),
 });
 
 const buyReservedCardCommand = defineSplendorCommand({
   commandId: "buy_reserved_card",
-  payloadSchema: buyReservedCardPayloadSchema,
-  discoveryDraftSchema: buyReservedCardDraftSchema,
+  commandSchema: buyReservedCardCommandSchema,
+  discoverySchema: buyReservedCardDiscoverySchema,
 
   isAvailable(context) {
     return guardedAvailability(() => {
@@ -47,7 +47,7 @@ const buyReservedCardCommand = defineSplendorCommand({
   discover(context) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const draft = context.discoveryInput.draft;
+    const draft = context.discovery.input;
     const player = game.getPlayer(actorId);
 
     if (!draft?.selectedCardId) {
@@ -62,7 +62,7 @@ const buyReservedCardCommand = defineSplendorCommand({
           })
           .map((cardId: number) => ({
             id: String(cardId),
-            nextDraft: {
+            nextInput: {
               ...(draft ?? {}),
               selectedCardId: cardId,
             },
@@ -89,41 +89,41 @@ const buyReservedCardCommand = defineSplendorCommand({
     );
   },
 
-  validate({ runtime, game, commandInput }) {
+  validate({ runtime, game, command }) {
     return guardedValidate(() => {
       assertGameActive(game);
-      const actorId = assertActivePlayer(runtime, commandInput.actorId);
-      const payload = commandInput.payload;
+      const actorId = assertActivePlayer(runtime, command.actorId);
+      const input = command.input;
       const player = game.getPlayer(actorId);
 
-      if (!payload) {
+      if (!input) {
         return { ok: false, reason: "card_required" };
       }
 
-      if (!player.reservedCardIds.includes(payload.cardId)) {
+      if (!player.reservedCardIds.includes(input.cardId)) {
         return { ok: false, reason: "card_not_reserved" };
       }
 
-      const card = game.getCard(payload.cardId);
+      const card = game.getCard(input.cardId);
 
       if (!player.getAffordablePayment(card)) {
         return { ok: false, reason: "card_not_affordable" };
       }
 
       const hypotheticalPlayer = player.clone();
-      hypotheticalPlayer.removeReservedCard(payload.cardId);
-      hypotheticalPlayer.buyCard(payload.cardId);
+      hypotheticalPlayer.removeReservedCard(input.cardId);
+      hypotheticalPlayer.buyCard(input.cardId);
 
       const eligibleNobles = game.getEligibleNobles(hypotheticalPlayer);
 
-      if (eligibleNobles.length > 1 && !payload.chosenNobleId) {
+      if (eligibleNobles.length > 1 && !input.chosenNobleId) {
         return { ok: false, reason: "chosen_noble_required" };
       }
 
       if (
-        payload.chosenNobleId &&
+        input.chosenNobleId &&
         !eligibleNobles.some(
-          (noble: { id: number }) => noble.id === payload.chosenNobleId,
+          (noble: { id: number }) => noble.id === input.chosenNobleId,
         )
       ) {
         return { ok: false, reason: "invalid_chosen_noble" };
@@ -133,11 +133,11 @@ const buyReservedCardCommand = defineSplendorCommand({
     });
   },
 
-  execute({ game, commandInput, emitEvent }) {
-    const actorId = commandInput.actorId!;
-    const payload = commandInput.payload!;
+  execute({ game, command, emitEvent }) {
+    const actorId = command.actorId!;
+    const input = command.input!;
     const player = game.getPlayer(actorId);
-    const card = game.getCard(payload.cardId);
+    const card = game.getCard(input.cardId);
     const payment = player.getAffordablePayment(card);
 
     if (!payment) {

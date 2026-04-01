@@ -15,22 +15,22 @@ import {
   defineSplendorCommand,
 } from "./shared.ts";
 
-const takeTwoSameGemsPayloadSchema = t.object({
+const takeTwoSameGemsCommandSchema = t.object({
   color: t.string(),
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
-export type TakeTwoSameGemsPayload = typeof takeTwoSameGemsPayloadSchema.static;
+export type TakeTwoSameGemsInput = typeof takeTwoSameGemsCommandSchema.static;
 
-const takeTwoSameGemsDraftSchema = t.object({
+const takeTwoSameGemsDiscoverySchema = t.object({
   selectedColor: t.optional(t.string()),
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
 const takeTwoSameGemsCommand = defineSplendorCommand({
   commandId: "take_two_same_gems",
-  payloadSchema: takeTwoSameGemsPayloadSchema,
-  discoveryDraftSchema: takeTwoSameGemsDraftSchema,
+  commandSchema: takeTwoSameGemsCommandSchema,
+  discoverySchema: takeTwoSameGemsDiscoverySchema,
 
   isAvailable(context) {
     return guardedAvailability(() => {
@@ -47,7 +47,7 @@ const takeTwoSameGemsCommand = defineSplendorCommand({
   discover(context) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const draft = context.discoveryInput.draft;
+    const draft = context.discovery.input;
 
     if (!draft?.selectedColor) {
       const bankEntries = Object.entries(game.bank) as Array<[string, number]>;
@@ -59,7 +59,7 @@ const takeTwoSameGemsCommand = defineSplendorCommand({
           .filter(([color, count]) => color !== "gold" && count >= 4)
           .map(([color]) => ({
             id: color,
-            nextDraft: {
+            nextInput: {
               ...(draft ?? {}),
               selectedColor: color,
             },
@@ -92,17 +92,17 @@ const takeTwoSameGemsCommand = defineSplendorCommand({
     );
   },
 
-  validate({ runtime, game, commandInput }) {
+  validate({ runtime, game, command }) {
     return guardedValidate(() => {
       assertGameActive(game);
-      const actorId = assertActivePlayer(runtime, commandInput.actorId);
-      const payload = commandInput.payload;
+      const actorId = assertActivePlayer(runtime, command.actorId);
+      const input = command.input;
 
-      if (!payload) {
+      if (!input) {
         return { ok: false, reason: "color_required" };
       }
 
-      const color = payload.color;
+      const color = input.color;
 
       if (!isGemTokenColor(color)) {
         return { ok: false, reason: "invalid_color" };
@@ -117,7 +117,7 @@ const takeTwoSameGemsCommand = defineSplendorCommand({
 
       if (
         !player.canReturnTokens(
-          payload.returnTokens,
+          input.returnTokens,
           player.getRequiredReturnCount(),
         )
       ) {
@@ -128,22 +128,22 @@ const takeTwoSameGemsCommand = defineSplendorCommand({
     });
   },
 
-  execute({ game, commandInput, emitEvent }) {
-    const actorId = commandInput.actorId!;
-    const payload = commandInput.payload!;
-    const color = assertGemTokenColor(payload.color);
+  execute({ game, command, emitEvent }) {
+    const actorId = command.actorId!;
+    const input = command.input!;
+    const color = assertGemTokenColor(input.color);
     const player = game.getPlayer(actorId);
 
     game.bank.adjustColor(color, -2);
     player.tokens.adjustColor(color, 2);
-    player.returnTokensTo(game.bank, payload.returnTokens);
+    player.returnTokensTo(game.bank, input.returnTokens);
     emitEvent({
       category: "domain",
       type: "double_gem_taken",
       payload: {
         actorId,
         color,
-        returnTokens: payload.returnTokens ?? null,
+        returnTokens: input.returnTokens ?? null,
       },
     });
   },

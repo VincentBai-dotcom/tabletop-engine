@@ -73,57 +73,54 @@ export function generateAsyncApi<
     ...defaultChannels,
     ...options.channels,
   };
-  const commandInputSchemas = Object.fromEntries(
+  const commandSchemas = Object.fromEntries(
     Object.entries(protocol.commands).map(([commandId, command]) => [
       commandId,
-      createCommandInputSchema(commandId, command.payloadSchema.schema!),
+      createCommandSchema(commandId, command.commandSchema.schema!),
     ]),
   );
-  const discoveryInputSchemas = Object.fromEntries(
+  const discoverySchemas = Object.fromEntries(
     Object.entries(protocol.commands)
-      .filter(([, command]) => command.discoveryDraftSchema?.schema)
+      .filter(([, command]) => command.discoverySchema?.schema)
       .map(([commandId, command]) => [
         commandId,
-        createDiscoveryInputSchema(
-          commandId,
-          command.discoveryDraftSchema!.schema!,
-        ),
+        createDiscoverySchema(commandId, command.discoverySchema!.schema!),
       ]),
   );
   const discoveryResultSchemas = Object.fromEntries(
     Object.entries(protocol.commands)
-      .filter(([, command]) => command.discoveryDraftSchema?.schema)
+      .filter(([, command]) => command.discoverySchema?.schema)
       .map(([commandId, command]) => [
         commandId,
         createDiscoveryEnvelopeSchema(
           commandId,
-          command.discoveryDraftSchema!.schema!,
-          command.payloadSchema.schema!,
+          command.discoverySchema!.schema!,
+          command.commandSchema.schema!,
         ),
       ]),
   );
   const discoveryRejectedSchemas = Object.fromEntries(
     Object.entries(protocol.commands)
-      .filter(([, command]) => command.discoveryDraftSchema?.schema)
+      .filter(([, command]) => command.discoverySchema?.schema)
       .map(([commandId]) => [
         commandId,
         createDiscoveryRejectedSchema(commandId),
       ]),
   );
-  const commandInputSchemaList = Object.values(commandInputSchemas);
-  const commandInputSchema =
-    commandInputSchemaList.length === 0
+  const commandSchemaList = Object.values(commandSchemas);
+  const commandSchema =
+    commandSchemaList.length === 0
       ? Type.Never()
-      : commandInputSchemaList.length === 1
-        ? commandInputSchemaList[0]!
-        : Type.Union(commandInputSchemaList);
-  const discoveryInputSchemaList = Object.values(discoveryInputSchemas);
-  const discoveryInputSchema =
-    discoveryInputSchemaList.length === 0
+      : commandSchemaList.length === 1
+        ? commandSchemaList[0]!
+        : Type.Union(commandSchemaList);
+  const discoverySchemaList = Object.values(discoverySchemas);
+  const discoverySchema =
+    discoverySchemaList.length === 0
       ? Type.Never()
-      : discoveryInputSchemaList.length === 1
-        ? discoveryInputSchemaList[0]!
-        : Type.Union(discoveryInputSchemaList);
+      : discoverySchemaList.length === 1
+        ? discoverySchemaList[0]!
+        : Type.Union(discoverySchemaList);
   const discoveryResultSchemaList = Object.values(discoveryResultSchemas);
   const discoveryResultSchema =
     discoveryResultSchemaList.length === 0
@@ -202,11 +199,11 @@ export function generateAsyncApi<
       messages: {
         SubmitCommand: {
           name: "SubmitCommand",
-          payload: commandInputSchema,
+          payload: commandSchema,
         },
         DiscoverCommand: {
           name: "DiscoverCommand",
-          payload: discoveryInputSchema,
+          payload: discoverySchema,
         },
         DiscoveryResult: {
           name: "DiscoveryResult",
@@ -232,14 +229,14 @@ export function generateAsyncApi<
         MatchView: matchViewSchema,
         CommandRejected: commandRejectedSchema,
         ...Object.fromEntries(
-          Object.entries(commandInputSchemas).map(([commandId, schema]) => [
-            `${toPascalCase(commandId)}CommandInput`,
+          Object.entries(commandSchemas).map(([commandId, schema]) => [
+            `${toPascalCase(commandId)}Command`,
             schema,
           ]),
         ),
         ...Object.fromEntries(
-          Object.entries(discoveryInputSchemas).map(([commandId, schema]) => [
-            `${toPascalCase(commandId)}DiscoveryInput`,
+          Object.entries(discoverySchemas).map(([commandId, schema]) => [
+            `${toPascalCase(commandId)}Discovery`,
             schema,
           ]),
         ),
@@ -262,26 +259,26 @@ export function generateAsyncApi<
   };
 }
 
-function createCommandInputSchema(commandId: string, payloadSchema: TSchema) {
+function createCommandSchema(commandId: string, commandSchema: TSchema) {
   return Type.Object({
     type: Type.Literal(commandId),
     actorId: Type.Optional(Type.String()),
-    payload: payloadSchema,
+    input: commandSchema,
   });
 }
 
-function createDiscoveryInputSchema(commandId: string, draftSchema: TSchema) {
+function createDiscoverySchema(commandId: string, discoverySchema: TSchema) {
   return Type.Object({
     type: Type.Literal(commandId),
     actorId: Type.Optional(Type.String()),
     requestId: Type.Optional(Type.String()),
-    draft: Type.Optional(draftSchema),
+    input: Type.Optional(discoverySchema),
   });
 }
 
 function createRawDiscoveryResultSchema(
-  draftSchema: TSchema,
-  payloadSchema: TSchema,
+  discoverySchema: TSchema,
+  commandSchema: TSchema,
 ) {
   return Type.Union([
     Type.Object({
@@ -290,7 +287,7 @@ function createRawDiscoveryResultSchema(
       options: Type.Array(
         Type.Object({
           id: Type.String(),
-          nextDraft: draftSchema,
+          nextInput: discoverySchema,
           metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
         }),
       ),
@@ -298,7 +295,7 @@ function createRawDiscoveryResultSchema(
     }),
     Type.Object({
       complete: Type.Literal(true),
-      payload: payloadSchema,
+      input: commandSchema,
       metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
     }),
   ]);
@@ -306,14 +303,14 @@ function createRawDiscoveryResultSchema(
 
 function createDiscoveryEnvelopeSchema(
   commandId: string,
-  draftSchema: TSchema,
-  payloadSchema: TSchema,
+  discoverySchema: TSchema,
+  commandSchema: TSchema,
 ) {
   return Type.Object({
     type: Type.Literal(commandId),
     actorId: Type.Optional(Type.String()),
     requestId: Type.Optional(Type.String()),
-    result: createRawDiscoveryResultSchema(draftSchema, payloadSchema),
+    result: createRawDiscoveryResultSchema(discoverySchema, commandSchema),
   });
 }
 

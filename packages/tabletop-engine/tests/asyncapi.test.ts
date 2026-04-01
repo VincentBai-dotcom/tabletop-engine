@@ -15,10 +15,10 @@ import {
 import { t } from "../src/schema";
 import type { Viewer } from "../src/types/visibility";
 
-const gainScorePayload = t.object({
+const gainScoreCommandSchema = t.object({
   amount: t.number(),
 });
-const gainScoreDraft = t.object({
+const gainScoreDiscoverySchema = t.object({
   selectedAmount: t.optional(t.number()),
 });
 
@@ -101,12 +101,12 @@ const defineMissingViewSchemaCommand =
 test("generateAsyncApi emits the default hosted channels and schemas", () => {
   const gainScoreCommand = defineAsyncApiCommand({
     commandId: "gain_score",
-    payloadSchema: gainScorePayload,
-    discoveryDraftSchema: gainScoreDraft,
+    commandSchema: gainScoreCommandSchema,
+    discoverySchema: gainScoreDiscoverySchema,
     discover() {
       return {
         complete: true as const,
-        payload: {
+        input: {
           amount: 1,
         },
       };
@@ -161,8 +161,8 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
 
   expect(submitVariants).toHaveLength(1);
   expect(submitVariants[0]!.properties.type.const).toBe("gain_score");
-  expect(submitVariants[0]!.properties.payload).toEqual(
-    gainScorePayload.schema,
+  expect(submitVariants[0]!.properties.input).toEqual(
+    gainScoreCommandSchema.schema,
   );
   const discoverPayload = document.components.messages.DiscoverCommand!.payload;
   const discoverVariants = discoverPayload.anyOf ?? [discoverPayload];
@@ -170,9 +170,9 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
   expect(discoverVariants).toHaveLength(1);
   expect(discoverVariants[0]!.properties.type.const).toBe("gain_score");
   expect(discoverVariants[0]!.properties.requestId.type).toBe("string");
-  expect(discoverVariants[0]!.properties.draft.type).toBe("object");
+  expect(discoverVariants[0]!.properties.input.type).toBe("object");
   expect(
-    discoverVariants[0]!.properties.draft.properties.selectedAmount.type,
+    discoverVariants[0]!.properties.input.properties.selectedAmount.type,
   ).toBe("number");
   const discoveryResultPayload =
     document.components.messages.DiscoveryResult!.payload;
@@ -185,7 +185,7 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
   expect(discoveryResultVariants[0]!.properties.result.anyOf).toHaveLength(2);
   expect(document.components.schemas.DiscoveryResult).toBeDefined();
   expect(document.components.schemas.DiscoveryRejected).toBeDefined();
-  expect(document.components.schemas.GainScoreDiscoveryInput).toBeDefined();
+  expect(document.components.schemas.GainScoreDiscovery).toBeDefined();
   expect(document.components.schemas.GainScoreDiscoveryResult).toBeDefined();
   expect(document.components.schemas.GainScoreDiscoveryRejected).toBeDefined();
   expect(document.components.schemas.VisibleState).toEqual(protocol.viewSchema);
@@ -197,12 +197,12 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
 test("generateAsyncApi propagates protocol schema validation failures", () => {
   const gainScoreCommand = defineMissingViewSchemaCommand({
     commandId: "gain_score",
-    payloadSchema: gainScorePayload,
-    discoveryDraftSchema: gainScoreDraft,
+    commandSchema: gainScoreCommandSchema,
+    discoverySchema: gainScoreDiscoverySchema,
     discover() {
       return {
         complete: true as const,
-        payload: {
+        input: {
           amount: 1,
         },
       };

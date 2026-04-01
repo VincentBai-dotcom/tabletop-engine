@@ -1,9 +1,9 @@
 import type {
-  CommandDiscoveryResult,
-  CommandInput,
-  DiscoveryInput,
-  GameEvent,
   CanonicalState,
+  Command,
+  CommandDiscoveryResult,
+  Discovery,
+  GameEvent,
 } from "tabletop-engine";
 import type {
   SplendorDiscoveryOption,
@@ -11,17 +11,17 @@ import type {
 } from "splendor-example";
 
 export type SplendorState = CanonicalState<SplendorGameState>;
-export type SplendorPayload = Record<string, unknown>;
-export type SplendorTerminalCommand = CommandInput<SplendorPayload>;
-export type SplendorTerminalDiscoveryInput = DiscoveryInput<SplendorPayload>;
+export type SplendorCommandData = Record<string, unknown>;
+export type SplendorTerminalCommand = Command<SplendorCommandData>;
+export type SplendorTerminalDiscoveryRequest = Discovery<SplendorCommandData>;
 export type SplendorTerminalDiscoveryOption =
-  SplendorDiscoveryOption<SplendorPayload>;
-export type SplendorTerminalDiscovery = CommandDiscoveryResult<
-  SplendorPayload,
-  SplendorPayload
+  SplendorDiscoveryOption<SplendorCommandData>;
+export type SplendorTerminalDiscoveryResult = CommandDiscoveryResult<
+  SplendorCommandData,
+  SplendorCommandData
 >;
 export type SplendorTerminalOpenDiscovery = Extract<
-  SplendorTerminalDiscovery,
+  SplendorTerminalDiscoveryResult,
   { complete: false }
 >;
 

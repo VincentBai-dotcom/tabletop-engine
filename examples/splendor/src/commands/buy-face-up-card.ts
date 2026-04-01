@@ -15,15 +15,15 @@ import {
   defineSplendorCommand,
 } from "./shared.ts";
 
-const buyFaceUpCardPayloadSchema = t.object({
+const buyFaceUpCardCommandSchema = t.object({
   level: t.number(),
   cardId: t.number(),
   chosenNobleId: t.optional(t.number()),
 });
 
-export type BuyFaceUpCardPayload = typeof buyFaceUpCardPayloadSchema.static;
+export type BuyFaceUpCardInput = typeof buyFaceUpCardCommandSchema.static;
 
-const buyFaceUpCardDraftSchema = t.object({
+const buyFaceUpCardDiscoverySchema = t.object({
   selectedLevel: t.optional(t.number()),
   selectedCardId: t.optional(t.number()),
   chosenNobleId: t.optional(t.number()),
@@ -31,8 +31,8 @@ const buyFaceUpCardDraftSchema = t.object({
 
 const buyFaceUpCardCommand = defineSplendorCommand({
   commandId: "buy_face_up_card",
-  payloadSchema: buyFaceUpCardPayloadSchema,
-  discoveryDraftSchema: buyFaceUpCardDraftSchema,
+  commandSchema: buyFaceUpCardCommandSchema,
+  discoverySchema: buyFaceUpCardDiscoverySchema,
 
   isAvailable(context) {
     return guardedAvailability(() => {
@@ -59,7 +59,7 @@ const buyFaceUpCardCommand = defineSplendorCommand({
   discover(context) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const draft = context.discoveryInput.draft;
+    const draft = context.discovery.input;
     const player = game.getPlayer(actorId);
     const faceUpEntries = Object.entries(game.board.faceUpByLevel) as Array<
       [string, number[]]
@@ -78,7 +78,7 @@ const buyFaceUpCardCommand = defineSplendorCommand({
             })
             .map((cardId: number) => ({
               id: `${level}:${cardId}`,
-              nextDraft: {
+              nextInput: {
                 ...(draft ?? {}),
                 selectedLevel: Number(level),
                 selectedCardId: cardId,
@@ -108,46 +108,46 @@ const buyFaceUpCardCommand = defineSplendorCommand({
     );
   },
 
-  validate({ runtime, game, commandInput }) {
+  validate({ runtime, game, command }) {
     return guardedValidate(() => {
       assertGameActive(game);
-      const actorId = assertActivePlayer(runtime, commandInput.actorId);
-      const payload = commandInput.payload;
+      const actorId = assertActivePlayer(runtime, command.actorId);
+      const input = command.input;
 
-      if (!payload) {
+      if (!input) {
         return { ok: false, reason: "level_and_card_required" };
       }
 
-      const level = payload.level;
+      const level = input.level;
 
       if (!isDevelopmentLevel(level)) {
         return { ok: false, reason: "invalid_level" };
       }
 
-      if (!game.board.faceUpByLevel[level].includes(payload.cardId)) {
+      if (!game.board.faceUpByLevel[level].includes(input.cardId)) {
         return { ok: false, reason: "card_not_face_up" };
       }
 
       const player = game.getPlayer(actorId);
-      const card = game.getCard(payload.cardId);
+      const card = game.getCard(input.cardId);
 
       if (!player.getAffordablePayment(card)) {
         return { ok: false, reason: "card_not_affordable" };
       }
 
       const hypotheticalPlayer = player.clone();
-      hypotheticalPlayer.buyCard(payload.cardId);
+      hypotheticalPlayer.buyCard(input.cardId);
 
       const eligibleNobles = game.getEligibleNobles(hypotheticalPlayer);
 
-      if (eligibleNobles.length > 1 && !payload.chosenNobleId) {
+      if (eligibleNobles.length > 1 && !input.chosenNobleId) {
         return { ok: false, reason: "chosen_noble_required" };
       }
 
       if (
-        payload.chosenNobleId &&
+        input.chosenNobleId &&
         !eligibleNobles.some(
-          (noble: { id: number }) => noble.id === payload.chosenNobleId,
+          (noble: { id: number }) => noble.id === input.chosenNobleId,
         )
       ) {
         return { ok: false, reason: "invalid_chosen_noble" };
@@ -157,12 +157,12 @@ const buyFaceUpCardCommand = defineSplendorCommand({
     });
   },
 
-  execute({ game, commandInput, emitEvent }) {
-    const actorId = commandInput.actorId!;
-    const payload = commandInput.payload!;
-    const level = assertDevelopmentLevel(payload.level);
+  execute({ game, command, emitEvent }) {
+    const actorId = command.actorId!;
+    const input = command.input!;
+    const level = assertDevelopmentLevel(input.level);
     const player = game.getPlayer(actorId);
-    const card = game.getCard(payload.cardId);
+    const card = game.getCard(input.cardId);
     const payment = player.getAffordablePayment(card);
 
     if (!payment) {

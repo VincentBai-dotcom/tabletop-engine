@@ -16,10 +16,10 @@ test("snapshots restore canonical state and replay reproduces final state", () =
     counter: number;
     value: number;
   }>();
-  const incrementPayload = t.object({
+  const incrementCommandSchema = t.object({
     amount: t.optional(t.number()),
   });
-  const emptyPayload = t.object({});
+  const emptyCommandSchema = t.object({});
 
   const game = new GameDefinitionBuilder<{
     counter: number;
@@ -33,12 +33,12 @@ test("snapshots restore canonical state and replay reproduces final state", () =
     .commands({
       increment_counter: defineCommand({
         commandId: "increment_counter",
-        payloadSchema: incrementPayload,
+        commandSchema: incrementCommandSchema,
         validate: () => ({ ok: true as const }),
-        execute: ({ game, commandInput }) => {
+        execute: ({ game, command }) => {
           const amount =
-            typeof commandInput.payload?.amount === "number"
-              ? commandInput.payload.amount
+            typeof command.input?.amount === "number"
+              ? command.input.amount
               : 1;
 
           game.counter += amount;
@@ -46,7 +46,7 @@ test("snapshots restore canonical state and replay reproduces final state", () =
       }),
       sample_randomness: defineCommand({
         commandId: "sample_randomness",
-        payloadSchema: emptyPayload,
+        commandSchema: emptyCommandSchema,
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();
@@ -63,7 +63,7 @@ test("snapshots restore canonical state and replay reproduces final state", () =
 
   const firstCommand = {
     type: "increment_counter",
-    payload: { amount: 2 },
+    input: { amount: 2 },
   } as const;
   const secondCommand = {
     type: "sample_randomness",

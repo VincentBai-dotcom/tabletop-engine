@@ -15,16 +15,16 @@ import {
   defineSplendorCommand,
 } from "./shared.ts";
 
-const reserveFaceUpCardPayloadSchema = t.object({
+const reserveFaceUpCardCommandSchema = t.object({
   level: t.number(),
   cardId: t.number(),
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
-export type ReserveFaceUpCardPayload =
-  typeof reserveFaceUpCardPayloadSchema.static;
+export type ReserveFaceUpCardInput =
+  typeof reserveFaceUpCardCommandSchema.static;
 
-const reserveFaceUpCardDraftSchema = t.object({
+const reserveFaceUpCardDiscoverySchema = t.object({
   selectedLevel: t.optional(t.number()),
   selectedCardId: t.optional(t.number()),
   returnTokens: t.optional(t.record(t.string(), t.number())),
@@ -32,8 +32,8 @@ const reserveFaceUpCardDraftSchema = t.object({
 
 const reserveFaceUpCardCommand = defineSplendorCommand({
   commandId: "reserve_face_up_card",
-  payloadSchema: reserveFaceUpCardPayloadSchema,
-  discoveryDraftSchema: reserveFaceUpCardDraftSchema,
+  commandSchema: reserveFaceUpCardCommandSchema,
+  discoverySchema: reserveFaceUpCardDiscoverySchema,
 
   isAvailable(context) {
     return guardedAvailability(() => {
@@ -53,7 +53,7 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
   discover(context) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const draft = context.discoveryInput.draft;
+    const draft = context.discovery.input;
     const faceUpEntries = Object.entries(game.board.faceUpByLevel) as Array<
       [string, number[]]
     >;
@@ -65,7 +65,7 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
         options: faceUpEntries.flatMap(([level, cardIds]) =>
           cardIds.map((cardId: number) => ({
             id: `${level}:${cardId}`,
-            nextDraft: {
+            nextInput: {
               ...(draft ?? {}),
               selectedLevel: Number(level),
               selectedCardId: cardId,
@@ -103,28 +103,28 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
     );
   },
 
-  validate({ runtime, game, commandInput }) {
+  validate({ runtime, game, command }) {
     return guardedValidate(() => {
       assertGameActive(game);
-      const actorId = assertActivePlayer(runtime, commandInput.actorId);
-      const payload = commandInput.payload;
+      const actorId = assertActivePlayer(runtime, command.actorId);
+      const input = command.input;
       const player = game.getPlayer(actorId).clone();
 
       if (!player.canReserveMoreCards()) {
         return { ok: false, reason: "reserved_limit_reached" };
       }
 
-      if (!payload) {
+      if (!input) {
         return { ok: false, reason: "level_and_card_required" };
       }
 
-      const level = payload.level;
+      const level = input.level;
 
       if (!isDevelopmentLevel(level)) {
         return { ok: false, reason: "invalid_level" };
       }
 
-      if (!game.board.faceUpByLevel[level].includes(payload.cardId)) {
+      if (!game.board.faceUpByLevel[level].includes(input.cardId)) {
         return { ok: false, reason: "card_not_face_up" };
       }
 
@@ -134,7 +134,7 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
 
       if (
         !player.canReturnTokens(
-          payload.returnTokens,
+          input.returnTokens,
           player.getRequiredReturnCount(),
         )
       ) {
@@ -145,18 +145,18 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
     });
   },
 
-  execute({ game, commandInput, emitEvent }) {
-    const actorId = commandInput.actorId!;
-    const payload = commandInput.payload!;
-    const level = assertDevelopmentLevel(payload.level);
+  execute({ game, command, emitEvent }) {
+    const actorId = command.actorId!;
+    const input = command.input!;
+    const level = assertDevelopmentLevel(input.level);
     const player = game.getPlayer(actorId);
 
-    player.reserveCard(payload.cardId);
-    game.board.removeFaceUpCard(level, payload.cardId);
+    player.reserveCard(input.cardId);
+    game.board.removeFaceUpCard(level, input.cardId);
     game.board.replenishFaceUpCard(level);
 
     const receivedGold = player.gainGoldFrom(game.bank);
-    player.returnTokensTo(game.bank, payload.returnTokens);
+    player.returnTokensTo(game.bank, input.returnTokens);
     emitEvent({
       category: "domain",
       type: "card_reserved",
@@ -164,9 +164,9 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
         actorId,
         source: "face_up",
         level,
-        cardId: payload.cardId,
+        cardId: input.cardId,
         receivedGold,
-        returnTokens: payload.returnTokens ?? null,
+        returnTokens: input.returnTokens ?? null,
       },
     });
   },

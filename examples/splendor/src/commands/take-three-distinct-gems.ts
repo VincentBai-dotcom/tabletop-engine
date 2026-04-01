@@ -15,23 +15,23 @@ import {
   defineSplendorCommand,
 } from "./shared.ts";
 
-const takeThreeDistinctGemsPayloadSchema = t.object({
+const takeThreeDistinctGemsCommandSchema = t.object({
   colors: t.array(t.string()),
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
-export type TakeThreeDistinctGemsPayload =
-  typeof takeThreeDistinctGemsPayloadSchema.static;
+export type TakeThreeDistinctGemsInput =
+  typeof takeThreeDistinctGemsCommandSchema.static;
 
-const takeThreeDistinctGemsDraftSchema = t.object({
+const takeThreeDistinctGemsDiscoverySchema = t.object({
   selectedColors: t.optional(t.array(t.string())),
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
 const takeThreeDistinctGemsCommand = defineSplendorCommand({
   commandId: "take_three_distinct_gems",
-  payloadSchema: takeThreeDistinctGemsPayloadSchema,
-  discoveryDraftSchema: takeThreeDistinctGemsDraftSchema,
+  commandSchema: takeThreeDistinctGemsCommandSchema,
+  discoverySchema: takeThreeDistinctGemsDiscoverySchema,
 
   isAvailable(context) {
     return guardedAvailability(() => {
@@ -49,7 +49,7 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
   discover(context) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const draft = context.discoveryInput.draft;
+    const draft = context.discovery.input;
     const selectedColors = draft?.selectedColors
       ? [...draft.selectedColors]
       : [];
@@ -67,7 +67,7 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
           )
           .map(([color]) => ({
             id: color,
-            nextDraft: {
+            nextInput: {
               ...(draft ?? {}),
               selectedColors: [...selectedColors, color],
             },
@@ -106,17 +106,17 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
     );
   },
 
-  validate({ runtime, game, commandInput }) {
+  validate({ runtime, game, command }) {
     return guardedValidate(() => {
       assertGameActive(game);
-      const actorId = assertActivePlayer(runtime, commandInput.actorId);
-      const payload = commandInput.payload;
+      const actorId = assertActivePlayer(runtime, command.actorId);
+      const input = command.input;
 
-      if (!payload || payload.colors.length !== 3) {
+      if (!input || input.colors.length !== 3) {
         return { ok: false, reason: "three_colors_required" };
       }
 
-      const colors = payload.colors;
+      const colors = input.colors;
 
       if (!colors.every((color) => isGemTokenColor(color))) {
         return { ok: false, reason: "invalid_color" };
@@ -140,7 +140,7 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
 
       if (
         !player.canReturnTokens(
-          payload.returnTokens,
+          input.returnTokens,
           player.getRequiredReturnCount(),
         )
       ) {
@@ -151,10 +151,10 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
     });
   },
 
-  execute({ game, commandInput, emitEvent }) {
-    const actorId = commandInput.actorId!;
-    const payload = commandInput.payload!;
-    const colors = payload.colors;
+  execute({ game, command, emitEvent }) {
+    const actorId = command.actorId!;
+    const input = command.input!;
+    const colors = input.colors;
 
     if (!colors.every((color) => isGemTokenColor(color))) {
       throw new Error("invalid_color");
@@ -168,14 +168,14 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
       player.tokens.adjustColor(color, 1);
     }
 
-    player.returnTokensTo(game.bank, payload.returnTokens);
+    player.returnTokensTo(game.bank, input.returnTokens);
     emitEvent({
       category: "domain",
       type: "gems_taken",
       payload: {
         actorId,
         colors,
-        returnTokens: payload.returnTokens ?? null,
+        returnTokens: input.returnTokens ?? null,
       },
     });
   },

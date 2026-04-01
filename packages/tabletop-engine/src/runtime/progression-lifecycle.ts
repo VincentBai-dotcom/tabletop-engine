@@ -9,7 +9,7 @@ import {
   type NormalizedProgressionDefinition,
 } from "./progression-normalize";
 import type { CanonicalState, RuntimeState } from "../types/state";
-import type { CommandInput } from "../types/command";
+import type { Command } from "../types/command";
 import type {
   BuiltInProgressionCompletionPolicy,
   InternalProgressionCompletionContext,
@@ -27,7 +27,7 @@ export function evaluateCompletionPolicy<
   CanonicalGameState extends object,
   FacadeGameState extends object,
   Runtime,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   policy:
     | ProgressionCompletionPolicy<FacadeGameState, Runtime, TCommandInput>
@@ -54,12 +54,12 @@ export function resolveProgressionLifecycle<
   CanonicalGameState extends object,
   FacadeGameState extends object,
   Runtime extends RuntimeState,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   state: CanonicalState<CanonicalGameState, Runtime>,
   readonlyGame: Readonly<FacadeGameState>,
   mutableGame: FacadeGameState,
-  commandInput: TCommandInput,
+  command: TCommandInput,
   progression: NormalizedProgressionDefinition<
     FacadeGameState,
     Runtime,
@@ -81,7 +81,7 @@ export function resolveProgressionLifecycle<
     const completionContext = createProgressionCompletionContext(
       state,
       readonlyGame,
-      commandInput,
+      command,
       segment,
     );
 
@@ -94,7 +94,7 @@ export function resolveProgressionLifecycle<
     const lifecycleContext = createProgressionLifecycleHookContext(
       state,
       mutableGame,
-      commandInput,
+      command,
       segment,
       rng,
       emitEvent,
@@ -158,7 +158,7 @@ export function resolveProgressionLifecycle<
       const enteredContext = createProgressionLifecycleHookContext(
         state,
         mutableGame,
-        commandInput,
+        command,
         enteredSegment,
         rng,
         emitEvent,
@@ -175,7 +175,7 @@ function evaluateBuiltInCompletionPolicy<
   CanonicalGameState extends object,
   FacadeGameState extends object,
   Runtime,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   policy: BuiltInProgressionCompletionPolicy,
   context: InternalProgressionCompletionContext<
@@ -240,7 +240,7 @@ function applyActivePath(
 function resolveExplicitTargetSegmentId<
   FacadeGameState extends object,
   Runtime,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   progression: NormalizedProgressionDefinition<
     FacadeGameState,

@@ -7,11 +7,11 @@ import type { CompiledStateFacadeDefinition } from "../state-facade/compile";
 
 export interface ProtocolCommandDescriptor {
   commandId: string;
-  payloadSchema: {
+  commandSchema: {
     readonly static: Record<string, unknown>;
     readonly schema?: TSchema;
   };
-  discoveryDraftSchema?: {
+  discoverySchema?: {
     readonly static: Record<string, unknown>;
     readonly schema?: TSchema;
   };
@@ -35,28 +35,22 @@ export function describeGameProtocol<
   const customViews: Record<string, SerializableSchema> = {};
 
   for (const [commandId, command] of Object.entries(game.commands)) {
-    if (!command.payloadSchema) {
+    if (!command.commandSchema) {
       throw new Error(`command_payload_schema_required:${commandId}`);
     }
 
-    if (
-      typeof command.discover === "function" &&
-      !command.discoveryDraftSchema
-    ) {
+    if (typeof command.discover === "function" && !command.discoverySchema) {
       throw new Error(`command_discovery_draft_schema_required:${commandId}`);
     }
 
-    if (
-      command.discoveryDraftSchema &&
-      typeof command.discover !== "function"
-    ) {
+    if (command.discoverySchema && typeof command.discover !== "function") {
       throw new Error(`command_discovery_handler_required:${commandId}`);
     }
 
     commands[commandId] = {
       commandId,
-      payloadSchema: command.payloadSchema,
-      discoveryDraftSchema: command.discoveryDraftSchema,
+      commandSchema: command.commandSchema,
+      discoverySchema: command.discoverySchema,
     };
   }
 

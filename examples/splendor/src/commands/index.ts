@@ -17,9 +17,9 @@ export function createCommands(): SplendorCommand[] {
   ];
 }
 
-export type { BuyFaceUpCardPayload } from "./buy-face-up-card.ts";
-export type { BuyReservedCardPayload } from "./buy-reserved-card.ts";
-export type { ReserveDeckCardPayload } from "./reserve-deck-card.ts";
-export type { ReserveFaceUpCardPayload } from "./reserve-face-up-card.ts";
-export type { TakeThreeDistinctGemsPayload } from "./take-three-distinct-gems.ts";
-export type { TakeTwoSameGemsPayload } from "./take-two-same-gems.ts";
+export type { BuyFaceUpCardInput } from "./buy-face-up-card.ts";
+export type { BuyReservedCardInput } from "./buy-reserved-card.ts";
+export type { ReserveDeckCardInput } from "./reserve-deck-card.ts";
+export type { ReserveFaceUpCardInput } from "./reserve-face-up-card.ts";
+export type { TakeThreeDistinctGemsInput } from "./take-three-distinct-gems.ts";
+export type { TakeTwoSameGemsInput } from "./take-two-same-gems.ts";

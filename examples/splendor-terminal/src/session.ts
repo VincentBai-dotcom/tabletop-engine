@@ -8,9 +8,9 @@ import { createSplendorGame, type SplendorGameState } from "splendor-example";
 import type {
   SessionActivity,
   SplendorState,
-  SplendorTerminalDiscovery,
   SplendorTerminalCommand,
-  SplendorTerminalDiscoveryInput,
+  SplendorTerminalDiscoveryRequest,
+  SplendorTerminalDiscoveryResult,
 } from "./types.ts";
 
 type SplendorGameExecutorApi = Pick<
@@ -68,12 +68,12 @@ export class SplendorTerminalSession {
   }
 
   discoverCommand(
-    discoveryInput: SplendorTerminalDiscoveryInput,
-  ): SplendorTerminalDiscovery | null {
+    discovery: SplendorTerminalDiscoveryRequest,
+  ): SplendorTerminalDiscoveryResult | null {
     return this.gameExecutor.discoverCommand(
       this.state,
-      discoveryInput,
-    ) as SplendorTerminalDiscovery | null;
+      discovery,
+    ) as SplendorTerminalDiscoveryResult | null;
   }
 
   executeCommand(

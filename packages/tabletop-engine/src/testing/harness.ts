@@ -1,10 +1,10 @@
-import type { CommandInput } from "../types/command";
+import type { Command } from "../types/command";
 import type { ExecutionResult } from "../types/result";
 import type { CanonicalState } from "../types/state";
 
 export interface ScenarioResult<
   State extends CanonicalState = CanonicalState,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 > {
   initialState: State;
   finalState: State;
@@ -14,7 +14,7 @@ export interface ScenarioResult<
 
 export function runScenario<
   State extends CanonicalState = CanonicalState,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
 >(
   gameExecutor: {
     createInitialState(): State;

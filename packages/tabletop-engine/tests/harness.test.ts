@@ -11,7 +11,7 @@ test("runScenario applies commands in order and returns per-command results", ()
   const defineCommand = createCommandFactory<{
     counter: number;
   }>();
-  const incrementPayload = t.object({
+  const incrementCommandSchema = t.object({
     amount: t.optional(t.number()),
   });
 
@@ -24,12 +24,12 @@ test("runScenario applies commands in order and returns per-command results", ()
     .commands({
       increment_counter: defineCommand({
         commandId: "increment_counter",
-        payloadSchema: incrementPayload,
+        commandSchema: incrementCommandSchema,
         validate: () => ({ ok: true as const }),
-        execute: ({ game, commandInput }) => {
+        execute: ({ game, command }) => {
           const amount =
-            typeof commandInput.payload?.amount === "number"
-              ? commandInput.payload.amount
+            typeof command.input?.amount === "number"
+              ? command.input.amount
               : 1;
 
           game.counter += amount;
@@ -40,8 +40,8 @@ test("runScenario applies commands in order and returns per-command results", ()
 
   const gameExecutor = createGameExecutor(game);
   const scenario = runScenario(gameExecutor, [
-    { type: "increment_counter", payload: { amount: 2 } },
-    { type: "increment_counter", payload: { amount: 3 } },
+    { type: "increment_counter", input: { amount: 2 } },
+    { type: "increment_counter", input: { amount: 3 } },
   ]);
 
   expect(scenario.initialState.game.counter).toBe(0);

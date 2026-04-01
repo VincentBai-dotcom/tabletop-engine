@@ -1,6 +1,6 @@
 import type {
-  CommandInput,
-  DiscoveryInput,
+  Command,
+  Discovery,
   InternalCommandAvailabilityContext,
   InternalDiscoveryContext,
   InternalExecuteContext,
@@ -21,11 +21,11 @@ export function createValidationContext<
   CanonicalGameState extends object,
   FacadeGameState extends object,
   Runtime extends RuntimeState,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   state: CanonicalState<CanonicalGameState, Runtime>,
   game: Readonly<FacadeGameState>,
-  commandInput: TCommandInput,
+  command: TCommandInput,
 ): InternalValidationContext<
   CanonicalGameState,
   FacadeGameState,
@@ -36,7 +36,7 @@ export function createValidationContext<
     state,
     game,
     runtime: state.runtime,
-    commandInput,
+    command,
   };
 }
 
@@ -67,25 +67,25 @@ export function createDiscoveryContext<
   CanonicalGameState extends object,
   FacadeGameState extends object,
   Runtime extends RuntimeState,
-  TDraft extends Record<string, unknown>,
+  TDiscoveryInput extends Record<string, unknown>,
 >(
   state: CanonicalState<CanonicalGameState, Runtime>,
   game: Readonly<FacadeGameState>,
-  discoveryInput: DiscoveryInput<TDraft>,
+  discovery: Discovery<TDiscoveryInput>,
 ): InternalDiscoveryContext<
   CanonicalGameState,
   FacadeGameState,
   Runtime,
-  TDraft
+  TDiscoveryInput
 > {
   return {
     ...createCommandAvailabilityContext(
       state,
       game,
-      discoveryInput.type,
-      discoveryInput.actorId,
+      discovery.type,
+      discovery.actorId,
     ),
-    discoveryInput,
+    discovery,
   };
 }
 
@@ -93,11 +93,11 @@ export function createExecuteContext<
   CanonicalGameState extends object,
   FacadeGameState extends object,
   Runtime extends RuntimeState,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   state: CanonicalState<CanonicalGameState, Runtime>,
   game: FacadeGameState,
-  commandInput: TCommandInput,
+  command: TCommandInput,
   rng: RNGApi,
   setCurrentSegmentOwner: (ownerId?: string) => void,
   emitEvent: (event: GameEvent) => void,
@@ -109,7 +109,7 @@ export function createExecuteContext<
 > {
   return {
     state,
-    commandInput,
+    command,
     game,
     runtime: state.runtime,
     rng,
@@ -122,11 +122,11 @@ export function createProgressionCompletionContext<
   CanonicalGameState extends object,
   FacadeGameState extends object,
   Runtime extends RuntimeState,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   state: CanonicalState<CanonicalGameState, Runtime>,
   game: Readonly<FacadeGameState>,
-  commandInput: TCommandInput,
+  command: TCommandInput,
   segment: ProgressionSegmentState,
 ): InternalProgressionCompletionContext<
   CanonicalGameState,
@@ -138,7 +138,7 @@ export function createProgressionCompletionContext<
     state,
     game,
     runtime: state.runtime,
-    commandInput,
+    command,
     segment,
     progression: createProgressionNavigation(state.runtime.progression),
   };
@@ -148,11 +148,11 @@ export function createProgressionLifecycleHookContext<
   CanonicalGameState extends object,
   FacadeGameState extends object,
   Runtime extends RuntimeState,
-  TCommandInput extends CommandInput,
+  TCommandInput extends Command,
 >(
   state: CanonicalState<CanonicalGameState, Runtime>,
   game: FacadeGameState,
-  commandInput: TCommandInput,
+  command: TCommandInput,
   segment: ProgressionSegmentState,
   rng: RNGApi,
   emitEvent: (event: GameEvent) => void,
@@ -163,7 +163,7 @@ export function createProgressionLifecycleHookContext<
   TCommandInput
 > {
   return {
-    ...createProgressionCompletionContext(state, game, commandInput, segment),
+    ...createProgressionCompletionContext(state, game, command, segment),
     game,
     rng,
     emitEvent,

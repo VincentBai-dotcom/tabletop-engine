@@ -10,7 +10,7 @@ test("failed commands do not overwrite recent activity summary", () => {
     {
       type: "take_three_distinct_gems",
       actorId: "bot-1",
-      payload: {
+      input: {
         colors: ["white", "blue", "green"],
       },
     },

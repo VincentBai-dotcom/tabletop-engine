@@ -1,5 +1,5 @@
 import type { GameEvent } from "./event";
-import type { CommandInput } from "./command";
+import type { Command } from "./command";
 import type { CanonicalState } from "./state";
 
 export interface Snapshot<State extends CanonicalState = CanonicalState> {
@@ -9,7 +9,7 @@ export interface Snapshot<State extends CanonicalState = CanonicalState> {
 
 export interface ReplayRecord<
   State extends CanonicalState = CanonicalState,
-  TCommandInput extends CommandInput = CommandInput,
+  TCommandInput extends Command = Command,
   Ev extends GameEvent = GameEvent,
 > {
   initialSnapshot: Snapshot<State>;

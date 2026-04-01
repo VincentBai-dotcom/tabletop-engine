@@ -10,7 +10,7 @@ import {
   visibleToSelf,
 } from "../src/state-facade/metadata";
 
-const emptyPayload = t.object({});
+const emptyCommandSchema = t.object({});
 
 @State()
 class TestHandState {
@@ -95,7 +95,7 @@ test("GameDefinitionBuilder compiles command lists into the command map shape", 
   const defineCommand = createCommandFactory<{ score: number }>();
   const incrementScoreCommand = defineCommand({
     commandId: "increment_score",
-    payloadSchema: emptyPayload,
+    commandSchema: emptyCommandSchema,
     validate() {
       return { ok: true as const };
     },
@@ -105,7 +105,7 @@ test("GameDefinitionBuilder compiles command lists into the command map shape", 
   });
   const decrementScoreCommand = defineCommand({
     commandId: "decrement_score",
-    payloadSchema: emptyPayload,
+    commandSchema: emptyCommandSchema,
     validate() {
       return { ok: true as const };
     },
@@ -136,7 +136,7 @@ test("GameDefinitionBuilder accepts factory-defined command lists", () => {
 
   const incrementScoreCommand = defineCommand({
     commandId: "increment_score",
-    payloadSchema: emptyPayload,
+    commandSchema: emptyCommandSchema,
     validate() {
       return { ok: true as const };
     },
@@ -147,7 +147,7 @@ test("GameDefinitionBuilder accepts factory-defined command lists", () => {
 
   const decrementScoreCommand = defineCommand({
     commandId: "decrement_score",
-    payloadSchema: emptyPayload,
+    commandSchema: emptyCommandSchema,
     validate() {
       return { ok: true as const };
     },
@@ -175,7 +175,7 @@ test("GameDefinitionBuilder rejects duplicate command ids in command lists", () 
   const defineCommand = createCommandFactory<{ score: number }>();
   const incrementScoreCommand = defineCommand({
     commandId: "increment_score",
-    payloadSchema: emptyPayload,
+    commandSchema: emptyCommandSchema,
     validate() {
       return { ok: true as const };
     },
@@ -199,7 +199,7 @@ test("GameDefinitionBuilder rejects duplicate command ids in command lists", () 
 test("GameDefinitionBuilder only accepts commands created by the command factory", () => {
   const legacyCommand = {
     commandId: "legacy",
-    payloadSchema: emptyPayload,
+    commandSchema: emptyCommandSchema,
     validate: () => ({ ok: true as const }),
     execute: ({ game }: { game: { score: number } }) => {
       game.score += 1;

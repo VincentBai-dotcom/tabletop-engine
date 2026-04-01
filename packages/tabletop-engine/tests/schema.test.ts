@@ -33,7 +33,7 @@ test("schema api exposes shared object and optional builders", () => {
 });
 
 test("schema static types can be derived directly from the schema object", () => {
-  const payloadSchema = (t as ExtendedSchemaApi).object({
+  const commandSchema = (t as ExtendedSchemaApi).object({
     amount: (t as ExtendedSchemaApi).optional(t.number()),
   }) as {
     static: {
@@ -41,12 +41,12 @@ test("schema static types can be derived directly from the schema object", () =>
     };
   };
 
-  const withAmount: typeof payloadSchema.static = {
+  const withAmount: typeof commandSchema.static = {
     amount: 2,
   };
-  const withoutAmount: typeof payloadSchema.static = {};
+  const withoutAmount: typeof commandSchema.static = {};
 
-  expect(payloadSchema).toBeDefined();
+  expect(commandSchema).toBeDefined();
   expect(withAmount.amount).toBe(2);
   expect(withoutAmount.amount).toBeUndefined();
 });

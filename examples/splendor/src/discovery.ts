@@ -20,45 +20,51 @@ export type SplendorDiscoveryStep =
   (typeof SPLENDOR_DISCOVERY_STEPS)[keyof typeof SPLENDOR_DISCOVERY_STEPS];
 
 export interface SplendorDiscoveryOption<
-  TDraft extends Record<string, unknown>,
+  TDiscoveryInput extends Record<string, unknown>,
 > {
   id: string;
-  nextDraft: TDraft;
+  nextInput: TDiscoveryInput;
   metadata?: Record<string, unknown>;
 }
 
 export type SplendorDiscoveryResult<
-  TDraft extends Record<string, unknown>,
-  TPayload extends Record<string, unknown> = TDraft,
-> = CommandDiscoveryResult<TDraft, TPayload>;
+  TDiscoveryInput extends Record<string, unknown>,
+  TCommandInput extends Record<string, unknown> = TDiscoveryInput,
+> = CommandDiscoveryResult<TDiscoveryInput, TCommandInput>;
 
-type IncompleteDiscoveryResult<TDraft extends Record<string, unknown>> =
-  Extract<SplendorDiscoveryResult<TDraft, never>, { complete: false }>;
+type IncompleteDiscoveryResult<
+  TDiscoveryInput extends Record<string, unknown>,
+> = Extract<
+  SplendorDiscoveryResult<TDiscoveryInput, never>,
+  { complete: false }
+>;
 
-export function completeDiscovery<TPayload extends Record<string, unknown>>(
-  payload: TPayload,
+export function completeDiscovery<
+  TCommandInput extends Record<string, unknown>,
+>(
+  input: TCommandInput,
 ): Extract<
-  SplendorDiscoveryResult<Record<string, unknown>, TPayload>,
+  SplendorDiscoveryResult<Record<string, unknown>, TCommandInput>,
   {
     complete: true;
   }
 > {
   return {
     complete: true as const,
-    payload,
+    input,
   };
 }
 
 export function createReturnTokenDiscovery<
-  TDraft extends {
+  TDiscoveryInput extends {
     returnTokens?: ReturnTokensPayload;
   } & Record<string, unknown>,
 >(
-  draft: TDraft,
+  input: TDiscoveryInput,
   availableTokens: TokenCountsState,
   requiredReturnCount: number,
-): IncompleteDiscoveryResult<TDraft> | null {
-  const currentReturnTokens = draft.returnTokens ?? {};
+): IncompleteDiscoveryResult<TDiscoveryInput> | null {
+  const currentReturnTokens = input.returnTokens ?? {};
   const selectedCount = sumReturnTokens(currentReturnTokens);
 
   if (selectedCount >= requiredReturnCount) {
@@ -72,8 +78,8 @@ export function createReturnTokenDiscovery<
       (color) => availableTokens[color] > (currentReturnTokens[color] ?? 0),
     ).map((color) => ({
       id: color,
-      nextDraft: {
-        ...draft,
+      nextInput: {
+        ...input,
         returnTokens: {
           ...currentReturnTokens,
           [color]: (currentReturnTokens[color] ?? 0) + 1,
@@ -93,13 +99,13 @@ export function createReturnTokenDiscovery<
 }
 
 export function createNobleDiscovery<
-  TDraft extends {
+  TDiscoveryInput extends {
     chosenNobleId?: number;
   } & Record<string, unknown>,
 >(
-  draft: TDraft,
+  input: TDiscoveryInput,
   eligibleNobles: readonly NobleTile[],
-): IncompleteDiscoveryResult<TDraft> | null {
+): IncompleteDiscoveryResult<TDiscoveryInput> | null {
   if (eligibleNobles.length <= 1) {
     return null;
   }
@@ -109,8 +115,8 @@ export function createNobleDiscovery<
     step: SPLENDOR_DISCOVERY_STEPS.selectNoble,
     options: eligibleNobles.map((noble) => ({
       id: String(noble.id),
-      nextDraft: {
-        ...draft,
+      nextInput: {
+        ...input,
         chosenNobleId: noble.id,
       },
       metadata: {
