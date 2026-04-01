@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   appendReplayStep,
+  createCommandFactory,
   createGameExecutor,
   GameDefinitionBuilder,
   createReplayRecord,
@@ -11,6 +12,10 @@ import {
 } from "../src/index";
 
 test("snapshots restore canonical state and replay reproduces final state", () => {
+  const defineCommand = createCommandFactory<{
+    counter: number;
+    value: number;
+  }>();
   const incrementPayload = t.object({
     amount: t.optional(t.number()),
   });
@@ -26,7 +31,7 @@ test("snapshots restore canonical state and replay reproduces final state", () =
     }))
     .rngSeed("seed-123")
     .commands({
-      increment_counter: {
+      increment_counter: defineCommand({
         commandId: "increment_counter",
         payloadSchema: incrementPayload,
         validate: () => ({ ok: true as const }),
@@ -38,15 +43,15 @@ test("snapshots restore canonical state and replay reproduces final state", () =
 
           game.counter += amount;
         },
-      },
-      sample_randomness: {
+      }),
+      sample_randomness: defineCommand({
         commandId: "sample_randomness",
         payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();
         },
-      },
+      }),
     })
     .build();
 

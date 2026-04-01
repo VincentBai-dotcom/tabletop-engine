@@ -1,10 +1,9 @@
-import { t, type CommandDefinition } from "tabletop-engine";
+import { t } from "tabletop-engine";
 import {
   completeDiscovery,
   createNobleDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type { SplendorGameState } from "../state.ts";
 import {
   assertDevelopmentLevel,
   assertAvailableActor,
@@ -13,17 +12,12 @@ import {
   guardedAvailability,
   guardedValidate,
   isDevelopmentLevel,
-  readDraft,
-  readPayload,
-  type SplendorAvailabilityContext,
-  type SplendorDiscoveryContext,
-  type SplendorExecuteContext,
-  type SplendorValidationContext,
+  defineSplendorCommand,
 } from "./shared.ts";
 
 const buyFaceUpCardPayloadSchema = t.object({
-  level: t.optional(t.number()),
-  cardId: t.optional(t.number()),
+  level: t.number(),
+  cardId: t.number(),
   chosenNobleId: t.optional(t.number()),
 });
 
@@ -35,18 +29,12 @@ const buyFaceUpCardDraftSchema = t.object({
   chosenNobleId: t.optional(t.number()),
 });
 
-type BuyFaceUpCardDraft = typeof buyFaceUpCardDraftSchema.static;
+const buyFaceUpCardCommand = defineSplendorCommand({
+  commandId: "buy_face_up_card",
+  payloadSchema: buyFaceUpCardPayloadSchema,
+  discoveryDraftSchema: buyFaceUpCardDraftSchema,
 
-export class BuyFaceUpCardCommand implements CommandDefinition<
-  SplendorGameState,
-  BuyFaceUpCardPayload,
-  BuyFaceUpCardDraft
-> {
-  readonly commandId = "buy_face_up_card";
-  readonly payloadSchema = buyFaceUpCardPayloadSchema;
-  readonly discoveryDraftSchema = buyFaceUpCardDraftSchema;
-
-  isAvailable(context: SplendorAvailabilityContext) {
+  isAvailable(context) {
     return guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
       const game = context.game;
@@ -66,18 +54,18 @@ export class BuyFaceUpCardCommand implements CommandDefinition<
         }),
       );
     });
-  }
+  },
 
-  discover(context: SplendorDiscoveryContext<BuyFaceUpCardDraft>) {
+  discover(context) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const draft = readDraft<BuyFaceUpCardDraft>(context.discoveryInput);
+    const draft = context.discoveryInput.draft;
     const player = game.getPlayer(actorId);
     const faceUpEntries = Object.entries(game.board.faceUpByLevel) as Array<
       [string, number[]]
     >;
 
-    if (!draft.selectedLevel || !draft.selectedCardId) {
+    if (!draft?.selectedLevel || !draft?.selectedCardId) {
       return {
         complete: false as const,
         step: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
@@ -91,7 +79,7 @@ export class BuyFaceUpCardCommand implements CommandDefinition<
             .map((cardId: number) => ({
               id: `${level}:${cardId}`,
               nextDraft: {
-                ...draft,
+                ...(draft ?? {}),
                 selectedLevel: Number(level),
                 selectedCardId: cardId,
               },
@@ -118,19 +106,15 @@ export class BuyFaceUpCardCommand implements CommandDefinition<
         chosenNobleId: draft.chosenNobleId,
       })
     );
-  }
+  },
 
-  validate({
-    runtime,
-    game,
-    commandInput,
-  }: SplendorValidationContext<BuyFaceUpCardPayload>) {
+  validate({ runtime, game, commandInput }) {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, commandInput.actorId);
-      const payload = readPayload<BuyFaceUpCardPayload>(commandInput);
+      const payload = commandInput.payload;
 
-      if (!payload.cardId || !payload.level) {
+      if (!payload) {
         return { ok: false, reason: "level_and_card_required" };
       }
 
@@ -171,19 +155,11 @@ export class BuyFaceUpCardCommand implements CommandDefinition<
 
       return { ok: true };
     });
-  }
+  },
 
-  execute({
-    game,
-    commandInput,
-    emitEvent,
-  }: SplendorExecuteContext<BuyFaceUpCardPayload>) {
+  execute({ game, commandInput, emitEvent }) {
     const actorId = commandInput.actorId!;
-    const payload = readPayload<BuyFaceUpCardPayload>(commandInput);
-    if (!payload.cardId || !payload.level) {
-      throw new Error("level_and_card_required");
-    }
-
+    const payload = commandInput.payload!;
     const level = assertDevelopmentLevel(payload.level);
     const player = game.getPlayer(actorId);
     const card = game.getCard(payload.cardId);
@@ -208,7 +184,7 @@ export class BuyFaceUpCardCommand implements CommandDefinition<
         payment,
       },
     });
-  }
-}
+  },
+});
 
-export const buyFaceUpCardCommand = new BuyFaceUpCardCommand();
+export { buyFaceUpCardCommand };

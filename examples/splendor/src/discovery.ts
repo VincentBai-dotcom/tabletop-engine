@@ -32,9 +32,17 @@ export type SplendorDiscoveryResult<
   TPayload extends Record<string, unknown> = TDraft,
 > = CommandDiscoveryResult<TDraft, TPayload>;
 
+type IncompleteDiscoveryResult<TDraft extends Record<string, unknown>> =
+  Extract<SplendorDiscoveryResult<TDraft, never>, { complete: false }>;
+
 export function completeDiscovery<TPayload extends Record<string, unknown>>(
   payload: TPayload,
-): SplendorDiscoveryResult<TPayload> {
+): Extract<
+  SplendorDiscoveryResult<Record<string, unknown>, TPayload>,
+  {
+    complete: true;
+  }
+> {
   return {
     complete: true as const,
     payload,
@@ -42,15 +50,15 @@ export function completeDiscovery<TPayload extends Record<string, unknown>>(
 }
 
 export function createReturnTokenDiscovery<
-  TPayload extends {
+  TDraft extends {
     returnTokens?: ReturnTokensPayload;
   } & Record<string, unknown>,
 >(
-  payload: TPayload,
+  draft: TDraft,
   availableTokens: TokenCountsState,
   requiredReturnCount: number,
-): SplendorDiscoveryResult<TPayload> | null {
-  const currentReturnTokens = payload.returnTokens ?? {};
+): IncompleteDiscoveryResult<TDraft> | null {
+  const currentReturnTokens = draft.returnTokens ?? {};
   const selectedCount = sumReturnTokens(currentReturnTokens);
 
   if (selectedCount >= requiredReturnCount) {
@@ -65,7 +73,7 @@ export function createReturnTokenDiscovery<
     ).map((color) => ({
       id: color,
       nextDraft: {
-        ...payload,
+        ...draft,
         returnTokens: {
           ...currentReturnTokens,
           [color]: (currentReturnTokens[color] ?? 0) + 1,
@@ -85,13 +93,13 @@ export function createReturnTokenDiscovery<
 }
 
 export function createNobleDiscovery<
-  TPayload extends {
+  TDraft extends {
     chosenNobleId?: number;
   } & Record<string, unknown>,
 >(
-  payload: TPayload,
+  draft: TDraft,
   eligibleNobles: readonly NobleTile[],
-): SplendorDiscoveryResult<TPayload> | null {
+): IncompleteDiscoveryResult<TDraft> | null {
   if (eligibleNobles.length <= 1) {
     return null;
   }
@@ -102,7 +110,7 @@ export function createNobleDiscovery<
     options: eligibleNobles.map((noble) => ({
       id: String(noble.id),
       nextDraft: {
-        ...payload,
+        ...draft,
         chosenNobleId: noble.id,
       },
       metadata: {

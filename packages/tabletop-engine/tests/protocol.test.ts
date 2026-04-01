@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { GameDefinitionBuilder } from "../src/game-definition";
+import { createCommandFactory, describeGameProtocol } from "../src/index";
 import {
   hidden,
   OwnedByPlayer,
@@ -9,9 +10,7 @@ import {
   viewSchema,
 } from "../src/state-facade/metadata";
 import { t } from "../src/schema";
-import type { CommandDefinition } from "../src/types/command";
 import type { Viewer } from "../src/types/visibility";
-import { describeGameProtocol } from "../src/index";
 
 const gainScorePayload = t.object({
   amount: t.number(),
@@ -119,32 +118,31 @@ class OrphanViewSchemaRootState {
   child!: OrphanViewSchemaState;
 }
 
-class GainScoreCommand implements CommandDefinition<
-  ProtocolRootState,
-  typeof gainScorePayload.static,
-  typeof gainScoreDraft.static
-> {
-  readonly commandId = "gain_score";
-  readonly payloadSchema = gainScorePayload;
-  readonly discoveryDraftSchema = gainScoreDraft;
-
-  discover() {
-    return {
-      complete: true as const,
-      payload: {
-        amount: 1,
-      },
-    };
-  }
-
-  validate() {
-    return { ok: true as const };
-  }
-
-  execute() {}
-}
+const defineProtocolCommand = createCommandFactory<ProtocolRootState>();
+const definePlainProtocolCommand =
+  createCommandFactory<PlainProtocolRootState>();
+const defineOrphanViewSchemaCommand =
+  createCommandFactory<OrphanViewSchemaRootState>();
 
 test("describeGameProtocol returns command payload schemas", () => {
+  const gainScoreCommand = definePlainProtocolCommand({
+    commandId: "gain_score",
+    payloadSchema: gainScorePayload,
+    discoveryDraftSchema: gainScoreDraft,
+    discover() {
+      return {
+        complete: true as const,
+        payload: {
+          amount: 1,
+        },
+      };
+    },
+    validate() {
+      return { ok: true as const };
+    },
+    execute() {},
+  });
+
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
   }>("protocol-game")
@@ -154,7 +152,7 @@ test("describeGameProtocol returns command payload schemas", () => {
       },
     }))
     .rootState(PlainProtocolRootState)
-    .commands([new GainScoreCommand()])
+    .commands([gainScoreCommand])
     .build();
 
   const protocol = describeGameProtocol(game);
@@ -178,6 +176,24 @@ test("describeGameProtocol returns command payload schemas", () => {
 });
 
 test("describeGameProtocol includes custom view schemas when provided", () => {
+  const gainScoreCommand = defineProtocolCommand({
+    commandId: "gain_score",
+    payloadSchema: gainScorePayload,
+    discoveryDraftSchema: gainScoreDraft,
+    discover() {
+      return {
+        complete: true as const,
+        payload: {
+          amount: 1,
+        },
+      };
+    },
+    validate() {
+      return { ok: true as const };
+    },
+    execute() {},
+  });
+
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
     deck: { cards: number[] };
@@ -189,7 +205,7 @@ test("describeGameProtocol includes custom view schemas when provided", () => {
       deck: { cards: [1, 2, 3] },
     }))
     .rootState(SchemaProtocolRootState)
-    .commands([new GainScoreCommand()])
+    .commands([gainScoreCommand])
     .build();
 
   const protocol = describeGameProtocol(game);
@@ -203,11 +219,17 @@ test("describeGameProtocol includes custom view schemas when provided", () => {
 });
 
 test("describeGameProtocol rejects commands without payloadSchema", () => {
-  const missingPayloadCommand = {
+  const missingPayloadCommand = defineProtocolCommand({
     commandId: "missing_payload",
+    payloadSchema: gainScorePayload,
     validate: () => ({ ok: true as const }),
     execute: () => {},
-  } as unknown as CommandDefinition<ProtocolRootState>;
+  });
+  delete (
+    missingPayloadCommand as unknown as {
+      payloadSchema?: typeof gainScorePayload;
+    }
+  ).payloadSchema;
 
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
@@ -229,9 +251,10 @@ test("describeGameProtocol rejects commands without payloadSchema", () => {
 });
 
 test("describeGameProtocol rejects discovery handlers without draft schemas", () => {
-  const missingDraftCommand = {
+  const missingDraftCommand = definePlainProtocolCommand({
     commandId: "missing_draft",
     payloadSchema: gainScorePayload,
+    discoveryDraftSchema: gainScoreDraft,
     discover: () => ({
       complete: true as const,
       payload: {
@@ -240,7 +263,12 @@ test("describeGameProtocol rejects discovery handlers without draft schemas", ()
     }),
     validate: () => ({ ok: true as const }),
     execute: () => {},
-  } as unknown as CommandDefinition<ProtocolRootState>;
+  });
+  delete (
+    missingDraftCommand as unknown as {
+      discoveryDraftSchema?: typeof gainScoreDraft;
+    }
+  ).discoveryDraftSchema;
 
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
@@ -260,13 +288,24 @@ test("describeGameProtocol rejects discovery handlers without draft schemas", ()
 });
 
 test("describeGameProtocol rejects discovery draft schemas without handlers", () => {
-  const orphanDraftCommand = {
+  const orphanDraftCommand = definePlainProtocolCommand({
     commandId: "orphan_draft",
     payloadSchema: gainScorePayload,
     discoveryDraftSchema: gainScoreDraft,
     validate: () => ({ ok: true as const }),
     execute: () => {},
-  } as unknown as CommandDefinition<ProtocolRootState>;
+    discover: () => ({
+      complete: true as const,
+      payload: {
+        amount: 1,
+      },
+    }),
+  });
+  delete (
+    orphanDraftCommand as unknown as {
+      discover?: () => { complete: true; payload: { amount: number } };
+    }
+  ).discover;
 
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
@@ -286,6 +325,24 @@ test("describeGameProtocol rejects discovery draft schemas without handlers", ()
 });
 
 test("describeGameProtocol rejects custom view methods without view schema", () => {
+  const gainScoreCommand = defineProtocolCommand({
+    commandId: "gain_score",
+    payloadSchema: gainScorePayload,
+    discoveryDraftSchema: gainScoreDraft,
+    discover() {
+      return {
+        complete: true as const,
+        payload: {
+          amount: 1,
+        },
+      };
+    },
+    validate() {
+      return { ok: true as const };
+    },
+    execute() {},
+  });
+
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
     deck: { cards: number[] };
@@ -297,7 +354,7 @@ test("describeGameProtocol rejects custom view methods without view schema", () 
       deck: { cards: [1, 2, 3] },
     }))
     .rootState(ProtocolRootState)
-    .commands([new GainScoreCommand()])
+    .commands([gainScoreCommand])
     .build();
 
   expect(() => describeGameProtocol(game)).toThrow(
@@ -306,6 +363,24 @@ test("describeGameProtocol rejects custom view methods without view schema", () 
 });
 
 test("describeGameProtocol rejects view schemas without projectCustomView", () => {
+  const gainScoreCommand = defineOrphanViewSchemaCommand({
+    commandId: "gain_score",
+    payloadSchema: gainScorePayload,
+    discoveryDraftSchema: gainScoreDraft,
+    discover() {
+      return {
+        complete: true as const,
+        payload: {
+          amount: 1,
+        },
+      };
+    },
+    validate() {
+      return { ok: true as const };
+    },
+    execute() {},
+  });
+
   const game = new GameDefinitionBuilder<{
     child: { value: number };
   }>("orphan-view-schema-game")
@@ -313,7 +388,7 @@ test("describeGameProtocol rejects view schemas without projectCustomView", () =
       child: { value: 1 },
     }))
     .rootState(OrphanViewSchemaRootState)
-    .commands([new GainScoreCommand()])
+    .commands([gainScoreCommand])
     .build();
 
   expect(() => describeGameProtocol(game)).toThrow(

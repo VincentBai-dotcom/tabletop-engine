@@ -1,26 +1,20 @@
-import { t, type CommandDefinition } from "tabletop-engine";
+import { t } from "tabletop-engine";
 import {
   completeDiscovery,
   createNobleDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type { SplendorGameState } from "../state.ts";
 import {
   assertAvailableActor,
   assertActivePlayer,
   assertGameActive,
+  defineSplendorCommand,
   guardedAvailability,
   guardedValidate,
-  readDraft,
-  readPayload,
-  type SplendorAvailabilityContext,
-  type SplendorDiscoveryContext,
-  type SplendorExecuteContext,
-  type SplendorValidationContext,
 } from "./shared.ts";
 
 const buyReservedCardPayloadSchema = t.object({
-  cardId: t.optional(t.number()),
+  cardId: t.number(),
   chosenNobleId: t.optional(t.number()),
 });
 
@@ -31,18 +25,12 @@ const buyReservedCardDraftSchema = t.object({
   chosenNobleId: t.optional(t.number()),
 });
 
-type BuyReservedCardDraft = typeof buyReservedCardDraftSchema.static;
+const buyReservedCardCommand = defineSplendorCommand({
+  commandId: "buy_reserved_card",
+  payloadSchema: buyReservedCardPayloadSchema,
+  discoveryDraftSchema: buyReservedCardDraftSchema,
 
-export class BuyReservedCardCommand implements CommandDefinition<
-  SplendorGameState,
-  BuyReservedCardPayload,
-  BuyReservedCardDraft
-> {
-  readonly commandId = "buy_reserved_card";
-  readonly payloadSchema = buyReservedCardPayloadSchema;
-  readonly discoveryDraftSchema = buyReservedCardDraftSchema;
-
-  isAvailable(context: SplendorAvailabilityContext) {
+  isAvailable(context) {
     return guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
       const game = context.game;
@@ -54,15 +42,15 @@ export class BuyReservedCardCommand implements CommandDefinition<
         return player.getAffordablePayment(card) !== null;
       });
     });
-  }
+  },
 
-  discover(context: SplendorDiscoveryContext<BuyReservedCardDraft>) {
+  discover(context) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const draft = readDraft<BuyReservedCardDraft>(context.discoveryInput);
+    const draft = context.discoveryInput.draft;
     const player = game.getPlayer(actorId);
 
-    if (!draft.selectedCardId) {
+    if (!draft?.selectedCardId) {
       return {
         complete: false as const,
         step: SPLENDOR_DISCOVERY_STEPS.selectReservedCard,
@@ -75,7 +63,7 @@ export class BuyReservedCardCommand implements CommandDefinition<
           .map((cardId: number) => ({
             id: String(cardId),
             nextDraft: {
-              ...draft,
+              ...(draft ?? {}),
               selectedCardId: cardId,
             },
             metadata: {
@@ -99,20 +87,16 @@ export class BuyReservedCardCommand implements CommandDefinition<
         chosenNobleId: draft.chosenNobleId,
       })
     );
-  }
+  },
 
-  validate({
-    runtime,
-    game,
-    commandInput,
-  }: SplendorValidationContext<BuyReservedCardPayload>) {
+  validate({ runtime, game, commandInput }) {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, commandInput.actorId);
-      const payload = readPayload<BuyReservedCardPayload>(commandInput);
+      const payload = commandInput.payload;
       const player = game.getPlayer(actorId);
 
-      if (!payload.cardId) {
+      if (!payload) {
         return { ok: false, reason: "card_required" };
       }
 
@@ -147,19 +131,11 @@ export class BuyReservedCardCommand implements CommandDefinition<
 
       return { ok: true };
     });
-  }
+  },
 
-  execute({
-    game,
-    commandInput,
-    emitEvent,
-  }: SplendorExecuteContext<BuyReservedCardPayload>) {
+  execute({ game, commandInput, emitEvent }) {
     const actorId = commandInput.actorId!;
-    const payload = readPayload<BuyReservedCardPayload>(commandInput);
-    if (!payload.cardId) {
-      throw new Error("card_required");
-    }
-
+    const payload = commandInput.payload!;
     const player = game.getPlayer(actorId);
     const card = game.getCard(payload.cardId);
     const payment = player.getAffordablePayment(card);
@@ -181,7 +157,7 @@ export class BuyReservedCardCommand implements CommandDefinition<
         payment,
       },
     });
-  }
-}
+  },
+});
 
-export const buyReservedCardCommand = new BuyReservedCardCommand();
+export { buyReservedCardCommand };

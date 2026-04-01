@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { createCommandFactory } from "../src/command-factory";
 import { createGameExecutor } from "../src/runtime/game-executor";
 import { GameDefinitionBuilder } from "../src/game-definition";
 import { evaluateCompletionPolicy } from "../src/runtime/progression-lifecycle";
@@ -107,6 +108,7 @@ class CustomVisibleDeckRootState {
 }
 
 test("createGameExecutor hydrates decorated state facades for execution", () => {
+  const defineCommand = createCommandFactory<RootCounterStateFacade>();
   const game = new GameDefinitionBuilder<{
     counter: {
       value: number;
@@ -119,7 +121,7 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
       },
     }))
     .commands({
-      increment_counter: {
+      increment_counter: defineCommand({
         commandId: "increment_counter",
         payloadSchema: amountPayload,
         validate: () => ({ ok: true as const }),
@@ -131,7 +133,7 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
 
           (game as RootCounterStateFacade).incrementCounter(amount);
         },
-      },
+      }),
     })
     .build();
 
@@ -416,6 +418,7 @@ test("createGameExecutor rejects owned player projection when id is empty", () =
 });
 
 test("availability and discovery contexts hydrate readonly decorated state facades", () => {
+  const defineCommand = createCommandFactory<RootCounterStateFacade>();
   const game = new GameDefinitionBuilder<{
     counter: {
       value: number;
@@ -428,9 +431,10 @@ test("availability and discovery contexts hydrate readonly decorated state facad
       },
     }))
     .commands({
-      increment_counter: {
+      increment_counter: defineCommand({
         commandId: "increment_counter",
         payloadSchema: amountPayload,
+        discoveryDraftSchema: amountPayload,
         isAvailable: ({ game }) =>
           (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
         discover: ({ game }) => {
@@ -457,7 +461,7 @@ test("availability and discovery contexts hydrate readonly decorated state facad
 
           (game as RootCounterStateFacade).incrementCounter(amount);
         },
-      },
+      }),
     })
     .build();
 
@@ -480,6 +484,7 @@ test("availability and discovery contexts hydrate readonly decorated state facad
 });
 
 test("readonly decorated facades reject mutation during validation", () => {
+  const defineCommand = createCommandFactory<RootCounterStateFacade>();
   const game = new GameDefinitionBuilder<{
     counter: {
       value: number;
@@ -492,7 +497,7 @@ test("readonly decorated facades reject mutation during validation", () => {
       },
     }))
     .commands({
-      increment_counter: {
+      increment_counter: defineCommand({
         commandId: "increment_counter",
         payloadSchema: emptyPayload,
         validate: ({ game }) => {
@@ -500,7 +505,7 @@ test("readonly decorated facades reject mutation during validation", () => {
           return { ok: true as const };
         },
         execute: () => {},
-      },
+      }),
     })
     .build();
 
@@ -516,6 +521,7 @@ test("readonly decorated facades reject mutation during validation", () => {
 });
 
 test("createGameExecutor creates initial state and commits successful commands", () => {
+  const defineCommand = createCommandFactory<{ counter: number }>();
   const game = new GameDefinitionBuilder<{
     counter: number;
   }>("counter-game")
@@ -523,7 +529,7 @@ test("createGameExecutor creates initial state and commits successful commands",
       counter: 0,
     }))
     .commands({
-      increment_counter: {
+      increment_counter: defineCommand({
         commandId: "increment_counter",
         payloadSchema: amountPayload,
         validate: () => ({ ok: true as const }),
@@ -540,8 +546,8 @@ test("createGameExecutor creates initial state and commits successful commands",
             payload: { amount },
           });
         },
-      },
-      decrement_counter: {
+      }),
+      decrement_counter: defineCommand({
         commandId: "decrement_counter",
         payloadSchema: emptyPayload,
         validate: ({ game }) =>
@@ -554,7 +560,7 @@ test("createGameExecutor creates initial state and commits successful commands",
         execute: ({ game }) => {
           game.counter -= 1;
         },
-      },
+      }),
     })
     .rngSeed("test-seed")
     .build();
@@ -575,6 +581,7 @@ test("createGameExecutor creates initial state and commits successful commands",
 });
 
 test("createGameExecutor returns unchanged state for validation failures", () => {
+  const defineCommand = createCommandFactory<{ counter: number }>();
   const game = new GameDefinitionBuilder<{
     counter: number;
   }>("counter-game")
@@ -582,7 +589,7 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
       counter: 0,
     }))
     .commands({
-      decrement_counter: {
+      decrement_counter: defineCommand({
         commandId: "decrement_counter",
         payloadSchema: emptyPayload,
         validate: ({ game }) =>
@@ -596,7 +603,7 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
         execute: ({ game }) => {
           game.counter -= 1;
         },
-      },
+      }),
     })
     .build();
 
@@ -620,6 +627,7 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
 });
 
 test("execute context can update current progression owner through controlled API", () => {
+  const defineCommand = createCommandFactory<{ marker: number }>();
   const game = new GameDefinitionBuilder<{
     marker: number;
   }>("turn-game")
@@ -637,14 +645,14 @@ test("execute context can update current progression owner through controlled AP
       runtime.progression.segments.turn!.ownerId = "player-1";
     })
     .commands({
-      pass_turn: {
+      pass_turn: defineCommand({
         commandId: "pass_turn",
         payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ setCurrentSegmentOwner }) => {
           setCurrentSegmentOwner("player-2");
         },
-      },
+      }),
     })
     .build();
 
@@ -724,6 +732,7 @@ test("built-in progression completion policies evaluate through lifecycle contex
 });
 
 test("successful commands trigger automatic progression lifecycle and emit lifecycle events", () => {
+  const defineCommand = createCommandFactory<{ actions: number }>();
   const game = new GameDefinitionBuilder<{
     actions: number;
   }>("auto-turn-game")
@@ -757,7 +766,7 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
       runtime.progression.segments.turn!.ownerId = "player-1";
     })
     .commands({
-      take_action: {
+      take_action: defineCommand({
         commandId: "take_action",
         payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
@@ -771,7 +780,7 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
             },
           });
         },
-      },
+      }),
     })
     .build();
 
@@ -810,6 +819,7 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
 });
 
 test("progression lifecycle hooks hydrate decorated state facades", () => {
+  const defineCommand = createCommandFactory<RootCounterStateFacade>();
   const game = new GameDefinitionBuilder<{
     counter: {
       value: number;
@@ -842,14 +852,14 @@ test("progression lifecycle hooks hydrate decorated state facades", () => {
       runtime.progression.segments.turn!.ownerId = "player-1";
     })
     .commands({
-      increment_counter: {
+      increment_counter: defineCommand({
         commandId: "increment_counter",
         payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           (game as RootCounterStateFacade).incrementCounter(1);
         },
-      },
+      }),
     })
     .build();
 
@@ -873,6 +883,7 @@ test("progression lifecycle hooks hydrate decorated state facades", () => {
 });
 
 test("nested progression can cascade through multiple segment transitions", () => {
+  const defineCommand = createCommandFactory<{ resolved: number }>();
   const game = new GameDefinitionBuilder<{
     resolved: number;
   }>("nested-progression-game")
@@ -908,14 +919,14 @@ test("nested progression can cascade through multiple segment transitions", () =
       runtime.progression.segments.turn!.ownerId = "player-1";
     })
     .commands({
-      resolve_step: {
+      resolve_step: defineCommand({
         commandId: "resolve_step",
         payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           game.resolved += 1;
         },
-      },
+      }),
     })
     .build();
 
@@ -948,6 +959,10 @@ test("nested progression can cascade through multiple segment transitions", () =
 });
 
 test("manual progression paths can avoid auto-advancing ordinary commands and still end explicitly", () => {
+  const defineCommand = createCommandFactory<{
+    actions: number;
+    requestedTurnEnd: boolean;
+  }>();
   const game = new GameDefinitionBuilder<{
     actions: number;
     requestedTurnEnd: boolean;
@@ -978,22 +993,22 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
       runtime.progression.segments.turn!.ownerId = "player-1";
     })
     .commands({
-      take_action: {
+      take_action: defineCommand({
         commandId: "take_action",
         payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           game.actions += 1;
         },
-      },
-      end_turn: {
+      }),
+      end_turn: defineCommand({
         commandId: "end_turn",
         payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game }) => {
           game.requestedTurnEnd = true;
         },
-      },
+      }),
     })
     .build();
 
@@ -1043,6 +1058,7 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
 });
 
 test("game executor can list available commands through per-command availability hooks", () => {
+  const defineCommand = createCommandFactory<{ energy: number }>();
   const game = new GameDefinitionBuilder<{
     energy: number;
   }>("availability-game")
@@ -1050,14 +1066,14 @@ test("game executor can list available commands through per-command availability
       energy: 1,
     }))
     .commands({
-      pass_turn: {
+      pass_turn: defineCommand({
         commandId: "pass_turn",
         payloadSchema: emptyPayload,
         isAvailable: () => true,
         validate: () => ({ ok: true as const }),
         execute: () => {},
-      },
-      spend_energy: {
+      }),
+      spend_energy: defineCommand({
         commandId: "spend_energy",
         payloadSchema: emptyPayload,
         isAvailable: ({ game }) => game.energy > 0,
@@ -1068,14 +1084,14 @@ test("game executor can list available commands through per-command availability
         execute: ({ game }) => {
           game.energy -= 1;
         },
-      },
-      impossible_action: {
+      }),
+      impossible_action: defineCommand({
         commandId: "impossible_action",
         payloadSchema: emptyPayload,
         isAvailable: () => false,
         validate: () => ({ ok: true as const }),
         execute: () => {},
-      },
+      }),
     })
     .build();
 
@@ -1105,6 +1121,9 @@ test("game executor can list available commands through per-command availability
 });
 
 test("game executor can discover the next semantic options for a command", () => {
+  const defineCommand = createCommandFactory<{
+    canPlay: boolean;
+  }>();
   const game = new GameDefinitionBuilder<{
     canPlay: boolean;
   }>("discovery-game")
@@ -1112,9 +1131,13 @@ test("game executor can discover the next semantic options for a command", () =>
       canPlay: true,
     }))
     .commands({
-      play_card: {
+      play_card: defineCommand({
         commandId: "play_card",
         payloadSchema: playCardPayload,
+        discoveryDraftSchema: t.object({
+          cardId: t.optional(t.number()),
+          targetId: t.optional(t.number()),
+        }),
         isAvailable: ({ game }) => game.canPlay,
         discover: ({ discoveryInput }) => {
           const cardId = discoveryInput.draft?.cardId;
@@ -1138,7 +1161,7 @@ test("game executor can discover the next semantic options for a command", () =>
         },
         validate: () => ({ ok: true as const }),
         execute: () => {},
-      },
+      }),
     })
     .build();
 

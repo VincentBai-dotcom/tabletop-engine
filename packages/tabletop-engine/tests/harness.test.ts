@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  createCommandFactory,
   createGameExecutor,
   GameDefinitionBuilder,
   runScenario,
@@ -7,6 +8,9 @@ import {
 } from "../src/index";
 
 test("runScenario applies commands in order and returns per-command results", () => {
+  const defineCommand = createCommandFactory<{
+    counter: number;
+  }>();
   const incrementPayload = t.object({
     amount: t.optional(t.number()),
   });
@@ -18,7 +22,7 @@ test("runScenario applies commands in order and returns per-command results", ()
       counter: 0,
     }))
     .commands({
-      increment_counter: {
+      increment_counter: defineCommand({
         commandId: "increment_counter",
         payloadSchema: incrementPayload,
         validate: () => ({ ok: true as const }),
@@ -30,7 +34,7 @@ test("runScenario applies commands in order and returns per-command results", ()
 
           game.counter += amount;
         },
-      },
+      }),
     })
     .build();
 

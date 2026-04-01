@@ -1,4 +1,5 @@
 export { GameDefinitionBuilder } from "./game-definition";
+export { createCommandFactory } from "./command-factory";
 export { createGameExecutor } from "./runtime/game-executor";
 export { generateAsyncApi } from "./protocol/asyncapi";
 export { describeGameProtocol } from "./protocol/describe";
@@ -48,16 +49,19 @@ export type {
 } from "./schema";
 export type {
   CommandAvailabilityContext,
-  CommandDefinition,
+  CommandDefinitionLike,
+  CommandPayloadSchema,
   CommandDiscoveryResult,
   CommandInput,
   DiscoveryInput,
   DiscoveryOption,
   CommandInputFromSchema,
   DiscoveryContext,
+  DefinedCommand,
   ExecuteContext,
   ValidationContext,
 } from "./types/command";
+export type { CommandFactory } from "./command-factory";
 export type { GameEvent } from "./types/event";
 export type {
   ExecutionFailure,

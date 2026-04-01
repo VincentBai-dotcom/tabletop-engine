@@ -1,10 +1,9 @@
-import { t, type CommandDefinition } from "tabletop-engine";
+import { t } from "tabletop-engine";
 import {
   completeDiscovery,
   createReturnTokenDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type { SplendorGameState } from "../state.ts";
 import {
   assertGemTokenColor,
   assertAvailableActor,
@@ -13,16 +12,11 @@ import {
   guardedAvailability,
   guardedValidate,
   isGemTokenColor,
-  readDraft,
-  readPayload,
-  type SplendorAvailabilityContext,
-  type SplendorDiscoveryContext,
-  type SplendorExecuteContext,
-  type SplendorValidationContext,
+  defineSplendorCommand,
 } from "./shared.ts";
 
 const takeThreeDistinctGemsPayloadSchema = t.object({
-  colors: t.optional(t.array(t.string())),
+  colors: t.array(t.string()),
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
@@ -34,19 +28,12 @@ const takeThreeDistinctGemsDraftSchema = t.object({
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
-type TakeThreeDistinctGemsDraft =
-  typeof takeThreeDistinctGemsDraftSchema.static;
+const takeThreeDistinctGemsCommand = defineSplendorCommand({
+  commandId: "take_three_distinct_gems",
+  payloadSchema: takeThreeDistinctGemsPayloadSchema,
+  discoveryDraftSchema: takeThreeDistinctGemsDraftSchema,
 
-export class TakeThreeDistinctGemsCommand implements CommandDefinition<
-  SplendorGameState,
-  TakeThreeDistinctGemsPayload,
-  TakeThreeDistinctGemsDraft
-> {
-  readonly commandId = "take_three_distinct_gems";
-  readonly payloadSchema = takeThreeDistinctGemsPayloadSchema;
-  readonly discoveryDraftSchema = takeThreeDistinctGemsDraftSchema;
-
-  isAvailable(context: SplendorAvailabilityContext) {
+  isAvailable(context) {
     return guardedAvailability(() => {
       assertAvailableActor(context);
       const game = context.game;
@@ -57,13 +44,13 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<
           .length >= 3
       );
     });
-  }
+  },
 
-  discover(context: SplendorDiscoveryContext<TakeThreeDistinctGemsDraft>) {
+  discover(context) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const draft = readDraft<TakeThreeDistinctGemsDraft>(context.discoveryInput);
-    const selectedColors = draft.selectedColors
+    const draft = context.discoveryInput.draft;
+    const selectedColors = draft?.selectedColors
       ? [...draft.selectedColors]
       : [];
 
@@ -81,7 +68,7 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<
           .map(([color]) => ({
             id: color,
             nextDraft: {
-              ...draft,
+              ...(draft ?? {}),
               selectedColors: [...selectedColors, color],
             },
             metadata: {
@@ -114,22 +101,18 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<
       returnDiscovery ??
       completeDiscovery({
         colors: [...selectedColors],
-        returnTokens: draft.returnTokens,
+        returnTokens: draft?.returnTokens,
       })
     );
-  }
+  },
 
-  validate({
-    runtime,
-    game,
-    commandInput,
-  }: SplendorValidationContext<TakeThreeDistinctGemsPayload>) {
+  validate({ runtime, game, commandInput }) {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, commandInput.actorId);
-      const payload = readPayload<TakeThreeDistinctGemsPayload>(commandInput);
+      const payload = commandInput.payload;
 
-      if (!payload.colors || payload.colors.length !== 3) {
+      if (!payload || payload.colors.length !== 3) {
         return { ok: false, reason: "three_colors_required" };
       }
 
@@ -166,20 +149,12 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<
 
       return { ok: true };
     });
-  }
+  },
 
-  execute({
-    game,
-    commandInput,
-    emitEvent,
-  }: SplendorExecuteContext<TakeThreeDistinctGemsPayload>) {
+  execute({ game, commandInput, emitEvent }) {
     const actorId = commandInput.actorId!;
-    const payload = readPayload<TakeThreeDistinctGemsPayload>(commandInput);
+    const payload = commandInput.payload!;
     const colors = payload.colors;
-
-    if (!colors || colors.length !== 3) {
-      throw new Error("three_colors_required");
-    }
 
     if (!colors.every((color) => isGemTokenColor(color))) {
       throw new Error("invalid_color");
@@ -203,7 +178,7 @@ export class TakeThreeDistinctGemsCommand implements CommandDefinition<
         returnTokens: payload.returnTokens ?? null,
       },
     });
-  }
-}
+  },
+});
 
-export const takeThreeDistinctGemsCommand = new TakeThreeDistinctGemsCommand();
+export { takeThreeDistinctGemsCommand };

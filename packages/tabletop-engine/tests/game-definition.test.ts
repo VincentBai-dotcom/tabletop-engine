@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createGameExecutor } from "../src/runtime/game-executor";
 import { GameDefinitionBuilder } from "../src/game-definition";
-import type { CommandDefinition } from "../src/types/command";
+import { createCommandFactory } from "../src/command-factory";
 import {
   field,
   OwnedByPlayer,
@@ -11,32 +11,6 @@ import {
 } from "../src/state-facade/metadata";
 
 const emptyPayload = t.object({});
-
-class IncrementScoreCommand implements CommandDefinition<{ score: number }> {
-  readonly commandId = "increment_score";
-  readonly payloadSchema = emptyPayload;
-
-  validate() {
-    return { ok: true as const };
-  }
-
-  execute({ game }: { game: { score: number } }) {
-    game.score += 1;
-  }
-}
-
-class DecrementScoreCommand implements CommandDefinition<{ score: number }> {
-  readonly commandId = "decrement_score";
-  readonly payloadSchema = emptyPayload;
-
-  validate() {
-    return { ok: true as const };
-  }
-
-  execute({ game }: { game: { score: number } }) {
-    game.score -= 1;
-  }
-}
 
 @State()
 class TestHandState {
@@ -118,24 +92,98 @@ test("GameDefinitionBuilder preserves the supplied configuration", () => {
 });
 
 test("GameDefinitionBuilder compiles command lists into the command map shape", () => {
+  const defineCommand = createCommandFactory<{ score: number }>();
+  const incrementScoreCommand = defineCommand({
+    commandId: "increment_score",
+    payloadSchema: emptyPayload,
+    validate() {
+      return { ok: true as const };
+    },
+    execute({ game }) {
+      game.score += 1;
+    },
+  });
+  const decrementScoreCommand = defineCommand({
+    commandId: "decrement_score",
+    payloadSchema: emptyPayload,
+    validate() {
+      return { ok: true as const };
+    },
+    execute({ game }) {
+      game.score -= 1;
+    },
+  });
+
   const game = new GameDefinitionBuilder<{
     score: number;
   }>("list-builder-game")
     .initialState(() => ({
       score: 0,
     }))
-    .commands([new IncrementScoreCommand(), new DecrementScoreCommand()])
+    .commands([incrementScoreCommand, decrementScoreCommand])
     .build();
 
   expect(Object.keys(game.commands)).toEqual([
     "increment_score",
     "decrement_score",
   ]);
-  expect(game.commands.increment_score).toBeInstanceOf(IncrementScoreCommand);
-  expect(game.commands.decrement_score).toBeInstanceOf(DecrementScoreCommand);
+  expect(game.commands.increment_score).toBe(incrementScoreCommand);
+  expect(game.commands.decrement_score).toBe(decrementScoreCommand);
+});
+
+test("GameDefinitionBuilder accepts factory-defined command lists", () => {
+  const defineCommand = createCommandFactory<{ score: number }>();
+
+  const incrementScoreCommand = defineCommand({
+    commandId: "increment_score",
+    payloadSchema: emptyPayload,
+    validate() {
+      return { ok: true as const };
+    },
+    execute({ game }) {
+      game.score += 1;
+    },
+  });
+
+  const decrementScoreCommand = defineCommand({
+    commandId: "decrement_score",
+    payloadSchema: emptyPayload,
+    validate() {
+      return { ok: true as const };
+    },
+    execute({ game }) {
+      game.score -= 1;
+    },
+  });
+
+  const game = new GameDefinitionBuilder<{
+    score: number;
+  }>("factory-list-builder-game")
+    .initialState(() => ({
+      score: 0,
+    }))
+    .commands([incrementScoreCommand, decrementScoreCommand])
+    .build();
+
+  expect(Object.keys(game.commands)).toEqual([
+    "increment_score",
+    "decrement_score",
+  ]);
 });
 
 test("GameDefinitionBuilder rejects duplicate command ids in command lists", () => {
+  const defineCommand = createCommandFactory<{ score: number }>();
+  const incrementScoreCommand = defineCommand({
+    commandId: "increment_score",
+    payloadSchema: emptyPayload,
+    validate() {
+      return { ok: true as const };
+    },
+    execute({ game }) {
+      game.score += 1;
+    },
+  });
+
   expect(() =>
     new GameDefinitionBuilder<{
       score: number;
@@ -143,9 +191,31 @@ test("GameDefinitionBuilder rejects duplicate command ids in command lists", () 
       .initialState(() => ({
         score: 0,
       }))
-      .commands([new IncrementScoreCommand(), new IncrementScoreCommand()])
+      .commands([incrementScoreCommand, incrementScoreCommand])
       .build(),
   ).toThrow("duplicate_command_id:increment_score");
+});
+
+test("GameDefinitionBuilder only accepts commands created by the command factory", () => {
+  const legacyCommand = {
+    commandId: "legacy",
+    payloadSchema: emptyPayload,
+    validate: () => ({ ok: true as const }),
+    execute: ({ game }: { game: { score: number } }) => {
+      game.score += 1;
+    },
+  };
+
+  const builder = new GameDefinitionBuilder<{
+    score: number;
+  }>("legacy-command-game").initialState(() => ({
+    score: 0,
+  }));
+
+  builder.commands([
+    // @ts-expect-error commands must be created by createCommandFactory
+    legacyCommand,
+  ]);
 });
 
 test("createGameExecutor normalizes nested progression trees into runtime state", () => {

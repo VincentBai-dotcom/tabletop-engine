@@ -1,13 +1,8 @@
 import type {
   CommandAvailabilityContext,
-  CommandInput,
-  CommandInputFromSchema,
-  DiscoveryInput,
-  DiscoveryContext,
-  ExecuteContext,
-  ValidationContext,
   ValidationOutcome,
 } from "tabletop-engine";
+import { createCommandFactory } from "tabletop-engine";
 import {
   DEVELOPMENT_LEVELS,
   GEM_TOKEN_COLORS,
@@ -23,30 +18,9 @@ type ProgressionRuntime = {
   };
 };
 
-export type SplendorAvailabilityContext =
-  CommandAvailabilityContext<SplendorGameState>;
+export const defineSplendorCommand = createCommandFactory<SplendorGameState>();
 
-export type SplendorDiscoveryContext<
-  TDraft extends Record<string, unknown> = Record<string, unknown>,
-> = DiscoveryContext<SplendorGameState, TDraft>;
-
-export type SplendorValidationContext<
-  TPayload extends Record<string, unknown> = Record<string, unknown>,
-> = ValidationContext<SplendorGameState, CommandInputFromSchema<TPayload>>;
-
-export type SplendorExecuteContext<
-  TPayload extends Record<string, unknown> = Record<string, unknown>,
-> = ExecuteContext<SplendorGameState, CommandInputFromSchema<TPayload>>;
-
-export function readPayload<T>(commandInput: CommandInput): T {
-  return (commandInput.payload ?? {}) as T;
-}
-
-export function readDraft<T extends Record<string, unknown>>(
-  discoveryInput: DiscoveryInput<T>,
-): T {
-  return (discoveryInput.draft ?? {}) as T;
-}
+export type SplendorCommand = ReturnType<typeof defineSplendorCommand>;
 
 export function isGemTokenColor(value: unknown): value is GemTokenColor {
   return (

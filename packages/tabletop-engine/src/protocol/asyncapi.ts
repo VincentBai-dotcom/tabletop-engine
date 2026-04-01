@@ -1,6 +1,6 @@
 import { Type, type TSchema } from "@sinclair/typebox";
 import type { GameDefinition } from "../game-definition";
-import type { CommandDefinition } from "../types/command";
+import type { CommandDefinitionLike } from "../types/command";
 import { describeGameProtocol } from "./describe";
 
 export interface AsyncApiChannelNames {
@@ -63,10 +63,7 @@ const defaultChannels: AsyncApiChannelNames = {
 export function generateAsyncApi<
   CanonicalGameState extends object,
   FacadeGameState extends object,
-  Commands extends Record<
-    string,
-    CommandDefinition<FacadeGameState, Record<string, unknown>>
-  >,
+  Commands extends Record<string, CommandDefinitionLike<FacadeGameState>>,
 >(
   game: GameDefinition<CanonicalGameState, FacadeGameState, Commands>,
   options: AsyncApiOptions = {},

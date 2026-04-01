@@ -1,7 +1,17 @@
 import { expect, test } from "bun:test";
-import { createGameExecutor, GameDefinitionBuilder, t } from "../src/index";
+import {
+  createCommandFactory,
+  createGameExecutor,
+  GameDefinitionBuilder,
+  t,
+} from "../src/index";
 
 test("game executor rng is deterministic for the same seed and command sequence", () => {
+  const defineCommand = createCommandFactory<{
+    roll: number;
+    value: number;
+    deck: string[];
+  }>();
   const emptyPayload = t.object({});
 
   const game = new GameDefinitionBuilder<{
@@ -16,7 +26,7 @@ test("game executor rng is deterministic for the same seed and command sequence"
     }))
     .rngSeed("seed-123")
     .commands({
-      sample_randomness: {
+      sample_randomness: defineCommand({
         commandId: "sample_randomness",
         payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
@@ -25,7 +35,7 @@ test("game executor rng is deterministic for the same seed and command sequence"
           game.roll = rng.die(6) as number;
           game.deck = rng.shuffle(game.deck);
         },
-      },
+      }),
     })
     .build();
 
@@ -51,6 +61,9 @@ test("game executor rng is deterministic for the same seed and command sequence"
 });
 
 test("game executor rng cursor advances when randomness is consumed", () => {
+  const defineCommand = createCommandFactory<{
+    value: number;
+  }>();
   const emptyPayload = t.object({});
 
   const game = new GameDefinitionBuilder<{
@@ -61,14 +74,14 @@ test("game executor rng cursor advances when randomness is consumed", () => {
     }))
     .rngSeed("seed-123")
     .commands({
-      sample_randomness: {
+      sample_randomness: defineCommand({
         commandId: "sample_randomness",
         payloadSchema: emptyPayload,
         validate: () => ({ ok: true as const }),
         execute: ({ game, rng }) => {
           game.value = rng.number();
         },
-      },
+      }),
     })
     .build();
 

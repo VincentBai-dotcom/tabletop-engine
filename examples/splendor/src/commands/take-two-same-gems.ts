@@ -1,10 +1,9 @@
-import { t, type CommandDefinition } from "tabletop-engine";
+import { t } from "tabletop-engine";
 import {
   completeDiscovery,
   createReturnTokenDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type { SplendorGameState } from "../state.ts";
 import {
   assertGemTokenColor,
   assertAvailableActor,
@@ -13,16 +12,11 @@ import {
   guardedAvailability,
   guardedValidate,
   isGemTokenColor,
-  readDraft,
-  readPayload,
-  type SplendorAvailabilityContext,
-  type SplendorDiscoveryContext,
-  type SplendorExecuteContext,
-  type SplendorValidationContext,
+  defineSplendorCommand,
 } from "./shared.ts";
 
 const takeTwoSameGemsPayloadSchema = t.object({
-  color: t.optional(t.string()),
+  color: t.string(),
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
@@ -33,18 +27,12 @@ const takeTwoSameGemsDraftSchema = t.object({
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
-type TakeTwoSameGemsDraft = typeof takeTwoSameGemsDraftSchema.static;
+const takeTwoSameGemsCommand = defineSplendorCommand({
+  commandId: "take_two_same_gems",
+  payloadSchema: takeTwoSameGemsPayloadSchema,
+  discoveryDraftSchema: takeTwoSameGemsDraftSchema,
 
-export class TakeTwoSameGemsCommand implements CommandDefinition<
-  SplendorGameState,
-  TakeTwoSameGemsPayload,
-  TakeTwoSameGemsDraft
-> {
-  readonly commandId = "take_two_same_gems";
-  readonly payloadSchema = takeTwoSameGemsPayloadSchema;
-  readonly discoveryDraftSchema = takeTwoSameGemsDraftSchema;
-
-  isAvailable(context: SplendorAvailabilityContext) {
+  isAvailable(context) {
     return guardedAvailability(() => {
       assertAvailableActor(context);
       const game = context.game;
@@ -54,14 +42,14 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<
         ([color, count]) => color !== "gold" && count >= 4,
       );
     });
-  }
+  },
 
-  discover(context: SplendorDiscoveryContext<TakeTwoSameGemsDraft>) {
+  discover(context) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const draft = readDraft<TakeTwoSameGemsDraft>(context.discoveryInput);
+    const draft = context.discoveryInput.draft;
 
-    if (!draft.selectedColor) {
+    if (!draft?.selectedColor) {
       const bankEntries = Object.entries(game.bank) as Array<[string, number]>;
 
       return {
@@ -72,7 +60,7 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<
           .map(([color]) => ({
             id: color,
             nextDraft: {
-              ...draft,
+              ...(draft ?? {}),
               selectedColor: color,
             },
             metadata: {
@@ -102,19 +90,15 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<
         returnTokens: draft.returnTokens,
       })
     );
-  }
+  },
 
-  validate({
-    runtime,
-    game,
-    commandInput,
-  }: SplendorValidationContext<TakeTwoSameGemsPayload>) {
+  validate({ runtime, game, commandInput }) {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, commandInput.actorId);
-      const payload = readPayload<TakeTwoSameGemsPayload>(commandInput);
+      const payload = commandInput.payload;
 
-      if (!payload.color) {
+      if (!payload) {
         return { ok: false, reason: "color_required" };
       }
 
@@ -142,15 +126,11 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<
 
       return { ok: true };
     });
-  }
+  },
 
-  execute({
-    game,
-    commandInput,
-    emitEvent,
-  }: SplendorExecuteContext<TakeTwoSameGemsPayload>) {
+  execute({ game, commandInput, emitEvent }) {
     const actorId = commandInput.actorId!;
-    const payload = readPayload<TakeTwoSameGemsPayload>(commandInput);
+    const payload = commandInput.payload!;
     const color = assertGemTokenColor(payload.color);
     const player = game.getPlayer(actorId);
 
@@ -166,7 +146,7 @@ export class TakeTwoSameGemsCommand implements CommandDefinition<
         returnTokens: payload.returnTokens ?? null,
       },
     });
-  }
-}
+  },
+});
 
-export const takeTwoSameGemsCommand = new TakeTwoSameGemsCommand();
+export { takeTwoSameGemsCommand };

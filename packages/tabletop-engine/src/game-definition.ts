@@ -1,4 +1,4 @@
-import type { CommandDefinition } from "./types/command";
+import type { CommandDefinitionLike, DefinedCommand } from "./types/command";
 import type { ProgressionDefinition } from "./types/progression";
 import type { RuntimeState } from "./types/state";
 import type { RNGApi } from "./types/rng";
@@ -9,15 +9,23 @@ import {
 import type { StateClass } from "./state-facade/metadata";
 
 type AnyCommandDefinition<FacadeGameState extends object> =
-  CommandDefinition<FacadeGameState>;
+  CommandDefinitionLike<FacadeGameState>;
 
-type CommandDefinitionMap<FacadeGameState extends object> = Record<
+type AuthoredCommandDefinition<FacadeGameState extends object> =
+  DefinedCommand<FacadeGameState>;
+
+type CommandDefinitionMap<FacadeGameState extends object = object> = Record<
   string,
   AnyCommandDefinition<FacadeGameState>
 >;
 
+type AuthoredCommandDefinitionMap<FacadeGameState extends object> = Record<
+  string,
+  AuthoredCommandDefinition<FacadeGameState>
+>;
+
 type CommandDefinitionList<FacadeGameState extends object> =
-  readonly AnyCommandDefinition<FacadeGameState>[];
+  readonly AuthoredCommandDefinition<FacadeGameState>[];
 
 export interface GameSetupContext<GameState extends object = object> {
   game: GameState;
@@ -125,7 +133,7 @@ export class GameDefinitionBuilder<
   }
 
   commands(
-    commands: CommandDefinitionMap<FacadeGameState>,
+    commands: AuthoredCommandDefinitionMap<FacadeGameState>,
   ): GameDefinitionBuilder<
     CanonicalGameState,
     FacadeGameState,
@@ -140,7 +148,7 @@ export class GameDefinitionBuilder<
   >;
   commands(
     commands:
-      | CommandDefinitionMap<FacadeGameState>
+      | AuthoredCommandDefinitionMap<FacadeGameState>
       | CommandDefinitionList<FacadeGameState>,
   ):
     | GameDefinitionBuilder<
@@ -166,7 +174,7 @@ export class GameDefinitionBuilder<
         FacadeGameState,
         CommandDefinitionMap<FacadeGameState>
       >
-    ).commands = commands as CommandDefinitionMap<FacadeGameState>;
+    ).commands = commands as AuthoredCommandDefinitionMap<FacadeGameState>;
     delete this.config.commandList;
 
     return this as unknown as GameDefinitionBuilder<

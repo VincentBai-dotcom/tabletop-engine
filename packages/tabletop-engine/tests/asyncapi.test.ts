@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 import { GameDefinitionBuilder } from "../src/game-definition";
-import { generateAsyncApi, describeGameProtocol } from "../src/index";
+import {
+  createCommandFactory,
+  generateAsyncApi,
+  describeGameProtocol,
+} from "../src/index";
 import {
   hidden,
   OwnedByPlayer,
@@ -9,7 +13,6 @@ import {
   viewSchema,
 } from "../src/state-facade/metadata";
 import { t } from "../src/schema";
-import type { CommandDefinition } from "../src/types/command";
 import type { Viewer } from "../src/types/visibility";
 
 const gainScorePayload = t.object({
@@ -91,57 +94,29 @@ class MissingViewSchemaRootState {
   deck!: MissingViewSchemaDeckState;
 }
 
-class GainScoreCommand implements CommandDefinition<
-  AsyncApiRootState,
-  typeof gainScorePayload.static,
-  typeof gainScoreDraft.static
-> {
-  readonly commandId = "gain_score";
-  readonly payloadSchema = gainScorePayload;
-  readonly discoveryDraftSchema = gainScoreDraft;
-
-  discover() {
-    return {
-      complete: true as const,
-      payload: {
-        amount: 1,
-      },
-    };
-  }
-
-  validate() {
-    return { ok: true as const };
-  }
-
-  execute() {}
-}
-
-class MissingViewSchemaCommand implements CommandDefinition<
-  MissingViewSchemaRootState,
-  typeof gainScorePayload.static,
-  typeof gainScoreDraft.static
-> {
-  readonly commandId = "gain_score";
-  readonly payloadSchema = gainScorePayload;
-  readonly discoveryDraftSchema = gainScoreDraft;
-
-  discover() {
-    return {
-      complete: true as const,
-      payload: {
-        amount: 1,
-      },
-    };
-  }
-
-  validate() {
-    return { ok: true as const };
-  }
-
-  execute() {}
-}
+const defineAsyncApiCommand = createCommandFactory<AsyncApiRootState>();
+const defineMissingViewSchemaCommand =
+  createCommandFactory<MissingViewSchemaRootState>();
 
 test("generateAsyncApi emits the default hosted channels and schemas", () => {
+  const gainScoreCommand = defineAsyncApiCommand({
+    commandId: "gain_score",
+    payloadSchema: gainScorePayload,
+    discoveryDraftSchema: gainScoreDraft,
+    discover() {
+      return {
+        complete: true as const,
+        payload: {
+          amount: 1,
+        },
+      };
+    },
+    validate() {
+      return { ok: true as const };
+    },
+    execute() {},
+  });
+
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
     deck: { cards: number[] };
@@ -153,7 +128,7 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
       deck: { cards: [1, 2, 3] },
     }))
     .rootState(AsyncApiRootState)
-    .commands([new GainScoreCommand()])
+    .commands([gainScoreCommand])
     .build();
 
   const protocol = describeGameProtocol(game);
@@ -220,6 +195,24 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
 });
 
 test("generateAsyncApi propagates protocol schema validation failures", () => {
+  const gainScoreCommand = defineMissingViewSchemaCommand({
+    commandId: "gain_score",
+    payloadSchema: gainScorePayload,
+    discoveryDraftSchema: gainScoreDraft,
+    discover() {
+      return {
+        complete: true as const,
+        payload: {
+          amount: 1,
+        },
+      };
+    },
+    validate() {
+      return { ok: true as const };
+    },
+    execute() {},
+  });
+
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
     deck: { cards: number[] };
@@ -231,7 +224,7 @@ test("generateAsyncApi propagates protocol schema validation failures", () => {
       deck: { cards: [1, 2, 3] },
     }))
     .rootState(MissingViewSchemaRootState)
-    .commands([new MissingViewSchemaCommand()])
+    .commands([gainScoreCommand])
     .build();
 
   expect(() => generateAsyncApi(game)).toThrow(

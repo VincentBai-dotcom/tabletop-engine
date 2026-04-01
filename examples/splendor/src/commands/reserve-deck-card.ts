@@ -1,10 +1,9 @@
-import { t, type CommandDefinition } from "tabletop-engine";
+import { t } from "tabletop-engine";
 import {
   completeDiscovery,
   createReturnTokenDiscovery,
   SPLENDOR_DISCOVERY_STEPS,
 } from "../discovery.ts";
-import type { SplendorGameState } from "../state.ts";
 import {
   assertDevelopmentLevel,
   assertAvailableActor,
@@ -13,16 +12,11 @@ import {
   guardedAvailability,
   guardedValidate,
   isDevelopmentLevel,
-  readDraft,
-  readPayload,
-  type SplendorAvailabilityContext,
-  type SplendorDiscoveryContext,
-  type SplendorExecuteContext,
-  type SplendorValidationContext,
+  defineSplendorCommand,
 } from "./shared.ts";
 
 const reserveDeckCardPayloadSchema = t.object({
-  level: t.optional(t.number()),
+  level: t.number(),
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
@@ -33,18 +27,12 @@ const reserveDeckCardDraftSchema = t.object({
   returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
-type ReserveDeckCardDraft = typeof reserveDeckCardDraftSchema.static;
+const reserveDeckCardCommand = defineSplendorCommand({
+  commandId: "reserve_deck_card",
+  payloadSchema: reserveDeckCardPayloadSchema,
+  discoveryDraftSchema: reserveDeckCardDraftSchema,
 
-export class ReserveDeckCardCommand implements CommandDefinition<
-  SplendorGameState,
-  ReserveDeckCardPayload,
-  ReserveDeckCardDraft
-> {
-  readonly commandId = "reserve_deck_card";
-  readonly payloadSchema = reserveDeckCardPayloadSchema;
-  readonly discoveryDraftSchema = reserveDeckCardDraftSchema;
-
-  isAvailable(context: SplendorAvailabilityContext) {
+  isAvailable(context) {
     return guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
       const game = context.game;
@@ -57,17 +45,17 @@ export class ReserveDeckCardCommand implements CommandDefinition<
 
       return decks.some((cards) => cards.length > 0);
     });
-  }
+  },
 
-  discover(context: SplendorDiscoveryContext<ReserveDeckCardDraft>) {
+  discover(context) {
     const actorId = assertAvailableActor(context);
     const game = context.game;
-    const draft = readDraft<ReserveDeckCardDraft>(context.discoveryInput);
+    const draft = context.discoveryInput.draft;
     const deckEntries = Object.entries(game.board.deckByLevel) as Array<
       [string, number[]]
     >;
 
-    if (!draft.selectedLevel) {
+    if (!draft?.selectedLevel) {
       return {
         complete: false as const,
         step: SPLENDOR_DISCOVERY_STEPS.selectDeckLevel,
@@ -76,7 +64,7 @@ export class ReserveDeckCardCommand implements CommandDefinition<
           .map(([level]) => ({
             id: level,
             nextDraft: {
-              ...draft,
+              ...(draft ?? {}),
               selectedLevel: Number(level),
             },
             metadata: {
@@ -107,24 +95,20 @@ export class ReserveDeckCardCommand implements CommandDefinition<
         returnTokens: draft.returnTokens,
       })
     );
-  }
+  },
 
-  validate({
-    runtime,
-    game,
-    commandInput,
-  }: SplendorValidationContext<ReserveDeckCardPayload>) {
+  validate({ runtime, game, commandInput }) {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, commandInput.actorId);
-      const payload = readPayload<ReserveDeckCardPayload>(commandInput);
+      const payload = commandInput.payload;
       const player = game.getPlayer(actorId).clone();
 
       if (!player.canReserveMoreCards()) {
         return { ok: false, reason: "reserved_limit_reached" };
       }
 
-      if (!payload.level) {
+      if (!payload) {
         return { ok: false, reason: "level_required" };
       }
 
@@ -153,15 +137,11 @@ export class ReserveDeckCardCommand implements CommandDefinition<
 
       return { ok: true };
     });
-  }
+  },
 
-  execute({
-    game,
-    commandInput,
-    emitEvent,
-  }: SplendorExecuteContext<ReserveDeckCardPayload>) {
+  execute({ game, commandInput, emitEvent }) {
     const actorId = commandInput.actorId!;
-    const payload = readPayload<ReserveDeckCardPayload>(commandInput);
+    const payload = commandInput.payload!;
     const level = assertDevelopmentLevel(payload.level);
     const player = game.getPlayer(actorId);
     const reservedCardId = game.board.reserveDeckCard(level);
@@ -181,7 +161,7 @@ export class ReserveDeckCardCommand implements CommandDefinition<
         returnTokens: payload.returnTokens ?? null,
       },
     });
-  }
-}
+  },
+});
 
-export const reserveDeckCardCommand = new ReserveDeckCardCommand();
+export { reserveDeckCardCommand };
