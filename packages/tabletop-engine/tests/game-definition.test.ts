@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { createGameExecutor } from "../src/runtime/game-executor";
 import { GameDefinitionBuilder } from "../src/game-definition";
+import { createCommandFactory } from "../src/command-factory";
 import type { CommandDefinition } from "../src/types/command";
 import {
   field,
@@ -133,6 +134,46 @@ test("GameDefinitionBuilder compiles command lists into the command map shape", 
   ]);
   expect(game.commands.increment_score).toBeInstanceOf(IncrementScoreCommand);
   expect(game.commands.decrement_score).toBeInstanceOf(DecrementScoreCommand);
+});
+
+test("GameDefinitionBuilder accepts factory-defined command lists", () => {
+  const defineCommand = createCommandFactory<{ score: number }>();
+
+  const incrementScoreCommand = defineCommand({
+    commandId: "increment_score",
+    payloadSchema: emptyPayload,
+    validate() {
+      return { ok: true as const };
+    },
+    execute({ game }) {
+      game.score += 1;
+    },
+  });
+
+  const decrementScoreCommand = defineCommand({
+    commandId: "decrement_score",
+    payloadSchema: emptyPayload,
+    validate() {
+      return { ok: true as const };
+    },
+    execute({ game }) {
+      game.score -= 1;
+    },
+  });
+
+  const game = new GameDefinitionBuilder<{
+    score: number;
+  }>("factory-list-builder-game")
+    .initialState(() => ({
+      score: 0,
+    }))
+    .commands([incrementScoreCommand, decrementScoreCommand])
+    .build();
+
+  expect(Object.keys(game.commands)).toEqual([
+    "increment_score",
+    "decrement_score",
+  ]);
 });
 
 test("GameDefinitionBuilder rejects duplicate command ids in command lists", () => {

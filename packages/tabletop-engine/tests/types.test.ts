@@ -15,7 +15,7 @@ import type {
   ProgressionResolveNextResult,
   ValidationOutcome,
 } from "../src/index";
-import { t } from "../src/index";
+import { createCommandFactory, t } from "../src/index";
 import type {
   CommandInputFromSchema,
   InternalCommandDefinition,
@@ -297,6 +297,71 @@ test("consumer command definitions only expose game state and command input gene
   };
 
   expect(definition.commandId).toBe("gain_score");
+});
+
+test("command factory contextually types command lifecycle methods", () => {
+  const defineCommand = createCommandFactory<{
+    score: number;
+    increment(): void;
+  }>();
+
+  const payloadSchema = t.object({
+    amount: t.number(),
+  });
+  const draftSchema = t.object({
+    selectedAmount: t.optional(t.number()),
+  });
+
+  const command = defineCommand({
+    commandId: "gain_score",
+    payloadSchema,
+    discoveryDraftSchema: draftSchema,
+    isAvailable({ game, actorId, runtime, commandType }) {
+      expect(typeof game.score).toBe("number");
+      void game.increment;
+      void actorId;
+      void runtime.progression.current;
+      expect(commandType).toBe("gain_score");
+      return true;
+    },
+    discover({ discoveryInput }) {
+      const selectedAmount = discoveryInput.draft?.selectedAmount;
+
+      if (typeof selectedAmount !== "number") {
+        return {
+          complete: false as const,
+          step: "select_amount",
+          options: [
+            {
+              id: "one",
+              nextDraft: {
+                selectedAmount: 1,
+              },
+            },
+          ],
+        };
+      }
+
+      return {
+        complete: true as const,
+        payload: {
+          amount: selectedAmount,
+        },
+      };
+    },
+    validate({ commandInput }) {
+      expect(commandInput.payload?.amount).toBeNumber();
+      return { ok: true as const };
+    },
+    execute({ game, commandInput }) {
+      game.increment();
+      expect(commandInput.payload?.amount).toBeNumber();
+    },
+  });
+
+  expect(command.commandId).toBe("gain_score");
+  expect(command.payloadSchema).toBe(payloadSchema);
+  expect(command.discoveryDraftSchema).toBe(draftSchema);
 });
 
 test("internal command definitions still expose canonical state separately from facade state", () => {
