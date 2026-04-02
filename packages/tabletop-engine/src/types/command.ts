@@ -94,7 +94,7 @@ export type CommandDefinitionShape<
     })
   | NonDiscoverableCommandConfig<FacadeGameState, TCommandInput>;
 
-export type CommandDefinitionLike<FacadeGameState extends object = object> = {
+export type CommandDefinition<FacadeGameState extends object = object> = {
   commandId: string;
   commandSchema: CommandSchema<Record<string, unknown>>;
   discoverySchema?: CommandSchema<Record<string, unknown>>;

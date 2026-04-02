@@ -49,7 +49,7 @@ export type {
 } from "./schema";
 export type {
   CommandAvailabilityContext,
-  CommandDefinitionLike,
+  CommandDefinition,
   CommandSchema,
   CommandDiscoveryResult,
   Command,

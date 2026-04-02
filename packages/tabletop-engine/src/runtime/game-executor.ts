@@ -16,7 +16,7 @@ import {
 } from "./progression-lifecycle";
 import { cloneCanonicalState } from "./transaction";
 import type {
-  CommandDefinitionLike,
+  CommandDefinition,
   Command,
   Discovery,
   InternalCommandDefinition,
@@ -120,8 +120,10 @@ function createInitialRuntimeState<
 export function createGameExecutor<
   CanonicalGameState extends object,
   FacadeGameState extends object = CanonicalGameState,
-  Commands extends Record<string, CommandDefinitionLike<FacadeGameState>> =
-    Record<string, CommandDefinitionLike<FacadeGameState>>,
+  Commands extends Record<string, CommandDefinition<FacadeGameState>> = Record<
+    string,
+    CommandDefinition<FacadeGameState>
+  >,
 >(
   game: GameDefinition<CanonicalGameState, FacadeGameState, Commands>,
 ): GameExecutor<CanonicalGameState> {

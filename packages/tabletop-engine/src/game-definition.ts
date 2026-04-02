@@ -1,4 +1,4 @@
-import type { CommandDefinitionLike, DefinedCommand } from "./types/command";
+import type { CommandDefinition, DefinedCommand } from "./types/command";
 import type { ProgressionDefinition } from "./types/progression";
 import type { RuntimeState } from "./types/state";
 import type { RNGApi } from "./types/rng";
@@ -9,7 +9,7 @@ import {
 import type { StateClass } from "./state-facade/metadata";
 
 type AnyCommandDefinition<FacadeGameState extends object> =
-  CommandDefinitionLike<FacadeGameState>;
+  CommandDefinition<FacadeGameState>;
 
 type AuthoredCommandDefinition<FacadeGameState extends object> =
   DefinedCommand<FacadeGameState>;
