@@ -30,9 +30,60 @@ const takeTwoSameGemsDiscoverySchema = t.object({
 const takeTwoSameGemsCommand = defineSplendorCommand({
   commandId: "take_two_same_gems",
   commandSchema: takeTwoSameGemsCommandSchema,
-  discoverySchema: takeTwoSameGemsDiscoverySchema,
+})
+  .discoverable({
+    discoverySchema: takeTwoSameGemsDiscoverySchema,
+    discover(context) {
+      const actorId = assertAvailableActor(context);
+      const game = context.game;
+      const draft = context.discovery.input;
 
-  isAvailable(context) {
+      if (!draft?.selectedColor) {
+        const bankEntries = Object.entries(game.bank) as Array<
+          [string, number]
+        >;
+
+        return {
+          complete: false as const,
+          step: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
+          options: bankEntries
+            .filter(([color, count]) => color !== "gold" && count >= 4)
+            .map(([color]) => ({
+              id: color,
+              nextInput: {
+                ...(draft ?? {}),
+                selectedColor: color,
+              },
+              metadata: {
+                color,
+                amount: 2,
+              },
+            })),
+        };
+      }
+
+      const player = game.getPlayer(actorId).clone();
+      if (!isGemTokenColor(draft.selectedColor)) {
+        throw new Error("invalid_color");
+      }
+      player.tokens.adjustColor(draft.selectedColor, 2);
+      const requiredReturnCount = player.getRequiredReturnCount();
+      const returnDiscovery = createReturnTokenDiscovery(
+        draft,
+        player.tokens,
+        requiredReturnCount,
+      );
+
+      return (
+        returnDiscovery ??
+        completeDiscovery({
+          color: draft.selectedColor,
+          returnTokens: draft.returnTokens,
+        })
+      );
+    },
+  })
+  .isAvailable((context) => {
     return guardedAvailability(() => {
       assertAvailableActor(context);
       const game = context.game;
@@ -42,57 +93,8 @@ const takeTwoSameGemsCommand = defineSplendorCommand({
         ([color, count]) => color !== "gold" && count >= 4,
       );
     });
-  },
-
-  discover(context) {
-    const actorId = assertAvailableActor(context);
-    const game = context.game;
-    const draft = context.discovery.input;
-
-    if (!draft?.selectedColor) {
-      const bankEntries = Object.entries(game.bank) as Array<[string, number]>;
-
-      return {
-        complete: false as const,
-        step: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
-        options: bankEntries
-          .filter(([color, count]) => color !== "gold" && count >= 4)
-          .map(([color]) => ({
-            id: color,
-            nextInput: {
-              ...(draft ?? {}),
-              selectedColor: color,
-            },
-            metadata: {
-              color,
-              amount: 2,
-            },
-          })),
-      };
-    }
-
-    const player = game.getPlayer(actorId).clone();
-    if (!isGemTokenColor(draft.selectedColor)) {
-      throw new Error("invalid_color");
-    }
-    player.tokens.adjustColor(draft.selectedColor, 2);
-    const requiredReturnCount = player.getRequiredReturnCount();
-    const returnDiscovery = createReturnTokenDiscovery(
-      draft,
-      player.tokens,
-      requiredReturnCount,
-    );
-
-    return (
-      returnDiscovery ??
-      completeDiscovery({
-        color: draft.selectedColor,
-        returnTokens: draft.returnTokens,
-      })
-    );
-  },
-
-  validate({ runtime, game, command }) {
+  })
+  .validate(({ runtime, game, command }) => {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, command.actorId);
@@ -126,9 +128,8 @@ const takeTwoSameGemsCommand = defineSplendorCommand({
 
       return { ok: true };
     });
-  },
-
-  execute({ game, command, emitEvent }) {
+  })
+  .execute(({ game, command, emitEvent }) => {
     const actorId = command.actorId!;
     const input = command.input!;
     const color = assertGemTokenColor(input.color);
@@ -146,7 +147,7 @@ const takeTwoSameGemsCommand = defineSplendorCommand({
         returnTokens: input.returnTokens ?? null,
       },
     });
-  },
-});
+  })
+  .build();
 
 export { takeTwoSameGemsCommand };

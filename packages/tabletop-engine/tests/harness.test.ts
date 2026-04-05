@@ -25,16 +25,17 @@ test("runScenario applies commands in order and returns per-command results", ()
       increment_counter: defineCommand({
         commandId: "increment_counter",
         commandSchema: incrementCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game, command }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game, command }) => {
           const amount =
             typeof command.input?.amount === "number"
               ? command.input.amount
               : 1;
 
           game.counter += amount;
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 

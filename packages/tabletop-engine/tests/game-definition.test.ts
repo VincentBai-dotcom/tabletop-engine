@@ -96,23 +96,25 @@ test("GameDefinitionBuilder compiles command lists into the command map shape", 
   const incrementScoreCommand = defineCommand({
     commandId: "increment_score",
     commandSchema: emptyCommandSchema,
-    validate() {
+  })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute({ game }) {
+    })
+    .execute(({ game }) => {
       game.score += 1;
-    },
-  });
+    })
+    .build();
   const decrementScoreCommand = defineCommand({
     commandId: "decrement_score",
     commandSchema: emptyCommandSchema,
-    validate() {
+  })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute({ game }) {
+    })
+    .execute(({ game }) => {
       game.score -= 1;
-    },
-  });
+    })
+    .build();
 
   const game = new GameDefinitionBuilder<{
     score: number;
@@ -137,24 +139,26 @@ test("GameDefinitionBuilder accepts factory-defined command lists", () => {
   const incrementScoreCommand = defineCommand({
     commandId: "increment_score",
     commandSchema: emptyCommandSchema,
-    validate() {
+  })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute({ game }) {
+    })
+    .execute(({ game }) => {
       game.score += 1;
-    },
-  });
+    })
+    .build();
 
   const decrementScoreCommand = defineCommand({
     commandId: "decrement_score",
     commandSchema: emptyCommandSchema,
-    validate() {
+  })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute({ game }) {
+    })
+    .execute(({ game }) => {
       game.score -= 1;
-    },
-  });
+    })
+    .build();
 
   const game = new GameDefinitionBuilder<{
     score: number;
@@ -176,13 +180,14 @@ test("GameDefinitionBuilder rejects duplicate command ids in command lists", () 
   const incrementScoreCommand = defineCommand({
     commandId: "increment_score",
     commandSchema: emptyCommandSchema,
-    validate() {
+  })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute({ game }) {
+    })
+    .execute(({ game }) => {
       game.score += 1;
-    },
-  });
+    })
+    .build();
 
   expect(() =>
     new GameDefinitionBuilder<{

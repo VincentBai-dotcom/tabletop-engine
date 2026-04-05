@@ -102,20 +102,23 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
   const gainScoreCommand = defineAsyncApiCommand({
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
-    discoverySchema: gainScoreDiscoverySchema,
-    discover() {
-      return {
-        complete: true as const,
-        input: {
-          amount: 1,
-        },
-      };
-    },
-    validate() {
+  })
+    .discoverable({
+      discoverySchema: gainScoreDiscoverySchema,
+      discover() {
+        return {
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        };
+      },
+    })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute() {},
-  });
+    })
+    .execute(() => {})
+    .build();
 
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
@@ -198,20 +201,23 @@ test("generateAsyncApi propagates protocol schema validation failures", () => {
   const gainScoreCommand = defineMissingViewSchemaCommand({
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
-    discoverySchema: gainScoreDiscoverySchema,
-    discover() {
-      return {
-        complete: true as const,
-        input: {
-          amount: 1,
-        },
-      };
-    },
-    validate() {
+  })
+    .discoverable({
+      discoverySchema: gainScoreDiscoverySchema,
+      discover() {
+        return {
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        };
+      },
+    })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute() {},
-  });
+    })
+    .execute(() => {})
+    .build();
 
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;

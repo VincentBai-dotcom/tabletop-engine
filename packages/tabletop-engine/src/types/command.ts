@@ -33,6 +33,13 @@ export type CommandSchema<TInput extends CommandData = CommandData> = {
   readonly schema?: TSchema;
 };
 
+export type CommandBuilderBaseConfig<
+  TCommandInput extends CommandData = CommandData,
+> = {
+  commandId: string;
+  commandSchema: CommandSchema<TCommandInput>;
+};
+
 type CommandLifecycleMethods<
   FacadeGameState extends object,
   TInput extends CommandData,
@@ -62,6 +69,17 @@ export type DiscoverableCommandConfig<
     context: DiscoveryContext<FacadeGameState, TDiscoveryInput>,
   ): CommandDiscoveryResult<TDiscoveryInput, TCommandInput> | null;
 } & CommandLifecycleMethods<FacadeGameState, TCommandInput>;
+
+export type DiscoverableCommandBuilderConfig<
+  FacadeGameState extends object = object,
+  TCommandInput extends CommandData = CommandData,
+  TDiscoveryInput extends DiscoveryData = DiscoveryData,
+> = {
+  discoverySchema: CommandSchema<TDiscoveryInput>;
+  discover(
+    context: DiscoveryContext<FacadeGameState, TDiscoveryInput>,
+  ): CommandDiscoveryResult<TDiscoveryInput, TCommandInput> | null;
+};
 
 export type NonDiscoverableCommandConfig<
   FacadeGameState extends object = object,
@@ -107,6 +125,181 @@ export type CommandDefinition<FacadeGameState extends object = object> = {
   ): ValidationOutcome;
   execute(context: ExecuteContext<FacadeGameState, Command>): void;
 };
+
+export type NonDiscoverableCommandAccumulator<
+  FacadeGameState extends object = object,
+  TCommandInput extends CommandData = CommandData,
+> = Pick<
+  NonDiscoverableCommandConfig<FacadeGameState, TCommandInput>,
+  "commandId" | "commandSchema"
+> &
+  Partial<
+    Pick<
+      NonDiscoverableCommandConfig<FacadeGameState, TCommandInput>,
+      "isAvailable" | "validate" | "execute"
+    >
+  >;
+
+export type DiscoverableCommandAccumulator<
+  FacadeGameState extends object = object,
+  TCommandInput extends CommandData = CommandData,
+  TDiscoveryInput extends DiscoveryData = TCommandInput,
+> = Pick<
+  DiscoverableCommandConfig<FacadeGameState, TCommandInput, TDiscoveryInput>,
+  "commandId" | "commandSchema" | "discoverySchema" | "discover"
+> &
+  Partial<
+    Pick<
+      DiscoverableCommandConfig<
+        FacadeGameState,
+        TCommandInput,
+        TDiscoveryInput
+      >,
+      "isAvailable" | "validate" | "execute"
+    >
+  >;
+
+export type CommandBuilderAccumulator<
+  FacadeGameState extends object = object,
+  TCommandInput extends CommandData = CommandData,
+  TDiscoveryInput extends DiscoveryData = TCommandInput,
+  THasDiscovery extends boolean = false,
+> = THasDiscovery extends true
+  ? DiscoverableCommandAccumulator<
+      FacadeGameState,
+      TCommandInput,
+      TDiscoveryInput
+    >
+  : NonDiscoverableCommandAccumulator<FacadeGameState, TCommandInput>;
+
+type NoBuilderMethod = Record<never, never>;
+
+type OptionalBuilderMethod<
+  Enabled extends boolean,
+  TMethod,
+> = Enabled extends true ? NoBuilderMethod : TMethod;
+
+type BuildCommandInput<
+  TCommandInput extends CommandData,
+  TDiscoveryInput extends DiscoveryData,
+  THasDiscovery extends boolean,
+> = THasDiscovery extends true ? TDiscoveryInput : TCommandInput;
+
+type BuildBuilderMethod<
+  FacadeGameState extends object,
+  TCommandInput extends CommandData,
+  TDiscoveryInput extends DiscoveryData,
+  THasDiscovery extends boolean,
+  THasValidate extends boolean,
+  THasExecute extends boolean,
+> = THasValidate extends true
+  ? THasExecute extends true
+    ? {
+        build(): DefinedCommand<
+          FacadeGameState,
+          TCommandInput,
+          BuildCommandInput<TCommandInput, TDiscoveryInput, THasDiscovery>
+        >;
+      }
+    : NoBuilderMethod
+  : NoBuilderMethod;
+
+export type CommandBuilder<
+  FacadeGameState extends object = object,
+  TCommandInput extends CommandData = CommandData,
+  TDiscoveryInput extends DiscoveryData = TCommandInput,
+  THasDiscovery extends boolean = false,
+  THasAvailability extends boolean = false,
+  THasValidate extends boolean = false,
+  THasExecute extends boolean = false,
+> = OptionalBuilderMethod<
+  THasDiscovery,
+  {
+    discoverable<TNextDiscoveryInput extends DiscoveryData>(
+      config: DiscoverableCommandBuilderConfig<
+        FacadeGameState,
+        TCommandInput,
+        TNextDiscoveryInput
+      >,
+    ): CommandBuilder<
+      FacadeGameState,
+      TCommandInput,
+      TNextDiscoveryInput,
+      true,
+      THasAvailability,
+      THasValidate,
+      THasExecute
+    >;
+  }
+> &
+  OptionalBuilderMethod<
+    THasAvailability,
+    {
+      isAvailable(
+        isAvailable: (
+          context: CommandAvailabilityContext<FacadeGameState>,
+        ) => boolean,
+      ): CommandBuilder<
+        FacadeGameState,
+        TCommandInput,
+        TDiscoveryInput,
+        THasDiscovery,
+        true,
+        THasValidate,
+        THasExecute
+      >;
+    }
+  > &
+  OptionalBuilderMethod<
+    THasValidate,
+    {
+      validate(
+        validate: (
+          context: ValidationContext<
+            FacadeGameState,
+            CommandFromSchema<TCommandInput>
+          >,
+        ) => ValidationOutcome,
+      ): CommandBuilder<
+        FacadeGameState,
+        TCommandInput,
+        TDiscoveryInput,
+        THasDiscovery,
+        THasAvailability,
+        true,
+        THasExecute
+      >;
+    }
+  > &
+  OptionalBuilderMethod<
+    THasExecute,
+    {
+      execute(
+        execute: (
+          context: ExecuteContext<
+            FacadeGameState,
+            CommandFromSchema<TCommandInput>
+          >,
+        ) => void,
+      ): CommandBuilder<
+        FacadeGameState,
+        TCommandInput,
+        TDiscoveryInput,
+        THasDiscovery,
+        THasAvailability,
+        THasValidate,
+        true
+      >;
+    }
+  > &
+  BuildBuilderMethod<
+    FacadeGameState,
+    TCommandInput,
+    TDiscoveryInput,
+    THasDiscovery,
+    THasValidate,
+    THasExecute
+  >;
 
 export interface InternalValidationContext<
   CanonicalGameState extends object = object,

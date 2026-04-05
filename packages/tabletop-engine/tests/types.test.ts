@@ -259,44 +259,47 @@ test("consumer command definitions only expose game state and command input gene
   const definition = defineCommand({
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
-    discoverySchema: t.object({
-      amount: t.optional(t.number()),
-    }),
-    discover: ({ discovery }) => {
-      if (typeof discovery.input?.amount !== "number") {
-        return {
-          complete: false as const,
-          step: "select_amount",
-          options: [
-            {
-              id: "amount-1",
-              nextInput: { amount: 1 },
-            },
-          ],
-        };
-      }
+  })
+    .discoverable({
+      discoverySchema: t.object({
+        amount: t.optional(t.number()),
+      }),
+      discover: ({ discovery }) => {
+        if (typeof discovery.input?.amount !== "number") {
+          return {
+            complete: false as const,
+            step: "select_amount",
+            options: [
+              {
+                id: "amount-1",
+                nextInput: { amount: 1 },
+              },
+            ],
+          };
+        }
 
-      return {
-        complete: true as const,
-        input: {
-          amount: discovery.input.amount,
-        },
-      };
-    },
-    validate: ({ command }) => {
+        return {
+          complete: true as const,
+          input: {
+            amount: discovery.input.amount,
+          },
+        };
+      },
+    })
+    .validate(({ command }) => {
       const amount: number | undefined = command.input?.amount;
 
       return {
         ok: typeof amount === "number",
         reason: "amount_required",
       };
-    },
-    execute: ({ game, command }) => {
+    })
+    .execute(({ game, command }) => {
       game.increment();
       const amount: number | undefined = command.input?.amount;
       void amount;
-    },
-  });
+    })
+    .build();
 
   expect(definition.commandId).toBe("gain_score");
 });
@@ -317,19 +320,100 @@ test("command factory contextually types command lifecycle methods", () => {
   const command = defineCommand({
     commandId: "gain_score",
     commandSchema,
-    discoverySchema: draftSchema,
-    isAvailable({ game, actorId, runtime, commandType }) {
+  })
+    .isAvailable(({ game, actorId, runtime, commandType }) => {
       expect(typeof game.score).toBe("number");
       void game.increment;
       void actorId;
       void runtime.progression.current;
       expect(commandType).toBe("gain_score");
       return true;
-    },
-    discover({ discovery }) {
-      const selectedAmount = discovery.input?.selectedAmount;
+    })
+    .discoverable({
+      discoverySchema: draftSchema,
+      discover({ discovery }) {
+        const selectedAmount = discovery.input?.selectedAmount;
 
-      if (typeof selectedAmount !== "number") {
+        if (typeof selectedAmount !== "number") {
+          return {
+            complete: false as const,
+            step: "select_amount",
+            options: [
+              {
+                id: "one",
+                nextInput: {
+                  selectedAmount: 1,
+                },
+              },
+            ],
+          };
+        }
+
+        return {
+          complete: true as const,
+          input: {
+            amount: selectedAmount,
+          },
+        };
+      },
+    })
+    .validate(({ command }) => {
+      expect(command.input?.amount).toBeNumber();
+      return { ok: true as const };
+    })
+    .execute(({ game, command }) => {
+      game.increment();
+      expect(command.input?.amount).toBeNumber();
+    })
+    .build();
+
+  expect(command.commandId).toBe("gain_score");
+  expect(command.commandSchema).toBe(commandSchema);
+  if (!("discoverySchema" in command)) {
+    throw new Error("expected_discovery_schema");
+  }
+  expect(command.discoverySchema).toBe(draftSchema);
+});
+
+test("command builder hides invalid chained methods at each stage", () => {
+  const defineCommand = createCommandFactory<{
+    counter: number;
+  }>();
+
+  const commandSchema = t.object({
+    amount: t.number(),
+  });
+  const discoverySchema = t.object({
+    selectedAmount: t.optional(t.number()),
+  });
+
+  const baseBuilder = defineCommand({
+    commandId: "increment",
+    commandSchema,
+  });
+
+  // @ts-expect-error build should not exist before validate and execute are set
+  void baseBuilder.build;
+
+  const validatedBuilder = baseBuilder.validate(() => ({ ok: true as const }));
+
+  // @ts-expect-error build should not exist before execute is set
+  void validatedBuilder.build;
+
+  const executedBuilder = defineCommand({
+    commandId: "increment_without_validate",
+    commandSchema,
+  }).execute(({ game, command }) => {
+    game.counter += command.input?.amount ?? 0;
+  });
+
+  // @ts-expect-error build should not exist before validate is set
+  void executedBuilder.build;
+
+  const discoverableBuilder = baseBuilder.discoverable({
+    discoverySchema,
+    discover({ discovery }) {
+      if (typeof discovery.input?.selectedAmount !== "number") {
         return {
           complete: false as const,
           step: "select_amount",
@@ -347,26 +431,19 @@ test("command factory contextually types command lifecycle methods", () => {
       return {
         complete: true as const,
         input: {
-          amount: selectedAmount,
+          amount: discovery.input.selectedAmount,
         },
       };
     },
-    validate({ command }) {
-      expect(command.input?.amount).toBeNumber();
-      return { ok: true as const };
-    },
-    execute({ game, command }) {
-      game.increment();
-      expect(command.input?.amount).toBeNumber();
-    },
   });
 
-  expect(command.commandId).toBe("gain_score");
-  expect(command.commandSchema).toBe(commandSchema);
-  if (!("discoverySchema" in command)) {
-    throw new Error("expected_discovery_schema");
-  }
-  expect(command.discoverySchema).toBe(draftSchema);
+  // @ts-expect-error discovery should only be configurable once
+  void discoverableBuilder.discoverable;
+
+  expect(baseBuilder).toBeObject();
+  expect(validatedBuilder).toBeObject();
+  expect(executedBuilder).toBeObject();
+  expect(discoverableBuilder).toBeObject();
 });
 
 test("internal command definitions still expose canonical state separately from facade state", () => {

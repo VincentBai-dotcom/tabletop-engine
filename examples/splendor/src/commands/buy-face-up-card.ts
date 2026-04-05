@@ -32,9 +32,62 @@ const buyFaceUpCardDiscoverySchema = t.object({
 const buyFaceUpCardCommand = defineSplendorCommand({
   commandId: "buy_face_up_card",
   commandSchema: buyFaceUpCardCommandSchema,
-  discoverySchema: buyFaceUpCardDiscoverySchema,
+})
+  .discoverable({
+    discoverySchema: buyFaceUpCardDiscoverySchema,
+    discover(context) {
+      const actorId = assertAvailableActor(context);
+      const game = context.game;
+      const draft = context.discovery.input;
+      const player = game.getPlayer(actorId);
+      const faceUpEntries = Object.entries(game.board.faceUpByLevel) as Array<
+        [string, number[]]
+      >;
 
-  isAvailable(context) {
+      if (!draft?.selectedLevel || !draft?.selectedCardId) {
+        return {
+          complete: false as const,
+          step: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
+          options: faceUpEntries.flatMap(([level, cardIds]) =>
+            cardIds
+              .filter((cardId: number) => {
+                const card = game.getCard(cardId);
+
+                return player.getAffordablePayment(card) !== null;
+              })
+              .map((cardId: number) => ({
+                id: `${level}:${cardId}`,
+                nextInput: {
+                  ...(draft ?? {}),
+                  selectedLevel: Number(level),
+                  selectedCardId: cardId,
+                },
+                metadata: {
+                  level: Number(level),
+                  cardId,
+                  source: "face_up",
+                },
+              })),
+          ),
+        };
+      }
+
+      const hypotheticalPlayer = player.clone();
+      hypotheticalPlayer.buyCard(draft.selectedCardId);
+      const eligibleNobles = game.getEligibleNobles(hypotheticalPlayer);
+      const nobleDiscovery = createNobleDiscovery(draft, eligibleNobles);
+
+      return (
+        nobleDiscovery ??
+        completeDiscovery({
+          level: draft.selectedLevel,
+          cardId: draft.selectedCardId,
+          chosenNobleId: draft.chosenNobleId,
+        })
+      );
+    },
+  })
+  .isAvailable((context) => {
     return guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
       const game = context.game;
@@ -54,61 +107,8 @@ const buyFaceUpCardCommand = defineSplendorCommand({
         }),
       );
     });
-  },
-
-  discover(context) {
-    const actorId = assertAvailableActor(context);
-    const game = context.game;
-    const draft = context.discovery.input;
-    const player = game.getPlayer(actorId);
-    const faceUpEntries = Object.entries(game.board.faceUpByLevel) as Array<
-      [string, number[]]
-    >;
-
-    if (!draft?.selectedLevel || !draft?.selectedCardId) {
-      return {
-        complete: false as const,
-        step: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
-        options: faceUpEntries.flatMap(([level, cardIds]) =>
-          cardIds
-            .filter((cardId: number) => {
-              const card = game.getCard(cardId);
-
-              return player.getAffordablePayment(card) !== null;
-            })
-            .map((cardId: number) => ({
-              id: `${level}:${cardId}`,
-              nextInput: {
-                ...(draft ?? {}),
-                selectedLevel: Number(level),
-                selectedCardId: cardId,
-              },
-              metadata: {
-                level: Number(level),
-                cardId,
-                source: "face_up",
-              },
-            })),
-        ),
-      };
-    }
-
-    const hypotheticalPlayer = player.clone();
-    hypotheticalPlayer.buyCard(draft.selectedCardId);
-    const eligibleNobles = game.getEligibleNobles(hypotheticalPlayer);
-    const nobleDiscovery = createNobleDiscovery(draft, eligibleNobles);
-
-    return (
-      nobleDiscovery ??
-      completeDiscovery({
-        level: draft.selectedLevel,
-        cardId: draft.selectedCardId,
-        chosenNobleId: draft.chosenNobleId,
-      })
-    );
-  },
-
-  validate({ runtime, game, command }) {
+  })
+  .validate(({ runtime, game, command }) => {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, command.actorId);
@@ -155,9 +155,8 @@ const buyFaceUpCardCommand = defineSplendorCommand({
 
       return { ok: true };
     });
-  },
-
-  execute({ game, command, emitEvent }) {
+  })
+  .execute(({ game, command, emitEvent }) => {
     const actorId = command.actorId!;
     const input = command.input!;
     const level = assertDevelopmentLevel(input.level);
@@ -184,7 +183,7 @@ const buyFaceUpCardCommand = defineSplendorCommand({
         payment,
       },
     });
-  },
-});
+  })
+  .build();
 
 export { buyFaceUpCardCommand };

@@ -33,9 +33,63 @@ const reserveFaceUpCardDiscoverySchema = t.object({
 const reserveFaceUpCardCommand = defineSplendorCommand({
   commandId: "reserve_face_up_card",
   commandSchema: reserveFaceUpCardCommandSchema,
-  discoverySchema: reserveFaceUpCardDiscoverySchema,
+})
+  .discoverable({
+    discoverySchema: reserveFaceUpCardDiscoverySchema,
+    discover(context) {
+      const actorId = assertAvailableActor(context);
+      const game = context.game;
+      const draft = context.discovery.input;
+      const faceUpEntries = Object.entries(game.board.faceUpByLevel) as Array<
+        [string, number[]]
+      >;
 
-  isAvailable(context) {
+      if (!draft?.selectedLevel || !draft?.selectedCardId) {
+        return {
+          complete: false as const,
+          step: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
+          options: faceUpEntries.flatMap(([level, cardIds]) =>
+            cardIds.map((cardId: number) => ({
+              id: `${level}:${cardId}`,
+              nextInput: {
+                ...(draft ?? {}),
+                selectedLevel: Number(level),
+                selectedCardId: cardId,
+              },
+              metadata: {
+                level: Number(level),
+                cardId,
+                source: "face_up",
+              },
+            })),
+          ),
+        };
+      }
+
+      const player = game.getPlayer(actorId).clone();
+
+      if (game.bank.gold > 0) {
+        player.tokens.adjustColor("gold", 1);
+      }
+
+      const requiredReturnCount = player.getRequiredReturnCount();
+      const returnDiscovery = createReturnTokenDiscovery(
+        draft,
+        player.tokens,
+        requiredReturnCount,
+      );
+
+      return (
+        returnDiscovery ??
+        completeDiscovery({
+          level: draft.selectedLevel,
+          cardId: draft.selectedCardId,
+          returnTokens: draft.returnTokens,
+        })
+      );
+    },
+  })
+  .isAvailable((context) => {
     return guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
       const game = context.game;
@@ -48,62 +102,8 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
 
       return faceUpPiles.some((cards) => cards.length > 0);
     });
-  },
-
-  discover(context) {
-    const actorId = assertAvailableActor(context);
-    const game = context.game;
-    const draft = context.discovery.input;
-    const faceUpEntries = Object.entries(game.board.faceUpByLevel) as Array<
-      [string, number[]]
-    >;
-
-    if (!draft?.selectedLevel || !draft?.selectedCardId) {
-      return {
-        complete: false as const,
-        step: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
-        options: faceUpEntries.flatMap(([level, cardIds]) =>
-          cardIds.map((cardId: number) => ({
-            id: `${level}:${cardId}`,
-            nextInput: {
-              ...(draft ?? {}),
-              selectedLevel: Number(level),
-              selectedCardId: cardId,
-            },
-            metadata: {
-              level: Number(level),
-              cardId,
-              source: "face_up",
-            },
-          })),
-        ),
-      };
-    }
-
-    const player = game.getPlayer(actorId).clone();
-
-    if (game.bank.gold > 0) {
-      player.tokens.adjustColor("gold", 1);
-    }
-
-    const requiredReturnCount = player.getRequiredReturnCount();
-    const returnDiscovery = createReturnTokenDiscovery(
-      draft,
-      player.tokens,
-      requiredReturnCount,
-    );
-
-    return (
-      returnDiscovery ??
-      completeDiscovery({
-        level: draft.selectedLevel,
-        cardId: draft.selectedCardId,
-        returnTokens: draft.returnTokens,
-      })
-    );
-  },
-
-  validate({ runtime, game, command }) {
+  })
+  .validate(({ runtime, game, command }) => {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, command.actorId);
@@ -143,9 +143,8 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
 
       return { ok: true };
     });
-  },
-
-  execute({ game, command, emitEvent }) {
+  })
+  .execute(({ game, command, emitEvent }) => {
     const actorId = command.actorId!;
     const input = command.input!;
     const level = assertDevelopmentLevel(input.level);
@@ -169,7 +168,7 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
         returnTokens: input.returnTokens ?? null,
       },
     });
-  },
-});
+  })
+  .build();
 
 export { reserveFaceUpCardCommand };

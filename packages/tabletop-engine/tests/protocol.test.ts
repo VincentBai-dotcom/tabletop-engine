@@ -128,20 +128,23 @@ test("describeGameProtocol returns command payload schemas", () => {
   const gainScoreCommand = definePlainProtocolCommand({
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
-    discoverySchema: gainScoreDiscoverySchema,
-    discover() {
-      return {
-        complete: true as const,
-        input: {
-          amount: 1,
-        },
-      };
-    },
-    validate() {
+  })
+    .discoverable({
+      discoverySchema: gainScoreDiscoverySchema,
+      discover() {
+        return {
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        };
+      },
+    })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute() {},
-  });
+    })
+    .execute(() => {})
+    .build();
 
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
@@ -181,20 +184,23 @@ test("describeGameProtocol includes custom view schemas when provided", () => {
   const gainScoreCommand = defineProtocolCommand({
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
-    discoverySchema: gainScoreDiscoverySchema,
-    discover() {
-      return {
-        complete: true as const,
-        input: {
-          amount: 1,
-        },
-      };
-    },
-    validate() {
+  })
+    .discoverable({
+      discoverySchema: gainScoreDiscoverySchema,
+      discover() {
+        return {
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        };
+      },
+    })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute() {},
-  });
+    })
+    .execute(() => {})
+    .build();
 
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
@@ -224,9 +230,10 @@ test("describeGameProtocol rejects commands without commandSchema", () => {
   const missingPayloadCommand = defineProtocolCommand({
     commandId: "missing_payload",
     commandSchema: gainScoreCommandSchema,
-    validate: () => ({ ok: true as const }),
-    execute: () => {},
-  });
+  })
+    .validate(() => ({ ok: true as const }))
+    .execute(() => {})
+    .build();
   delete (
     missingPayloadCommand as unknown as {
       commandSchema?: typeof gainScoreCommandSchema;
@@ -256,16 +263,19 @@ test("describeGameProtocol rejects discovery handlers without draft schemas", ()
   const missingDraftCommand = definePlainProtocolCommand({
     commandId: "missing_draft",
     commandSchema: gainScoreCommandSchema,
-    discoverySchema: gainScoreDiscoverySchema,
-    discover: () => ({
-      complete: true as const,
-      input: {
-        amount: 1,
-      },
-    }),
-    validate: () => ({ ok: true as const }),
-    execute: () => {},
-  });
+  })
+    .discoverable({
+      discoverySchema: gainScoreDiscoverySchema,
+      discover: () => ({
+        complete: true as const,
+        input: {
+          amount: 1,
+        },
+      }),
+    })
+    .validate(() => ({ ok: true as const }))
+    .execute(() => {})
+    .build();
   delete (
     missingDraftCommand as unknown as {
       discoverySchema?: typeof gainScoreDiscoverySchema;
@@ -293,16 +303,19 @@ test("describeGameProtocol rejects discovery draft schemas without handlers", ()
   const orphanDraftCommand = definePlainProtocolCommand({
     commandId: "orphan_draft",
     commandSchema: gainScoreCommandSchema,
-    discoverySchema: gainScoreDiscoverySchema,
-    validate: () => ({ ok: true as const }),
-    execute: () => {},
-    discover: () => ({
-      complete: true as const,
-      input: {
-        amount: 1,
-      },
-    }),
-  });
+  })
+    .discoverable({
+      discoverySchema: gainScoreDiscoverySchema,
+      discover: () => ({
+        complete: true as const,
+        input: {
+          amount: 1,
+        },
+      }),
+    })
+    .validate(() => ({ ok: true as const }))
+    .execute(() => {})
+    .build();
   delete (
     orphanDraftCommand as unknown as {
       discover?: () => { complete: true; input: { amount: number } };
@@ -330,20 +343,23 @@ test("describeGameProtocol rejects custom view methods without view schema", () 
   const gainScoreCommand = defineProtocolCommand({
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
-    discoverySchema: gainScoreDiscoverySchema,
-    discover() {
-      return {
-        complete: true as const,
-        input: {
-          amount: 1,
-        },
-      };
-    },
-    validate() {
+  })
+    .discoverable({
+      discoverySchema: gainScoreDiscoverySchema,
+      discover() {
+        return {
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        };
+      },
+    })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute() {},
-  });
+    })
+    .execute(() => {})
+    .build();
 
   const game = new GameDefinitionBuilder<{
     players: Record<string, { id: string; hand: number[] }>;
@@ -368,20 +384,23 @@ test("describeGameProtocol rejects view schemas without projectCustomView", () =
   const gainScoreCommand = defineOrphanViewSchemaCommand({
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
-    discoverySchema: gainScoreDiscoverySchema,
-    discover() {
-      return {
-        complete: true as const,
-        input: {
-          amount: 1,
-        },
-      };
-    },
-    validate() {
+  })
+    .discoverable({
+      discoverySchema: gainScoreDiscoverySchema,
+      discover() {
+        return {
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        };
+      },
+    })
+    .validate(() => {
       return { ok: true as const };
-    },
-    execute() {},
-  });
+    })
+    .execute(() => {})
+    .build();
 
   const game = new GameDefinitionBuilder<{
     child: { value: number };

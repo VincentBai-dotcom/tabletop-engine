@@ -1,5 +1,6 @@
 import type {
   CommandAvailabilityContext,
+  DefinedCommand,
   ValidationOutcome,
 } from "tabletop-engine";
 import { createCommandFactory } from "tabletop-engine";
@@ -20,7 +21,7 @@ type ProgressionRuntime = {
 
 export const defineSplendorCommand = createCommandFactory<SplendorGameState>();
 
-export type SplendorCommand = ReturnType<typeof defineSplendorCommand>;
+export type SplendorCommand = DefinedCommand<SplendorGameState>;
 
 export function isGemTokenColor(value: unknown): value is GemTokenColor {
   return (

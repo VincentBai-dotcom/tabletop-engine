@@ -34,24 +34,26 @@ test("snapshots restore canonical state and replay reproduces final state", () =
       increment_counter: defineCommand({
         commandId: "increment_counter",
         commandSchema: incrementCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game, command }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game, command }) => {
           const amount =
             typeof command.input?.amount === "number"
               ? command.input.amount
               : 1;
 
           game.counter += amount;
-        },
-      }),
+        })
+        .build(),
       sample_randomness: defineCommand({
         commandId: "sample_randomness",
         commandSchema: emptyCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game, rng }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game, rng }) => {
           game.value = rng.number();
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 

@@ -29,13 +29,14 @@ test("game executor rng is deterministic for the same seed and command sequence"
       sample_randomness: defineCommand({
         commandId: "sample_randomness",
         commandSchema: emptyCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game, rng }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game, rng }) => {
           game.value = rng.number();
           game.roll = rng.die(6) as number;
           game.deck = rng.shuffle(game.deck);
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 
@@ -77,11 +78,12 @@ test("game executor rng cursor advances when randomness is consumed", () => {
       sample_randomness: defineCommand({
         commandId: "sample_randomness",
         commandSchema: emptyCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game, rng }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game, rng }) => {
           game.value = rng.number();
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 

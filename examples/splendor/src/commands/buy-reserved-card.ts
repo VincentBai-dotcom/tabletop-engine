@@ -28,9 +28,55 @@ const buyReservedCardDiscoverySchema = t.object({
 const buyReservedCardCommand = defineSplendorCommand({
   commandId: "buy_reserved_card",
   commandSchema: buyReservedCardCommandSchema,
-  discoverySchema: buyReservedCardDiscoverySchema,
+})
+  .discoverable({
+    discoverySchema: buyReservedCardDiscoverySchema,
+    discover(context) {
+      const actorId = assertAvailableActor(context);
+      const game = context.game;
+      const draft = context.discovery.input;
+      const player = game.getPlayer(actorId);
 
-  isAvailable(context) {
+      if (!draft?.selectedCardId) {
+        return {
+          complete: false as const,
+          step: SPLENDOR_DISCOVERY_STEPS.selectReservedCard,
+          options: player.reservedCardIds
+            .filter((cardId: number) => {
+              const card = game.getCard(cardId);
+
+              return player.getAffordablePayment(card) !== null;
+            })
+            .map((cardId: number) => ({
+              id: String(cardId),
+              nextInput: {
+                ...(draft ?? {}),
+                selectedCardId: cardId,
+              },
+              metadata: {
+                cardId,
+                source: "reserved",
+              },
+            })),
+        };
+      }
+
+      const hypotheticalPlayer = player.clone();
+      hypotheticalPlayer.removeReservedCard(draft.selectedCardId);
+      hypotheticalPlayer.buyCard(draft.selectedCardId);
+      const eligibleNobles = game.getEligibleNobles(hypotheticalPlayer);
+      const nobleDiscovery = createNobleDiscovery(draft, eligibleNobles);
+
+      return (
+        nobleDiscovery ??
+        completeDiscovery({
+          cardId: draft.selectedCardId,
+          chosenNobleId: draft.chosenNobleId,
+        })
+      );
+    },
+  })
+  .isAvailable((context) => {
     return guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
       const game = context.game;
@@ -42,54 +88,8 @@ const buyReservedCardCommand = defineSplendorCommand({
         return player.getAffordablePayment(card) !== null;
       });
     });
-  },
-
-  discover(context) {
-    const actorId = assertAvailableActor(context);
-    const game = context.game;
-    const draft = context.discovery.input;
-    const player = game.getPlayer(actorId);
-
-    if (!draft?.selectedCardId) {
-      return {
-        complete: false as const,
-        step: SPLENDOR_DISCOVERY_STEPS.selectReservedCard,
-        options: player.reservedCardIds
-          .filter((cardId: number) => {
-            const card = game.getCard(cardId);
-
-            return player.getAffordablePayment(card) !== null;
-          })
-          .map((cardId: number) => ({
-            id: String(cardId),
-            nextInput: {
-              ...(draft ?? {}),
-              selectedCardId: cardId,
-            },
-            metadata: {
-              cardId,
-              source: "reserved",
-            },
-          })),
-      };
-    }
-
-    const hypotheticalPlayer = player.clone();
-    hypotheticalPlayer.removeReservedCard(draft.selectedCardId);
-    hypotheticalPlayer.buyCard(draft.selectedCardId);
-    const eligibleNobles = game.getEligibleNobles(hypotheticalPlayer);
-    const nobleDiscovery = createNobleDiscovery(draft, eligibleNobles);
-
-    return (
-      nobleDiscovery ??
-      completeDiscovery({
-        cardId: draft.selectedCardId,
-        chosenNobleId: draft.chosenNobleId,
-      })
-    );
-  },
-
-  validate({ runtime, game, command }) {
+  })
+  .validate(({ runtime, game, command }) => {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, command.actorId);
@@ -131,9 +131,8 @@ const buyReservedCardCommand = defineSplendorCommand({
 
       return { ok: true };
     });
-  },
-
-  execute({ game, command, emitEvent }) {
+  })
+  .execute(({ game, command, emitEvent }) => {
     const actorId = command.actorId!;
     const input = command.input!;
     const player = game.getPlayer(actorId);
@@ -157,7 +156,7 @@ const buyReservedCardCommand = defineSplendorCommand({
         payment,
       },
     });
-  },
-});
+  })
+  .build();
 
 export { buyReservedCardCommand };

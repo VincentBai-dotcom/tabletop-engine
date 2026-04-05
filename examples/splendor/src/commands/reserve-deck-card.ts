@@ -30,9 +30,60 @@ const reserveDeckCardDiscoverySchema = t.object({
 const reserveDeckCardCommand = defineSplendorCommand({
   commandId: "reserve_deck_card",
   commandSchema: reserveDeckCardCommandSchema,
-  discoverySchema: reserveDeckCardDiscoverySchema,
+})
+  .discoverable({
+    discoverySchema: reserveDeckCardDiscoverySchema,
+    discover(context) {
+      const actorId = assertAvailableActor(context);
+      const game = context.game;
+      const draft = context.discovery.input;
+      const deckEntries = Object.entries(game.board.deckByLevel) as Array<
+        [string, number[]]
+      >;
 
-  isAvailable(context) {
+      if (!draft?.selectedLevel) {
+        return {
+          complete: false as const,
+          step: SPLENDOR_DISCOVERY_STEPS.selectDeckLevel,
+          options: deckEntries
+            .filter(([, cardIds]) => cardIds.length > 0)
+            .map(([level]) => ({
+              id: level,
+              nextInput: {
+                ...(draft ?? {}),
+                selectedLevel: Number(level),
+              },
+              metadata: {
+                level: Number(level),
+                source: "deck",
+              },
+            })),
+        };
+      }
+
+      const player = game.getPlayer(actorId).clone();
+
+      if (game.bank.gold > 0) {
+        player.tokens.adjustColor("gold", 1);
+      }
+
+      const requiredReturnCount = player.getRequiredReturnCount();
+      const returnDiscovery = createReturnTokenDiscovery(
+        draft,
+        player.tokens,
+        requiredReturnCount,
+      );
+
+      return (
+        returnDiscovery ??
+        completeDiscovery({
+          level: draft.selectedLevel,
+          returnTokens: draft.returnTokens,
+        })
+      );
+    },
+  })
+  .isAvailable((context) => {
     return guardedAvailability(() => {
       const actorId = assertAvailableActor(context);
       const game = context.game;
@@ -45,59 +96,8 @@ const reserveDeckCardCommand = defineSplendorCommand({
 
       return decks.some((cards) => cards.length > 0);
     });
-  },
-
-  discover(context) {
-    const actorId = assertAvailableActor(context);
-    const game = context.game;
-    const draft = context.discovery.input;
-    const deckEntries = Object.entries(game.board.deckByLevel) as Array<
-      [string, number[]]
-    >;
-
-    if (!draft?.selectedLevel) {
-      return {
-        complete: false as const,
-        step: SPLENDOR_DISCOVERY_STEPS.selectDeckLevel,
-        options: deckEntries
-          .filter(([, cardIds]) => cardIds.length > 0)
-          .map(([level]) => ({
-            id: level,
-            nextInput: {
-              ...(draft ?? {}),
-              selectedLevel: Number(level),
-            },
-            metadata: {
-              level: Number(level),
-              source: "deck",
-            },
-          })),
-      };
-    }
-
-    const player = game.getPlayer(actorId).clone();
-
-    if (game.bank.gold > 0) {
-      player.tokens.adjustColor("gold", 1);
-    }
-
-    const requiredReturnCount = player.getRequiredReturnCount();
-    const returnDiscovery = createReturnTokenDiscovery(
-      draft,
-      player.tokens,
-      requiredReturnCount,
-    );
-
-    return (
-      returnDiscovery ??
-      completeDiscovery({
-        level: draft.selectedLevel,
-        returnTokens: draft.returnTokens,
-      })
-    );
-  },
-
-  validate({ runtime, game, command }) {
+  })
+  .validate(({ runtime, game, command }) => {
     return guardedValidate(() => {
       assertGameActive(game);
       const actorId = assertActivePlayer(runtime, command.actorId);
@@ -137,9 +137,8 @@ const reserveDeckCardCommand = defineSplendorCommand({
 
       return { ok: true };
     });
-  },
-
-  execute({ game, command, emitEvent }) {
+  })
+  .execute(({ game, command, emitEvent }) => {
     const actorId = command.actorId!;
     const input = command.input!;
     const level = assertDevelopmentLevel(input.level);
@@ -161,7 +160,7 @@ const reserveDeckCardCommand = defineSplendorCommand({
         returnTokens: input.returnTokens ?? null,
       },
     });
-  },
-});
+  })
+  .build();
 
 export { reserveDeckCardCommand };

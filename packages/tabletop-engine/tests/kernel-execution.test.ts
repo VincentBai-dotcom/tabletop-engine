@@ -124,16 +124,17 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
       increment_counter: defineCommand({
         commandId: "increment_counter",
         commandSchema: amountCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game, command }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game, command }) => {
           const amount =
             typeof command.input?.amount === "number"
               ? command.input.amount
               : 1;
 
           (game as RootCounterStateFacade).incrementCounter(amount);
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 
@@ -434,34 +435,38 @@ test("availability and discovery contexts hydrate readonly decorated state facad
       increment_counter: defineCommand({
         commandId: "increment_counter",
         commandSchema: amountCommandSchema,
-        discoverySchema: amountCommandSchema,
-        isAvailable: ({ game }) =>
-          (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
-        discover: ({ game }) => {
-          if ((game as RootCounterStateFacade).hasCounterValueAtLeast(2)) {
+      })
+        .discoverable({
+          discoverySchema: amountCommandSchema,
+          discover: ({ game }) => {
+            if ((game as RootCounterStateFacade).hasCounterValueAtLeast(2)) {
+              return {
+                complete: false as const,
+                step: "select_amount",
+                options: [{ id: "two", nextInput: { amount: 2 } }],
+              };
+            }
+
             return {
               complete: false as const,
               step: "select_amount",
-              options: [{ id: "two", nextInput: { amount: 2 } }],
+              options: [{ id: "one", nextInput: { amount: 1 } }],
             };
-          }
-
-          return {
-            complete: false as const,
-            step: "select_amount",
-            options: [{ id: "one", nextInput: { amount: 1 } }],
-          };
-        },
-        validate: () => ({ ok: true as const }),
-        execute: ({ game, command }) => {
+          },
+        })
+        .isAvailable(({ game }) =>
+          (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
+        )
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game, command }) => {
           const amount =
             typeof command.input?.amount === "number"
               ? command.input.amount
               : 1;
 
           (game as RootCounterStateFacade).incrementCounter(amount);
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 
@@ -500,12 +505,13 @@ test("readonly decorated facades reject mutation during validation", () => {
       increment_counter: defineCommand({
         commandId: "increment_counter",
         commandSchema: emptyCommandSchema,
-        validate: ({ game }) => {
+      })
+        .validate(({ game }) => {
           (game as RootCounterStateFacade).incrementCounter(1);
           return { ok: true as const };
-        },
-        execute: () => {},
-      }),
+        })
+        .execute(() => {})
+        .build(),
     })
     .build();
 
@@ -532,8 +538,9 @@ test("createGameExecutor creates initial state and commits successful commands",
       increment_counter: defineCommand({
         commandId: "increment_counter",
         commandSchema: amountCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game, command, emitEvent }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game, command, emitEvent }) => {
           const amount =
             typeof command.input?.amount === "number"
               ? command.input.amount
@@ -545,22 +552,24 @@ test("createGameExecutor creates initial state and commits successful commands",
             type: "counter_incremented",
             payload: { amount },
           });
-        },
-      }),
+        })
+        .build(),
       decrement_counter: defineCommand({
         commandId: "decrement_counter",
         commandSchema: emptyCommandSchema,
-        validate: ({ game }) =>
+      })
+        .validate(({ game }) =>
           game.counter > 0
             ? { ok: true as const }
             : {
                 ok: false as const,
                 reason: "counter_is_zero",
               },
-        execute: ({ game }) => {
+        )
+        .execute(({ game }) => {
           game.counter -= 1;
-        },
-      }),
+        })
+        .build(),
     })
     .rngSeed("test-seed")
     .build();
@@ -592,7 +601,8 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
       decrement_counter: defineCommand({
         commandId: "decrement_counter",
         commandSchema: emptyCommandSchema,
-        validate: ({ game }) =>
+      })
+        .validate(({ game }) =>
           game.counter > 0
             ? { ok: true as const }
             : {
@@ -600,10 +610,11 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
                 reason: "counter_is_zero",
                 metadata: { minimum: 1 },
               },
-        execute: ({ game }) => {
+        )
+        .execute(({ game }) => {
           game.counter -= 1;
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 
@@ -648,11 +659,12 @@ test("execute context can update current progression owner through controlled AP
       pass_turn: defineCommand({
         commandId: "pass_turn",
         commandSchema: emptyCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ setCurrentSegmentOwner }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ setCurrentSegmentOwner }) => {
           setCurrentSegmentOwner("player-2");
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 
@@ -769,8 +781,9 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
       take_action: defineCommand({
         commandId: "take_action",
         commandSchema: emptyCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game, emitEvent }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game, emitEvent }) => {
           game.actions += 1;
           emitEvent({
             category: "domain",
@@ -779,8 +792,8 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
               amount: 1,
             },
           });
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 
@@ -855,11 +868,12 @@ test("progression lifecycle hooks hydrate decorated state facades", () => {
       increment_counter: defineCommand({
         commandId: "increment_counter",
         commandSchema: emptyCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game }) => {
           (game as RootCounterStateFacade).incrementCounter(1);
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 
@@ -922,11 +936,12 @@ test("nested progression can cascade through multiple segment transitions", () =
       resolve_step: defineCommand({
         commandId: "resolve_step",
         commandSchema: emptyCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game }) => {
           game.resolved += 1;
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 
@@ -994,19 +1009,21 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
       take_action: defineCommand({
         commandId: "take_action",
         commandSchema: emptyCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game }) => {
           game.actions += 1;
-        },
-      }),
+        })
+        .build(),
       end_turn: defineCommand({
         commandId: "end_turn",
         commandSchema: emptyCommandSchema,
-        validate: () => ({ ok: true as const }),
-        execute: ({ game }) => {
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game }) => {
           game.requestedTurnEnd = true;
-        },
-      }),
+        })
+        .build(),
     })
     .build();
 
@@ -1067,29 +1084,33 @@ test("game executor can list available commands through per-command availability
       pass_turn: defineCommand({
         commandId: "pass_turn",
         commandSchema: emptyCommandSchema,
-        isAvailable: () => true,
-        validate: () => ({ ok: true as const }),
-        execute: () => {},
-      }),
+      })
+        .isAvailable(() => true)
+        .validate(() => ({ ok: true as const }))
+        .execute(() => {})
+        .build(),
       spend_energy: defineCommand({
         commandId: "spend_energy",
         commandSchema: emptyCommandSchema,
-        isAvailable: ({ game }) => game.energy > 0,
-        validate: ({ game }) =>
+      })
+        .isAvailable(({ game }) => game.energy > 0)
+        .validate(({ game }) =>
           game.energy > 0
             ? { ok: true as const }
             : { ok: false as const, reason: "no_energy" },
-        execute: ({ game }) => {
+        )
+        .execute(({ game }) => {
           game.energy -= 1;
-        },
-      }),
+        })
+        .build(),
       impossible_action: defineCommand({
         commandId: "impossible_action",
         commandSchema: emptyCommandSchema,
-        isAvailable: () => false,
-        validate: () => ({ ok: true as const }),
-        execute: () => {},
-      }),
+      })
+        .isAvailable(() => false)
+        .validate(() => ({ ok: true as const }))
+        .execute(() => {})
+        .build(),
     })
     .build();
 
@@ -1132,34 +1153,39 @@ test("game executor can discover the next semantic options for a command", () =>
       play_card: defineCommand({
         commandId: "play_card",
         commandSchema: playCardCommandSchema,
-        discoverySchema: t.object({
-          cardId: t.optional(t.number()),
-          targetId: t.optional(t.number()),
-        }),
-        isAvailable: ({ game }) => game.canPlay,
-        discover: ({ discovery }) => {
-          const cardId = discovery.input?.cardId;
+      })
+        .discoverable({
+          discoverySchema: t.object({
+            cardId: t.optional(t.number()),
+            targetId: t.optional(t.number()),
+          }),
+          discover: ({ discovery }) => {
+            const cardId = discovery.input?.cardId;
 
-          if (typeof cardId !== "number") {
+            if (typeof cardId !== "number") {
+              return {
+                complete: false as const,
+                step: "select_card",
+                options: [
+                  { id: "card-1", nextInput: { cardId: 1 } },
+                  { id: "card-2", nextInput: { cardId: 2 } },
+                ],
+              };
+            }
+
             return {
               complete: false as const,
-              step: "select_card",
+              step: "select_target",
               options: [
-                { id: "card-1", nextInput: { cardId: 1 } },
-                { id: "card-2", nextInput: { cardId: 2 } },
+                { id: "target-1", nextInput: { cardId, targetId: 101 } },
               ],
             };
-          }
-
-          return {
-            complete: false as const,
-            step: "select_target",
-            options: [{ id: "target-1", nextInput: { cardId, targetId: 101 } }],
-          };
-        },
-        validate: () => ({ ok: true as const }),
-        execute: () => {},
-      }),
+          },
+        })
+        .isAvailable(({ game }) => game.canPlay)
+        .validate(() => ({ ok: true as const }))
+        .execute(() => {})
+        .build(),
     })
     .build();
 

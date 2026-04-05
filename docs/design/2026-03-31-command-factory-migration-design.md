@@ -5,6 +5,11 @@
 Move consumer command authoring from class-based `implements CommandDefinition`
 to a `defineCommand(...)` / `createCommandFactory(...)` API.
 
+Note: the original one-shot object-literal factory described in this document
+has since been refined into the chained builder model captured in
+[`2026-04-05-chained-command-authoring-design.md`](/home/vincent-bai/Documents/github/tabletop-kernel/docs/design/2026-04-05-chained-command-authoring-design.md).
+That chained builder is the current accepted authoring direction.
+
 The engine, not the consumer, should provide the method input types for:
 
 - `isAvailable(context)`
@@ -45,43 +50,50 @@ const defineSplendorCommand = createCommandFactory<SplendorGameState>();
 
 export const takeThreeDistinctGemsCommand = defineSplendorCommand({
   commandId: "take_three_distinct_gems",
-  payloadSchema: t.object({
+  commandSchema: t.object({
     colors: t.optional(t.array(t.string())),
     returnTokens: t.optional(t.record(t.string(), t.number())),
   }),
-  discoveryDraftSchema: t.object({
-    selectedColors: t.optional(t.array(t.string())),
-    returnTokens: t.optional(t.record(t.string(), t.number())),
-  }),
-
-  isAvailable({ game, actorId, runtime }) {
+})
+  .discoverable({
+    discoverySchema: t.object({
+      selectedColors: t.optional(t.array(t.string())),
+      returnTokens: t.optional(t.record(t.string(), t.number())),
+    }),
+    discover({ discovery }) {
+      return {
+        complete: true,
+        input: {
+          colors: discovery.input?.selectedColors ?? [],
+        },
+      };
+    },
+  })
+  .isAvailable(({ game, actorId, runtime }) => {
+    void game;
+    void actorId;
+    void runtime;
     return true;
-  },
-
-  discover({ game, actorId, discoveryInput }) {
-    return {
-      complete: true,
-      payload: {
-        colors: [],
-      },
-    };
-  },
-
-  validate({ game, runtime, commandInput }) {
+  })
+  .validate(({ game, runtime, command }) => {
+    void game;
+    void runtime;
+    void command;
     return { ok: true };
-  },
-
-  execute({ game, commandInput, emitEvent }) {
+  })
+  .execute(({ game, command, emitEvent }) => {
+    void game;
+    void command;
     void emitEvent;
-  },
-});
+  })
+  .build();
 ```
 
 In that model:
 
 - `SplendorGameState` is bound once in the factory
-- payload type is inferred from `payloadSchema`
-- draft type is inferred from `discoveryDraftSchema`
+- command input is inferred from `commandSchema`
+- discovery input is inferred from `discoverySchema`
 - method parameter types are supplied by the engine
 - consumers no longer need local context aliases
 
@@ -111,39 +123,38 @@ createCommandFactory<FacadeGameState>();
 It returns:
 
 ```ts
-defineCommand(config);
+defineCommand({ commandId, commandSchema });
 ```
 
 ### Discoverable vs Non-Discoverable Commands
 
-The `defineCommand(...)` input should be a discriminated union at the type
-level:
+Discovery should be added only through:
 
-- non-discoverable commands:
-  - no `discover`
-  - no `discoveryDraftSchema`
-- discoverable commands:
-  - `discover` required
-  - `discoveryDraftSchema` required
+- `.discoverable({ discoverySchema, discover })`
+
+Non-discoverable commands are the default and require no special step.
 
 This preserves the protocol guarantees already enforced in
 [`packages/tabletop-engine/src/protocol/describe.ts`](/home/vincent-bai/Documents/github/tabletop-kernel/packages/tabletop-engine/src/protocol/describe.ts),
-but moves the rule earlier into the authoring surface.
+while giving the authoring flow an explicit discovery step instead of one large
+object literal.
 
 ### Return Shape
 
-`defineCommand(...)` should return the same structural command object shape the
-engine already uses today:
+The final built command should still return the same structural command object
+shape the engine already uses today:
 
 - `commandId`
-- `payloadSchema`
-- optional `discoveryDraftSchema`
+- `commandSchema`
+- optional `discoverySchema`
 - optional `isAvailable`
 - optional `discover`
 - required `validate`
 - required `execute`
 
-This keeps the migration mostly at the authoring and typing layer.
+This keeps the migration mostly at the authoring and typing layer, even though
+the consumer writes the definition through a staged builder and ends with
+`.build()`.
 
 ### Legacy Removal Policy
 
