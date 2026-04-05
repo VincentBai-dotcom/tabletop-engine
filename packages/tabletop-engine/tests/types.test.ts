@@ -375,6 +375,77 @@ test("command factory contextually types command lifecycle methods", () => {
   expect(command.discoverySchema).toBe(draftSchema);
 });
 
+test("command builder hides invalid chained methods at each stage", () => {
+  const defineCommand = createCommandFactory<{
+    counter: number;
+  }>();
+
+  const commandSchema = t.object({
+    amount: t.number(),
+  });
+  const discoverySchema = t.object({
+    selectedAmount: t.optional(t.number()),
+  });
+
+  const baseBuilder = defineCommand({
+    commandId: "increment",
+    commandSchema,
+  });
+
+  // @ts-expect-error build should not exist before validate and execute are set
+  void baseBuilder.build;
+
+  const validatedBuilder = baseBuilder.validate(() => ({ ok: true as const }));
+
+  // @ts-expect-error build should not exist before execute is set
+  void validatedBuilder.build;
+
+  const executedBuilder = defineCommand({
+    commandId: "increment_without_validate",
+    commandSchema,
+  }).execute(({ game, command }) => {
+    game.counter += command.input?.amount ?? 0;
+  });
+
+  // @ts-expect-error build should not exist before validate is set
+  void executedBuilder.build;
+
+  const discoverableBuilder = baseBuilder.discoverable({
+    discoverySchema,
+    discover({ discovery }) {
+      if (typeof discovery.input?.selectedAmount !== "number") {
+        return {
+          complete: false as const,
+          step: "select_amount",
+          options: [
+            {
+              id: "one",
+              nextInput: {
+                selectedAmount: 1,
+              },
+            },
+          ],
+        };
+      }
+
+      return {
+        complete: true as const,
+        input: {
+          amount: discovery.input.selectedAmount,
+        },
+      };
+    },
+  });
+
+  // @ts-expect-error discovery should only be configurable once
+  void discoverableBuilder.discoverable;
+
+  expect(baseBuilder).toBeObject();
+  expect(validatedBuilder).toBeObject();
+  expect(executedBuilder).toBeObject();
+  expect(discoverableBuilder).toBeObject();
+});
+
 test("internal command definitions still expose canonical state separately from facade state", () => {
   const gainScoreCommandSchema = t.object({
     amount: t.number(),
