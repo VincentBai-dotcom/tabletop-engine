@@ -73,6 +73,7 @@ test("buildCommandFromDiscovery follows discovered steps until completion", asyn
     {
       type: "buy_reserved_card",
       actorId: "you",
+      input: {},
     },
     {
       type: "buy_reserved_card",

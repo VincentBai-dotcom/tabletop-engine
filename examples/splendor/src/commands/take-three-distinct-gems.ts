@@ -155,8 +155,8 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
     });
   })
   .execute(({ game, command, emitEvent }) => {
-    const actorId = command.actorId!;
-    const input = command.input!;
+    const actorId = command.actorId;
+    const input = command.input;
     const colors = input.colors;
 
     if (!colors.every((color) => isGemTokenColor(color))) {

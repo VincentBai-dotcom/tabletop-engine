@@ -109,6 +109,7 @@ test("splendor discovers gem color choices before return tokens for three-distin
   const firstStep = gameExecutor.discoverCommand(state, {
     type: "take_three_distinct_gems",
     actorId: "p1",
+    input: {},
   });
   const secondStep = gameExecutor.discoverCommand(state, {
     type: "take_three_distinct_gems",

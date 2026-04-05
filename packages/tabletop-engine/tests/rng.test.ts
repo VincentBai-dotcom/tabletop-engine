@@ -48,9 +48,13 @@ test("game executor rng is deterministic for the same seed and command sequence"
 
   const resultA = gameExecutorA.executeCommand(initialA, {
     type: "sample_randomness",
+    actorId: "player-1",
+    input: {},
   });
   const resultB = gameExecutorB.executeCommand(initialB, {
     type: "sample_randomness",
+    actorId: "player-1",
+    input: {},
   });
 
   expect(resultA.ok).toBe(true);
@@ -91,6 +95,8 @@ test("game executor rng cursor advances when randomness is consumed", () => {
   const initialState = gameExecutor.createInitialState();
   const result = gameExecutor.executeCommand(initialState, {
     type: "sample_randomness",
+    actorId: "player-1",
+    input: {},
   });
 
   expect(result.ok).toBe(true);

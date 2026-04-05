@@ -130,8 +130,8 @@ const takeTwoSameGemsCommand = defineSplendorCommand({
     });
   })
   .execute(({ game, command, emitEvent }) => {
-    const actorId = command.actorId!;
-    const input = command.input!;
+    const actorId = command.actorId;
+    const input = command.input;
     const color = assertGemTokenColor(input.color);
     const player = game.getPlayer(actorId);
 

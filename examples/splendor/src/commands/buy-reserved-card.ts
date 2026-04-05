@@ -133,8 +133,8 @@ const buyReservedCardCommand = defineSplendorCommand({
     });
   })
   .execute(({ game, command, emitEvent }) => {
-    const actorId = command.actorId!;
-    const input = command.input!;
+    const actorId = command.actorId;
+    const input = command.input;
     const player = game.getPlayer(actorId);
     const card = game.getCard(input.cardId);
     const payment = player.getAffordablePayment(card);

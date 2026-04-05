@@ -262,7 +262,7 @@ export function generateAsyncApi<
 function createCommandSchema(commandId: string, commandSchema: TSchema) {
   return Type.Object({
     type: Type.Literal(commandId),
-    actorId: Type.Optional(Type.String()),
+    actorId: Type.String(),
     input: commandSchema,
   });
 }
@@ -270,9 +270,9 @@ function createCommandSchema(commandId: string, commandSchema: TSchema) {
 function createDiscoverySchema(commandId: string, discoverySchema: TSchema) {
   return Type.Object({
     type: Type.Literal(commandId),
-    actorId: Type.Optional(Type.String()),
+    actorId: Type.String(),
     requestId: Type.Optional(Type.String()),
-    input: Type.Optional(discoverySchema),
+    input: discoverySchema,
   });
 }
 
@@ -308,7 +308,7 @@ function createDiscoveryEnvelopeSchema(
 ) {
   return Type.Object({
     type: Type.Literal(commandId),
-    actorId: Type.Optional(Type.String()),
+    actorId: Type.String(),
     requestId: Type.Optional(Type.String()),
     result: createRawDiscoveryResultSchema(discoverySchema, commandSchema),
   });
@@ -317,7 +317,7 @@ function createDiscoveryEnvelopeSchema(
 function createDiscoveryRejectedSchema(commandId: string) {
   return Type.Object({
     type: Type.Literal(commandId),
-    actorId: Type.Optional(Type.String()),
+    actorId: Type.String(),
     requestId: Type.Optional(Type.String()),
     reason: Type.String(),
   });

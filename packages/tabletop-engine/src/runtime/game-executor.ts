@@ -200,6 +200,21 @@ export function createGameExecutor<
       }
 
       if (
+        typeof discovery.actorId !== "string" ||
+        discovery.actorId.length === 0
+      ) {
+        return null;
+      }
+
+      if (
+        typeof discovery.input !== "object" ||
+        discovery.input === null ||
+        Array.isArray(discovery.input)
+      ) {
+        return null;
+      }
+
+      if (
         definition.isAvailable &&
         !definition.isAvailable(
           createCommandAvailabilityContext(
@@ -246,6 +261,34 @@ export function createGameExecutor<
           ok: false,
           state,
           reason: "unknown_command",
+          metadata: { commandType: command.type },
+          events: [],
+        };
+
+        return failure;
+      }
+
+      if (typeof command.actorId !== "string" || command.actorId.length === 0) {
+        const failure: ExecutionFailure<CanonicalState<CanonicalGameState>> = {
+          ok: false,
+          state,
+          reason: "missing_actor_id",
+          metadata: { commandType: command.type },
+          events: [],
+        };
+
+        return failure;
+      }
+
+      if (
+        typeof command.input !== "object" ||
+        command.input === null ||
+        Array.isArray(command.input)
+      ) {
+        const failure: ExecutionFailure<CanonicalState<CanonicalGameState>> = {
+          ok: false,
+          state,
+          reason: "missing_command_input",
           metadata: { commandType: command.type },
           events: [],
         };

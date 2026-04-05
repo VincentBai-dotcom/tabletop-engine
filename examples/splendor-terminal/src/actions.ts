@@ -48,6 +48,7 @@ export async function buildCommandFromDiscovery(
   let nextDiscovery: SplendorTerminalDiscoveryRequest = {
     type: commandType,
     actorId,
+    input: {},
   };
 
   for (;;) {

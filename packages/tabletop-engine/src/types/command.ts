@@ -12,8 +12,8 @@ export interface Command<
   Input extends Record<string, unknown> = Record<string, unknown>,
 > {
   type: string;
-  actorId?: string;
-  input?: Input;
+  actorId: string;
+  input: Input;
 }
 
 type CommandData = Record<string, unknown>;
@@ -24,8 +24,8 @@ export type CommandFromSchema<TInput extends CommandData = CommandData> =
 
 export interface Discovery<Input extends DiscoveryData = DiscoveryData> {
   type: string;
-  actorId?: string;
-  input?: Input;
+  actorId: string;
+  input: Input;
 }
 
 export type CommandSchema<TInput extends CommandData = CommandData> = {

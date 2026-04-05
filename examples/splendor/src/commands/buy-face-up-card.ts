@@ -157,8 +157,8 @@ const buyFaceUpCardCommand = defineSplendorCommand({
     });
   })
   .execute(({ game, command, emitEvent }) => {
-    const actorId = command.actorId!;
-    const input = command.input!;
+    const actorId = command.actorId;
+    const input = command.input;
     const level = assertDevelopmentLevel(input.level);
     const player = game.getPlayer(actorId);
     const card = game.getCard(input.cardId);

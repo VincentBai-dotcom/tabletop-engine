@@ -142,6 +142,7 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
   const initialState = executor.createInitialState();
   const result = executor.executeCommand(initialState, {
     type: "increment_counter",
+    actorId: "player-1",
     input: {
       amount: 3,
     },
@@ -479,6 +480,8 @@ test("availability and discovery contexts hydrate readonly decorated state facad
   expect(
     executor.discoverCommand(initialState, {
       type: "increment_counter",
+      actorId: "player-1",
+      input: {},
     }),
   ).toMatchObject({
     complete: false,
@@ -521,6 +524,8 @@ test("readonly decorated facades reject mutation during validation", () => {
   expect(() =>
     executor.executeCommand(initialState, {
       type: "increment_counter",
+      actorId: "player-1",
+      input: {},
     }),
   ).toThrow("readonly_state_facade_mutation:value");
   expect(initialState.game.counter.value).toBe(0);
@@ -578,6 +583,7 @@ test("createGameExecutor creates initial state and commits successful commands",
   const initialState = gameExecutor.createInitialState();
   const success = gameExecutor.executeCommand(initialState, {
     type: "increment_counter",
+    actorId: "player-1",
     input: { amount: 2 },
   });
 
@@ -622,6 +628,8 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
   const initialState = gameExecutor.createInitialState();
   const failure = gameExecutor.executeCommand(initialState, {
     type: "decrement_counter",
+    actorId: "player-1",
+    input: {},
   });
 
   expect(failure.ok).toBe(false);
@@ -635,6 +643,117 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
   expect(failure.reason).toBe("counter_is_zero");
   expect(failure.metadata).toEqual({ minimum: 1 });
   expect(failure.events).toHaveLength(0);
+});
+
+test("createGameExecutor rejects commands missing actorId at runtime", () => {
+  const defineCommand = createCommandFactory<{ counter: number }>();
+  const game = new GameDefinitionBuilder<{
+    counter: number;
+  }>("missing-actor-game")
+    .initialState(() => ({
+      counter: 0,
+    }))
+    .commands({
+      increment_counter: defineCommand({
+        commandId: "increment_counter",
+        commandSchema: emptyCommandSchema,
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game }) => {
+          game.counter += 1;
+        })
+        .build(),
+    })
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+  const result = executor.executeCommand(initialState, {
+    type: "increment_counter",
+    input: {},
+  } as never);
+
+  expect(result.ok).toBe(false);
+
+  if (result.ok) {
+    throw new Error("expected missing actorId failure");
+  }
+
+  expect(result.reason).toBe("missing_actor_id");
+});
+
+test("createGameExecutor rejects commands missing input at runtime", () => {
+  const defineCommand = createCommandFactory<{ counter: number }>();
+  const game = new GameDefinitionBuilder<{
+    counter: number;
+  }>("missing-input-game")
+    .initialState(() => ({
+      counter: 0,
+    }))
+    .commands({
+      increment_counter: defineCommand({
+        commandId: "increment_counter",
+        commandSchema: emptyCommandSchema,
+      })
+        .validate(() => ({ ok: true as const }))
+        .execute(({ game }) => {
+          game.counter += 1;
+        })
+        .build(),
+    })
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+  const result = executor.executeCommand(initialState, {
+    type: "increment_counter",
+    actorId: "player-1",
+  } as never);
+
+  expect(result.ok).toBe(false);
+
+  if (result.ok) {
+    throw new Error("expected missing input failure");
+  }
+
+  expect(result.reason).toBe("missing_command_input");
+});
+
+test("createGameExecutor rejects discovery missing input at runtime", () => {
+  const defineCommand = createCommandFactory<{ canPlay: boolean }>();
+  const game = new GameDefinitionBuilder<{
+    canPlay: boolean;
+  }>("missing-discovery-input-game")
+    .initialState(() => ({
+      canPlay: true,
+    }))
+    .commands({
+      play_card: defineCommand({
+        commandId: "play_card",
+        commandSchema: playCardCommandSchema,
+      })
+        .discoverable({
+          discoverySchema: t.object({
+            cardId: t.optional(t.number()),
+          }),
+          discover() {
+            return null;
+          },
+        })
+        .validate(() => ({ ok: true as const }))
+        .execute(() => {})
+        .build(),
+    })
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+  const result = executor.discoverCommand(initialState, {
+    type: "play_card",
+    actorId: "player-1",
+  } as never);
+
+  expect(result).toBeNull();
 });
 
 test("execute context can update current progression owner through controlled API", () => {
@@ -672,6 +791,8 @@ test("execute context can update current progression owner through controlled AP
   const initialState = gameExecutor.createInitialState();
   const result = gameExecutor.executeCommand(initialState, {
     type: "pass_turn",
+    actorId: "player-1",
+    input: {},
   });
 
   expect(initialState.runtime.progression.segments.turn?.ownerId).toBe(
@@ -713,6 +834,7 @@ test("built-in progression completion policies evaluate through lifecycle contex
   const command = {
     type: "take_action",
     actorId: "player-1",
+    input: {},
   };
   const completionContext = createProgressionCompletionContext(
     state,
@@ -802,6 +924,7 @@ test("successful commands trigger automatic progression lifecycle and emit lifec
   const result = gameExecutor.executeCommand(initialState, {
     type: "take_action",
     actorId: "player-1",
+    input: {},
   });
 
   expect(result.ok).toBe(true);
@@ -882,6 +1005,7 @@ test("progression lifecycle hooks hydrate decorated state facades", () => {
   const result = executor.executeCommand(initialState, {
     type: "increment_counter",
     actorId: "player-1",
+    input: {},
   });
 
   expect(result.ok).toBe(true);
@@ -950,6 +1074,7 @@ test("nested progression can cascade through multiple segment transitions", () =
   const result = gameExecutor.executeCommand(initialState, {
     type: "resolve_step",
     actorId: "player-1",
+    input: {},
   });
 
   expect(result.ok).toBe(true);
@@ -1032,6 +1157,7 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
   const actionResult = gameExecutor.executeCommand(initialState, {
     type: "take_action",
     actorId: "player-1",
+    input: {},
   });
 
   expect(actionResult.ok).toBe(true);
@@ -1053,6 +1179,7 @@ test("manual progression paths can avoid auto-advancing ordinary commands and st
   const endTurnResult = gameExecutor.executeCommand(actionResult.state, {
     type: "end_turn",
     actorId: "player-1",
+    input: {},
   });
 
   expect(endTurnResult.ok).toBe(true);
@@ -1124,6 +1251,7 @@ test("game executor can list available commands through per-command availability
   const nextState = gameExecutor.executeCommand(initialState, {
     type: "spend_energy",
     actorId: "player-1",
+    input: {},
   });
 
   expect(nextState.ok).toBe(true);
@@ -1194,6 +1322,7 @@ test("game executor can discover the next semantic options for a command", () =>
   const firstStep = gameExecutor.discoverCommand(initialState, {
     type: "play_card",
     actorId: "player-1",
+    input: {},
   });
   const secondStep = gameExecutor.discoverCommand(initialState, {
     type: "play_card",

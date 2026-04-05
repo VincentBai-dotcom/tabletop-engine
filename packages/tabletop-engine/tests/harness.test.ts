@@ -41,8 +41,8 @@ test("runScenario applies commands in order and returns per-command results", ()
 
   const gameExecutor = createGameExecutor(game);
   const scenario = runScenario(gameExecutor, [
-    { type: "increment_counter", input: { amount: 2 } },
-    { type: "increment_counter", input: { amount: 3 } },
+    { type: "increment_counter", actorId: "player-1", input: { amount: 2 } },
+    { type: "increment_counter", actorId: "player-1", input: { amount: 3 } },
   ]);
 
   expect(scenario.initialState.game.counter).toBe(0);

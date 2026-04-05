@@ -164,6 +164,8 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
 
   expect(submitVariants).toHaveLength(1);
   expect(submitVariants[0]!.properties.type.const).toBe("gain_score");
+  expect(submitVariants[0]!.required).toEqual(["type", "actorId", "input"]);
+  expect(submitVariants[0]!.properties.actorId.type).toBe("string");
   expect(submitVariants[0]!.properties.input).toEqual(
     gainScoreCommandSchema.schema,
   );
@@ -172,6 +174,8 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
 
   expect(discoverVariants).toHaveLength(1);
   expect(discoverVariants[0]!.properties.type.const).toBe("gain_score");
+  expect(discoverVariants[0]!.required).toEqual(["type", "actorId", "input"]);
+  expect(discoverVariants[0]!.properties.actorId.type).toBe("string");
   expect(discoverVariants[0]!.properties.requestId.type).toBe("string");
   expect(discoverVariants[0]!.properties.input.type).toBe("object");
   expect(
@@ -184,6 +188,12 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
   ];
   expect(discoveryResultVariants).toHaveLength(1);
   expect(discoveryResultVariants[0]!.properties.type.const).toBe("gain_score");
+  expect(discoveryResultVariants[0]!.required).toEqual([
+    "type",
+    "actorId",
+    "result",
+  ]);
+  expect(discoveryResultVariants[0]!.properties.actorId.type).toBe("string");
   expect(discoveryResultVariants[0]!.properties.requestId.type).toBe("string");
   expect(discoveryResultVariants[0]!.properties.result.anyOf).toHaveLength(2);
   expect(document.components.schemas.DiscoveryResult).toBeDefined();

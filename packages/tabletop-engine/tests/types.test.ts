@@ -87,6 +87,7 @@ test("progression lifecycle types support nested segment authoring", () => {
     },
     command: {
       type: "gain_score",
+      actorId: "p1",
       input: { amount: 1 },
     },
     segment: {
@@ -248,6 +249,53 @@ test("discovery types compose for draft-based next-step options and completion",
   }
 });
 
+test("strict command and discovery requests require actorId and input", () => {
+  const command: Command<{ amount: number }> = {
+    type: "gain_score",
+    actorId: "p1",
+    input: { amount: 2 },
+  };
+
+  const discovery: Discovery<{ selectedAmount: number }> = {
+    type: "gain_score",
+    actorId: "p1",
+    input: { selectedAmount: 2 },
+  };
+
+  // @ts-expect-error command actorId is required
+  const missingCommandActorId: Command<{ amount: number }> = {
+    type: "gain_score",
+    input: { amount: 2 },
+  };
+
+  // @ts-expect-error command input is required
+  const missingCommandInput: Command<{ amount: number }> = {
+    type: "gain_score",
+    actorId: "p1",
+  };
+
+  // @ts-expect-error discovery actorId is required
+  const missingDiscoveryActorId: Discovery<{ selectedAmount: number }> = {
+    type: "gain_score",
+    input: { selectedAmount: 2 },
+  };
+
+  // @ts-expect-error discovery input is required
+  const missingDiscoveryInput: Discovery<{ selectedAmount: number }> = {
+    type: "gain_score",
+    actorId: "p1",
+  };
+
+  expect(command.actorId).toBe("p1");
+  expect(command.input.amount).toBe(2);
+  expect(discovery.actorId).toBe("p1");
+  expect(discovery.input.selectedAmount).toBe(2);
+  expect(missingCommandActorId).toBeDefined();
+  expect(missingCommandInput).toBeDefined();
+  expect(missingDiscoveryActorId).toBeDefined();
+  expect(missingDiscoveryInput).toBeDefined();
+});
+
 test("consumer command definitions only expose game state and command input generics", () => {
   const defineCommand = createCommandFactory<{
     increment(): void;
@@ -287,7 +335,7 @@ test("consumer command definitions only expose game state and command input gene
       },
     })
     .validate(({ command }) => {
-      const amount: number | undefined = command.input?.amount;
+      const amount: number = command.input.amount;
 
       return {
         ok: typeof amount === "number",
@@ -296,7 +344,7 @@ test("consumer command definitions only expose game state and command input gene
     })
     .execute(({ game, command }) => {
       game.increment();
-      const amount: number | undefined = command.input?.amount;
+      const amount: number = command.input.amount;
       void amount;
     })
     .build();
@@ -332,7 +380,7 @@ test("command factory contextually types command lifecycle methods", () => {
     .discoverable({
       discoverySchema: draftSchema,
       discover({ discovery }) {
-        const selectedAmount = discovery.input?.selectedAmount;
+        const selectedAmount = discovery.input.selectedAmount;
 
         if (typeof selectedAmount !== "number") {
           return {
@@ -358,12 +406,12 @@ test("command factory contextually types command lifecycle methods", () => {
       },
     })
     .validate(({ command }) => {
-      expect(command.input?.amount).toBeNumber();
+      expect(command.input.amount).toBeNumber();
       return { ok: true as const };
     })
     .execute(({ game, command }) => {
       game.increment();
-      expect(command.input?.amount).toBeNumber();
+      expect(command.input.amount).toBeNumber();
     })
     .build();
 
@@ -521,6 +569,7 @@ test("internal command definitions still expose canonical state separately from 
     },
     command: {
       type: "gain_score",
+      actorId: "p1",
       input: {
         amount: 2,
       },

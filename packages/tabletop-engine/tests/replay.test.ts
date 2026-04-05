@@ -65,10 +65,13 @@ test("snapshots restore canonical state and replay reproduces final state", () =
 
   const firstCommand = {
     type: "increment_counter",
+    actorId: "player-1",
     input: { amount: 2 },
   } as const;
   const secondCommand = {
     type: "sample_randomness",
+    actorId: "player-1",
+    input: {},
   } as const;
 
   const firstResult = gameExecutor.executeCommand(
