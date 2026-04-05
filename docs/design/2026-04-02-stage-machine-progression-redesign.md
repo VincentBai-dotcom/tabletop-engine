@@ -43,6 +43,36 @@ Key decisions:
 If only one concept deserves the plain word `state`, it is the game state tree,
 not the progression machine.
 
+## Flat-First Scope Decision
+
+The legacy progression model implicitly carried inclusive context through
+nested segments.
+
+Example:
+
+- a player phase was inside a player turn
+- a player turn could be inside a round
+
+That implicit inclusion is not preserved automatically by the new stage-machine
+model.
+
+This is an acknowledged tradeoff.
+
+Decision:
+
+- start with a fully flat stage machine
+- do not add stage ancestry, parent scopes, or hierarchical stage semantics in
+  the first redesign
+- if real game implementations later prove that inclusive stage context is
+  necessary, add a richer hierarchy or scope model then
+
+Reasoning:
+
+- the flat model is simpler to author and execute
+- it keeps the first rewrite smaller and easier to reason about
+- it avoids prematurely standardizing a hierarchy model before seeing concrete
+  pressure from actual game implementations
+
 ## Terminology
 
 Use these terms consistently:
