@@ -109,18 +109,18 @@ because the engine lifecycle types expose the raw optional request shape.
 
 Split the request model into two layers.
 
-### 1. Strict player request types
+### 1. Strict request types become the default `Command` and `Discovery`
 
-Introduce strict request types for engine execution and discovery:
+The strict request shapes should become the primary exported types:
 
 ```ts
-type PlayerCommand<Input> = {
+type Command<Input> = {
   type: string;
   actorId: string;
   input: Input;
 };
 
-type PlayerDiscovery<Input> = {
+type Discovery<Input> = {
   type: string;
   actorId: string;
   input: Input;
@@ -145,7 +145,9 @@ player command execution or discovery.
 
 Options:
 
-- rename the current broad shapes to make them clearly raw/legacy
+- rename the current broad shapes to make them clearly raw/legacy, for example:
+  - `RawCommand`
+  - `RawDiscovery`
 - or delete them if no public caller still needs them
 
 Directionally, the strict request type should become the default meaning of
@@ -207,10 +209,11 @@ No non-null assertions should be needed.
 
 Main work:
 
-- introduce strict request types
+- make strict request types the exported `Command` and `Discovery`
 - update lifecycle context generics to use them
 - update internal command definition types to use them
-- remove or rename now-misleading loose request aliases
+- remove the old weak `Command` / `Discovery` shapes, or rename them to clearly
+  raw names if any internal boundary still needs them
 
 ### Runtime context builders
 
@@ -268,15 +271,16 @@ This should be treated as a non-backward-compatible cleanup.
 
 Recommended sequence:
 
-1. Introduce the strict request types and rewire lifecycle contexts to use them.
+1. Replace the exported `Command` and `Discovery` types with strict request
+   shapes and rewire lifecycle contexts to use them.
 2. Change `GameExecutor.executeCommand(...)` and `discoverCommand(...)` to
    accept the strict request types.
 3. Add executor runtime guards for malformed requests.
 4. Update AsyncAPI generation to match the stricter wire contract.
 5. Update engine tests.
 6. Update Splendor and `splendor-terminal`.
-7. Remove or rename the old loose request types so they are not mistaken for the
-   engine’s main execution contract anymore.
+7. Remove the old weak request types, or rename them to explicit raw names if a
+   remaining boundary still requires them.
 
 ## Non-Goal
 
