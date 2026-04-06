@@ -11,6 +11,10 @@ import {
   t,
   visibleToSelf,
 } from "../src/state-facade/metadata";
+import {
+  createSelfLoopingTurnStage,
+  createTerminalStage,
+} from "./helpers/stages";
 
 const emptyCommandSchema = t.object({});
 const amountCommandSchema = t.object({
@@ -103,6 +107,20 @@ class CustomVisibleDeckRootState {
 
 test("createGameExecutor hydrates decorated state facades for execution", () => {
   const defineCommand = createCommandFactory<RootCounterStateFacade>();
+  const commands = {
+    increment_counter: defineCommand({
+      commandId: "increment_counter",
+      commandSchema: amountCommandSchema,
+    })
+      .validate(() => ({ ok: true as const }))
+      .execute(({ game, command }) => {
+        const amount =
+          typeof command.input.amount === "number" ? command.input.amount : 1;
+
+        (game as RootCounterStateFacade).incrementCounter(amount);
+      })
+      .build(),
+  };
   const game = new GameDefinitionBuilder<{
     counter: {
       value: number;
@@ -114,22 +132,7 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
         value: 0,
       },
     }))
-    .commands({
-      increment_counter: defineCommand({
-        commandId: "increment_counter",
-        commandSchema: amountCommandSchema,
-      })
-        .validate(() => ({ ok: true as const }))
-        .execute(({ game, command }) => {
-          const amount =
-            typeof command.input?.amount === "number"
-              ? command.input.amount
-              : 1;
-
-          (game as RootCounterStateFacade).incrementCounter(amount);
-        })
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
   const executor = createGameExecutor(game);
@@ -159,14 +162,7 @@ test("createGameExecutor can project viewer-safe visible state", () => {
         value: 2,
       },
     }))
-    .commands({})
-    .progression({
-      root: {
-        id: "turn",
-        kind: "turn",
-        children: [],
-      },
-    })
+    .initialStage(createTerminalStage())
     .build();
 
   const executor = createGameExecutor(game) as {
@@ -225,14 +221,7 @@ test("createGameExecutor projects visibleToSelf fields for the owner only", () =
         },
       },
     }))
-    .commands({})
-    .progression({
-      root: {
-        id: "turn",
-        kind: "turn",
-        children: [],
-      },
-    })
+    .initialStage(createTerminalStage())
     .build();
 
   const executor = createGameExecutor(game) as {
@@ -287,14 +276,7 @@ test("createGameExecutor projects hidden fields for every viewer", () => {
         cards: ["a", "b", "c"],
       },
     }))
-    .commands({})
-    .progression({
-      root: {
-        id: "turn",
-        kind: "turn",
-        children: [],
-      },
-    })
+    .initialStage(createTerminalStage())
     .build();
 
   const executor = createGameExecutor(game) as {
@@ -339,14 +321,7 @@ test("createGameExecutor lets a state override its visible projection shape", ()
         cards: ["a", "b", "c"],
       },
     }))
-    .commands({})
-    .progression({
-      root: {
-        id: "turn",
-        kind: "turn",
-        children: [],
-      },
-    })
+    .initialStage(createTerminalStage())
     .build();
 
   const executor = createGameExecutor(game) as {
@@ -393,14 +368,7 @@ test("createGameExecutor rejects owned player projection when id is empty", () =
         },
       },
     }))
-    .commands({})
-    .progression({
-      root: {
-        id: "turn",
-        kind: "turn",
-        children: [],
-      },
-    })
+    .initialStage(createTerminalStage())
     .build();
 
   const executor = createGameExecutor(game);
@@ -415,6 +383,41 @@ test("createGameExecutor rejects owned player projection when id is empty", () =
 
 test("availability and discovery contexts hydrate readonly decorated state facades", () => {
   const defineCommand = createCommandFactory<RootCounterStateFacade>();
+  const commands = {
+    increment_counter: defineCommand({
+      commandId: "increment_counter",
+      commandSchema: amountCommandSchema,
+    })
+      .discoverable({
+        discoverySchema: amountCommandSchema,
+        discover: ({ game }) => {
+          if ((game as RootCounterStateFacade).hasCounterValueAtLeast(2)) {
+            return {
+              complete: false as const,
+              step: "select_amount",
+              options: [{ id: "two", nextInput: { amount: 2 } }],
+            };
+          }
+
+          return {
+            complete: false as const,
+            step: "select_amount",
+            options: [{ id: "one", nextInput: { amount: 1 } }],
+          };
+        },
+      })
+      .isAvailable(({ game }) =>
+        (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
+      )
+      .validate(() => ({ ok: true as const }))
+      .execute(({ game, command }) => {
+        const amount =
+          typeof command.input.amount === "number" ? command.input.amount : 1;
+
+        (game as RootCounterStateFacade).incrementCounter(amount);
+      })
+      .build(),
+  };
   const game = new GameDefinitionBuilder<{
     counter: {
       value: number;
@@ -426,43 +429,7 @@ test("availability and discovery contexts hydrate readonly decorated state facad
         value: 2,
       },
     }))
-    .commands({
-      increment_counter: defineCommand({
-        commandId: "increment_counter",
-        commandSchema: amountCommandSchema,
-      })
-        .discoverable({
-          discoverySchema: amountCommandSchema,
-          discover: ({ game }) => {
-            if ((game as RootCounterStateFacade).hasCounterValueAtLeast(2)) {
-              return {
-                complete: false as const,
-                step: "select_amount",
-                options: [{ id: "two", nextInput: { amount: 2 } }],
-              };
-            }
-
-            return {
-              complete: false as const,
-              step: "select_amount",
-              options: [{ id: "one", nextInput: { amount: 1 } }],
-            };
-          },
-        })
-        .isAvailable(({ game }) =>
-          (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
-        )
-        .validate(() => ({ ok: true as const }))
-        .execute(({ game, command }) => {
-          const amount =
-            typeof command.input?.amount === "number"
-              ? command.input.amount
-              : 1;
-
-          (game as RootCounterStateFacade).incrementCounter(amount);
-        })
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
   const executor = createGameExecutor(game);
@@ -487,6 +454,18 @@ test("availability and discovery contexts hydrate readonly decorated state facad
 
 test("readonly decorated facades reject mutation during validation", () => {
   const defineCommand = createCommandFactory<RootCounterStateFacade>();
+  const commands = {
+    increment_counter: defineCommand({
+      commandId: "increment_counter",
+      commandSchema: emptyCommandSchema,
+    })
+      .validate(({ game }) => {
+        (game as RootCounterStateFacade).incrementCounter(1);
+        return { ok: true as const };
+      })
+      .execute(() => {})
+      .build(),
+  };
   const game = new GameDefinitionBuilder<{
     counter: {
       value: number;
@@ -498,18 +477,7 @@ test("readonly decorated facades reject mutation during validation", () => {
         value: 0,
       },
     }))
-    .commands({
-      increment_counter: defineCommand({
-        commandId: "increment_counter",
-        commandSchema: emptyCommandSchema,
-      })
-        .validate(({ game }) => {
-          (game as RootCounterStateFacade).incrementCounter(1);
-          return { ok: true as const };
-        })
-        .execute(() => {})
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
   const executor = createGameExecutor(game);
@@ -527,49 +495,48 @@ test("readonly decorated facades reject mutation during validation", () => {
 
 test("createGameExecutor creates initial state and commits successful commands", () => {
   const defineCommand = createCommandFactory<{ counter: number }>();
+  const commands = {
+    increment_counter: defineCommand({
+      commandId: "increment_counter",
+      commandSchema: amountCommandSchema,
+    })
+      .validate(() => ({ ok: true as const }))
+      .execute(({ game, command, emitEvent }) => {
+        const amount =
+          typeof command.input.amount === "number" ? command.input.amount : 1;
+
+        game.counter += amount;
+        emitEvent({
+          category: "domain",
+          type: "counter_incremented",
+          payload: { amount },
+        });
+      })
+      .build(),
+    decrement_counter: defineCommand({
+      commandId: "decrement_counter",
+      commandSchema: emptyCommandSchema,
+    })
+      .validate(({ game }) =>
+        game.counter > 0
+          ? { ok: true as const }
+          : {
+              ok: false as const,
+              reason: "counter_is_zero",
+            },
+      )
+      .execute(({ game }) => {
+        game.counter -= 1;
+      })
+      .build(),
+  };
   const game = new GameDefinitionBuilder<{
     counter: number;
   }>("counter-game")
     .initialState(() => ({
       counter: 0,
     }))
-    .commands({
-      increment_counter: defineCommand({
-        commandId: "increment_counter",
-        commandSchema: amountCommandSchema,
-      })
-        .validate(() => ({ ok: true as const }))
-        .execute(({ game, command, emitEvent }) => {
-          const amount =
-            typeof command.input?.amount === "number"
-              ? command.input.amount
-              : 1;
-
-          game.counter += amount;
-          emitEvent({
-            category: "domain",
-            type: "counter_incremented",
-            payload: { amount },
-          });
-        })
-        .build(),
-      decrement_counter: defineCommand({
-        commandId: "decrement_counter",
-        commandSchema: emptyCommandSchema,
-      })
-        .validate(({ game }) =>
-          game.counter > 0
-            ? { ok: true as const }
-            : {
-                ok: false as const,
-                reason: "counter_is_zero",
-              },
-        )
-        .execute(({ game }) => {
-          game.counter -= 1;
-        })
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .rngSeed("test-seed")
     .build();
 
@@ -585,37 +552,38 @@ test("createGameExecutor creates initial state and commits successful commands",
   expect(initialState.runtime.rng.seed).toBe("test-seed");
   expect(success.ok).toBe(true);
   expect(success.state.game.counter).toBe(2);
-  expect(success.events).toHaveLength(1);
+  expect(success.events).toHaveLength(3);
   expect(success.events[0]?.type).toBe("counter_incremented");
 });
 
 test("createGameExecutor returns unchanged state for validation failures", () => {
   const defineCommand = createCommandFactory<{ counter: number }>();
+  const commands = {
+    decrement_counter: defineCommand({
+      commandId: "decrement_counter",
+      commandSchema: emptyCommandSchema,
+    })
+      .validate(({ game }) =>
+        game.counter > 0
+          ? { ok: true as const }
+          : {
+              ok: false as const,
+              reason: "counter_is_zero",
+              metadata: { minimum: 1 },
+            },
+      )
+      .execute(({ game }) => {
+        game.counter -= 1;
+      })
+      .build(),
+  };
   const game = new GameDefinitionBuilder<{
     counter: number;
   }>("counter-game")
     .initialState(() => ({
       counter: 0,
     }))
-    .commands({
-      decrement_counter: defineCommand({
-        commandId: "decrement_counter",
-        commandSchema: emptyCommandSchema,
-      })
-        .validate(({ game }) =>
-          game.counter > 0
-            ? { ok: true as const }
-            : {
-                ok: false as const,
-                reason: "counter_is_zero",
-                metadata: { minimum: 1 },
-              },
-        )
-        .execute(({ game }) => {
-          game.counter -= 1;
-        })
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
   const gameExecutor = createGameExecutor(game);
@@ -641,23 +609,24 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
 
 test("createGameExecutor rejects commands missing actorId at runtime", () => {
   const defineCommand = createCommandFactory<{ counter: number }>();
+  const commands = {
+    increment_counter: defineCommand({
+      commandId: "increment_counter",
+      commandSchema: emptyCommandSchema,
+    })
+      .validate(() => ({ ok: true as const }))
+      .execute(({ game }) => {
+        game.counter += 1;
+      })
+      .build(),
+  };
   const game = new GameDefinitionBuilder<{
     counter: number;
   }>("missing-actor-game")
     .initialState(() => ({
       counter: 0,
     }))
-    .commands({
-      increment_counter: defineCommand({
-        commandId: "increment_counter",
-        commandSchema: emptyCommandSchema,
-      })
-        .validate(() => ({ ok: true as const }))
-        .execute(({ game }) => {
-          game.counter += 1;
-        })
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
   const executor = createGameExecutor(game);
@@ -678,23 +647,24 @@ test("createGameExecutor rejects commands missing actorId at runtime", () => {
 
 test("createGameExecutor rejects commands missing input at runtime", () => {
   const defineCommand = createCommandFactory<{ counter: number }>();
+  const commands = {
+    increment_counter: defineCommand({
+      commandId: "increment_counter",
+      commandSchema: emptyCommandSchema,
+    })
+      .validate(() => ({ ok: true as const }))
+      .execute(({ game }) => {
+        game.counter += 1;
+      })
+      .build(),
+  };
   const game = new GameDefinitionBuilder<{
     counter: number;
   }>("missing-input-game")
     .initialState(() => ({
       counter: 0,
     }))
-    .commands({
-      increment_counter: defineCommand({
-        commandId: "increment_counter",
-        commandSchema: emptyCommandSchema,
-      })
-        .validate(() => ({ ok: true as const }))
-        .execute(({ game }) => {
-          game.counter += 1;
-        })
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
   const executor = createGameExecutor(game);
@@ -715,29 +685,30 @@ test("createGameExecutor rejects commands missing input at runtime", () => {
 
 test("createGameExecutor rejects discovery missing input at runtime", () => {
   const defineCommand = createCommandFactory<{ canPlay: boolean }>();
+  const commands = {
+    play_card: defineCommand({
+      commandId: "play_card",
+      commandSchema: playCardCommandSchema,
+    })
+      .discoverable({
+        discoverySchema: t.object({
+          cardId: t.optional(t.number()),
+        }),
+        discover() {
+          return null;
+        },
+      })
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+  };
   const game = new GameDefinitionBuilder<{
     canPlay: boolean;
   }>("missing-discovery-input-game")
     .initialState(() => ({
       canPlay: true,
     }))
-    .commands({
-      play_card: defineCommand({
-        commandId: "play_card",
-        commandSchema: playCardCommandSchema,
-      })
-        .discoverable({
-          discoverySchema: t.object({
-            cardId: t.optional(t.number()),
-          }),
-          discover() {
-            return null;
-          },
-        })
-        .validate(() => ({ ok: true as const }))
-        .execute(() => {})
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
   const executor = createGameExecutor(game);
@@ -981,44 +952,45 @@ test("automatic stages hydrate decorated state facades during run", () => {
 
 test("game executor can list available commands through per-command availability hooks", () => {
   const defineCommand = createCommandFactory<{ energy: number }>();
+  const commands = {
+    pass_turn: defineCommand({
+      commandId: "pass_turn",
+      commandSchema: emptyCommandSchema,
+    })
+      .isAvailable(() => true)
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+    spend_energy: defineCommand({
+      commandId: "spend_energy",
+      commandSchema: emptyCommandSchema,
+    })
+      .isAvailable(({ game }) => game.energy > 0)
+      .validate(({ game }) =>
+        game.energy > 0
+          ? { ok: true as const }
+          : { ok: false as const, reason: "no_energy" },
+      )
+      .execute(({ game }) => {
+        game.energy -= 1;
+      })
+      .build(),
+    impossible_action: defineCommand({
+      commandId: "impossible_action",
+      commandSchema: emptyCommandSchema,
+    })
+      .isAvailable(() => false)
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+  };
   const game = new GameDefinitionBuilder<{
     energy: number;
   }>("availability-game")
     .initialState(() => ({
       energy: 1,
     }))
-    .commands({
-      pass_turn: defineCommand({
-        commandId: "pass_turn",
-        commandSchema: emptyCommandSchema,
-      })
-        .isAvailable(() => true)
-        .validate(() => ({ ok: true as const }))
-        .execute(() => {})
-        .build(),
-      spend_energy: defineCommand({
-        commandId: "spend_energy",
-        commandSchema: emptyCommandSchema,
-      })
-        .isAvailable(({ game }) => game.energy > 0)
-        .validate(({ game }) =>
-          game.energy > 0
-            ? { ok: true as const }
-            : { ok: false as const, reason: "no_energy" },
-        )
-        .execute(({ game }) => {
-          game.energy -= 1;
-        })
-        .build(),
-      impossible_action: defineCommand({
-        commandId: "impossible_action",
-        commandSchema: emptyCommandSchema,
-      })
-        .isAvailable(() => false)
-        .validate(() => ({ ok: true as const }))
-        .execute(() => {})
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
   const gameExecutor = createGameExecutor(game);
@@ -1051,50 +1023,49 @@ test("game executor can discover the next semantic options for a command", () =>
   const defineCommand = createCommandFactory<{
     canPlay: boolean;
   }>();
+  const commands = {
+    play_card: defineCommand({
+      commandId: "play_card",
+      commandSchema: playCardCommandSchema,
+    })
+      .discoverable({
+        discoverySchema: t.object({
+          cardId: t.optional(t.number()),
+          targetId: t.optional(t.number()),
+        }),
+        discover: ({ discovery }) => {
+          const cardId = discovery.input.cardId;
+
+          if (typeof cardId !== "number") {
+            return {
+              complete: false as const,
+              step: "select_card",
+              options: [
+                { id: "card-1", nextInput: { cardId: 1 } },
+                { id: "card-2", nextInput: { cardId: 2 } },
+              ],
+            };
+          }
+
+          return {
+            complete: false as const,
+            step: "select_target",
+            options: [{ id: "target-1", nextInput: { cardId, targetId: 101 } }],
+          };
+        },
+      })
+      .isAvailable(({ game }) => game.canPlay)
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+  };
   const game = new GameDefinitionBuilder<{
     canPlay: boolean;
   }>("discovery-game")
     .initialState(() => ({
       canPlay: true,
     }))
-    .commands({
-      play_card: defineCommand({
-        commandId: "play_card",
-        commandSchema: playCardCommandSchema,
-      })
-        .discoverable({
-          discoverySchema: t.object({
-            cardId: t.optional(t.number()),
-            targetId: t.optional(t.number()),
-          }),
-          discover: ({ discovery }) => {
-            const cardId = discovery.input?.cardId;
-
-            if (typeof cardId !== "number") {
-              return {
-                complete: false as const,
-                step: "select_card",
-                options: [
-                  { id: "card-1", nextInput: { cardId: 1 } },
-                  { id: "card-2", nextInput: { cardId: 2 } },
-                ],
-              };
-            }
-
-            return {
-              complete: false as const,
-              step: "select_target",
-              options: [
-                { id: "target-1", nextInput: { cardId, targetId: 101 } },
-              ],
-            };
-          },
-        })
-        .isAvailable(({ game }) => game.canPlay)
-        .validate(() => ({ ok: true as const }))
-        .execute(() => {})
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
   const gameExecutor = createGameExecutor(game);

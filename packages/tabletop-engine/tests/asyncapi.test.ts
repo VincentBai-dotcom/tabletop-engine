@@ -14,6 +14,7 @@ import {
 } from "../src/state-facade/metadata";
 import { t } from "../src/schema";
 import type { Viewer } from "../src/types/visibility";
+import { createSelfLoopingTurnStage } from "./helpers/stages";
 
 const gainScoreCommandSchema = t.object({
   amount: t.number(),
@@ -131,7 +132,7 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
       deck: { cards: [1, 2, 3] },
     }))
     .rootState(AsyncApiRootState)
-    .commands([gainScoreCommand])
+    .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
 
   const protocol = describeGameProtocol(game);
@@ -240,7 +241,7 @@ test("generateAsyncApi propagates protocol schema validation failures", () => {
       deck: { cards: [1, 2, 3] },
     }))
     .rootState(MissingViewSchemaRootState)
-    .commands([gainScoreCommand])
+    .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
 
   expect(() => generateAsyncApi(game)).toThrow(

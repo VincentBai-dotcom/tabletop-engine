@@ -10,6 +10,7 @@ import {
   restoreSnapshot,
   t,
 } from "../src/index";
+import { createSelfLoopingTurnStage } from "./helpers/stages";
 
 test("snapshots restore canonical state and replay reproduces final state", () => {
   const defineCommand = createCommandFactory<{
@@ -20,6 +21,27 @@ test("snapshots restore canonical state and replay reproduces final state", () =
     amount: t.optional(t.number()),
   });
   const emptyCommandSchema = t.object({});
+  const incrementCounterCommand = defineCommand({
+    commandId: "increment_counter",
+    commandSchema: incrementCommandSchema,
+  })
+    .validate(() => ({ ok: true as const }))
+    .execute(({ game, command }) => {
+      const amount =
+        typeof command.input.amount === "number" ? command.input.amount : 1;
+
+      game.counter += amount;
+    })
+    .build();
+  const sampleRandomnessCommand = defineCommand({
+    commandId: "sample_randomness",
+    commandSchema: emptyCommandSchema,
+  })
+    .validate(() => ({ ok: true as const }))
+    .execute(({ game, rng }) => {
+      game.value = rng.number();
+    })
+    .build();
 
   const game = new GameDefinitionBuilder<{
     counter: number;
@@ -30,31 +52,12 @@ test("snapshots restore canonical state and replay reproduces final state", () =
       value: 0,
     }))
     .rngSeed("seed-123")
-    .commands({
-      increment_counter: defineCommand({
-        commandId: "increment_counter",
-        commandSchema: incrementCommandSchema,
-      })
-        .validate(() => ({ ok: true as const }))
-        .execute(({ game, command }) => {
-          const amount =
-            typeof command.input?.amount === "number"
-              ? command.input.amount
-              : 1;
-
-          game.counter += amount;
-        })
-        .build(),
-      sample_randomness: defineCommand({
-        commandId: "sample_randomness",
-        commandSchema: emptyCommandSchema,
-      })
-        .validate(() => ({ ok: true as const }))
-        .execute(({ game, rng }) => {
-          game.value = rng.number();
-        })
-        .build(),
-    })
+    .initialStage(
+      createSelfLoopingTurnStage([
+        incrementCounterCommand,
+        sampleRandomnessCommand,
+      ]),
+    )
     .build();
 
   const gameExecutor = createGameExecutor(game);
@@ -90,6 +93,6 @@ test("snapshots restore canonical state and replay reproduces final state", () =
 
   expect(restoredInitialState).toEqual(initialState);
   expect(replay.commands).toHaveLength(2);
-  expect(replay.events).toHaveLength(0);
+  expect(replay.events).toHaveLength(4);
   expect(replayedState).toEqual(secondResult.state);
 });

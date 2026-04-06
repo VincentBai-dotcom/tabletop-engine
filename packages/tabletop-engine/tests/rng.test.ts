@@ -5,6 +5,7 @@ import {
   GameDefinitionBuilder,
   t,
 } from "../src/index";
+import { createSelfLoopingTurnStage } from "./helpers/stages";
 
 test("game executor rng is deterministic for the same seed and command sequence", () => {
   const defineCommand = createCommandFactory<{
@@ -13,6 +14,17 @@ test("game executor rng is deterministic for the same seed and command sequence"
     deck: string[];
   }>();
   const emptyCommandSchema = t.object({});
+  const sampleRandomnessCommand = defineCommand({
+    commandId: "sample_randomness",
+    commandSchema: emptyCommandSchema,
+  })
+    .validate(() => ({ ok: true as const }))
+    .execute(({ game, rng }) => {
+      game.value = rng.number();
+      game.roll = rng.die(6) as number;
+      game.deck = rng.shuffle(game.deck);
+    })
+    .build();
 
   const game = new GameDefinitionBuilder<{
     roll: number;
@@ -25,19 +37,7 @@ test("game executor rng is deterministic for the same seed and command sequence"
       deck: ["a", "b", "c"],
     }))
     .rngSeed("seed-123")
-    .commands({
-      sample_randomness: defineCommand({
-        commandId: "sample_randomness",
-        commandSchema: emptyCommandSchema,
-      })
-        .validate(() => ({ ok: true as const }))
-        .execute(({ game, rng }) => {
-          game.value = rng.number();
-          game.roll = rng.die(6) as number;
-          game.deck = rng.shuffle(game.deck);
-        })
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage([sampleRandomnessCommand]))
     .build();
 
   const gameExecutorA = createGameExecutor(game);
@@ -70,6 +70,15 @@ test("game executor rng cursor advances when randomness is consumed", () => {
     value: number;
   }>();
   const emptyCommandSchema = t.object({});
+  const sampleRandomnessCommand = defineCommand({
+    commandId: "sample_randomness",
+    commandSchema: emptyCommandSchema,
+  })
+    .validate(() => ({ ok: true as const }))
+    .execute(({ game, rng }) => {
+      game.value = rng.number();
+    })
+    .build();
 
   const game = new GameDefinitionBuilder<{
     value: number;
@@ -78,17 +87,7 @@ test("game executor rng cursor advances when randomness is consumed", () => {
       value: 0,
     }))
     .rngSeed("seed-123")
-    .commands({
-      sample_randomness: defineCommand({
-        commandId: "sample_randomness",
-        commandSchema: emptyCommandSchema,
-      })
-        .validate(() => ({ ok: true as const }))
-        .execute(({ game, rng }) => {
-          game.value = rng.number();
-        })
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage([sampleRandomnessCommand]))
     .build();
 
   const gameExecutor = createGameExecutor(game);

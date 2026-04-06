@@ -17,6 +17,7 @@ import type {
   InternalExecuteContext,
 } from "../src/types/command";
 import type { RuntimeState } from "../src/types/state";
+import { GameDefinitionBuilder } from "../src/game-definition";
 
 test("foundational runtime types compose", () => {
   const event: GameEvent = {
@@ -33,9 +34,6 @@ test("foundational runtime types compose", () => {
           id: "gameEnd",
           kind: "automatic",
         },
-        current: null,
-        rootId: null,
-        segments: {},
       },
       rng: {
         seed: "seed",
@@ -145,9 +143,6 @@ test("discovery types compose for draft-based next-step options and completion",
           kind: "activePlayer",
           activePlayerId: "p1",
         },
-        current: null,
-        rootId: null,
-        segments: {},
       },
       rng: { seed: "seed", cursor: 0 },
       history: { entries: [] },
@@ -269,6 +264,27 @@ test("strict command and discovery requests require actorId and input", () => {
   expect(missingCommandInput).toBeDefined();
   expect(missingDiscoveryActorId).toBeDefined();
   expect(missingDiscoveryInput).toBeDefined();
+});
+
+test("game definition builder only exposes stage-based progression authoring", () => {
+  const defineStage = createStageFactory<{ score: number }>();
+  const gameEndStage = defineStage("gameEnd").automatic().build();
+
+  const builder = new GameDefinitionBuilder<{
+    score: number;
+  }>("score-game");
+
+  // @ts-expect-error commands should not exist on the stage-based builder
+  void builder.commands;
+
+  // @ts-expect-error progression should not exist on the stage-based builder
+  void builder.progression;
+
+  const stageBuilder = new GameDefinitionBuilder<{
+    score: number;
+  }>("score-game").initialStage(gameEndStage);
+
+  expect(stageBuilder).toBeObject();
 });
 
 test("consumer command definitions only expose game state and command input generics", () => {
@@ -516,9 +532,6 @@ test("internal command definitions still expose canonical state separately from 
             id: "gameEnd",
             kind: "automatic",
           },
-          current: null,
-          rootId: null,
-          segments: {},
         },
         rng: {
           seed: "seed",
@@ -538,9 +551,6 @@ test("internal command definitions still expose canonical state separately from 
           id: "gameEnd",
           kind: "automatic",
         },
-        current: null,
-        rootId: null,
-        segments: {},
       },
       rng: {
         seed: "seed",

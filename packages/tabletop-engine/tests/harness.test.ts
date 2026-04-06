@@ -6,6 +6,7 @@ import {
   runScenario,
   t,
 } from "../src/index";
+import { createSelfLoopingTurnStage } from "./helpers/stages";
 
 test("runScenario applies commands in order and returns per-command results", () => {
   const defineCommand = createCommandFactory<{
@@ -14,6 +15,18 @@ test("runScenario applies commands in order and returns per-command results", ()
   const incrementCommandSchema = t.object({
     amount: t.optional(t.number()),
   });
+  const incrementCounterCommand = defineCommand({
+    commandId: "increment_counter",
+    commandSchema: incrementCommandSchema,
+  })
+    .validate(() => ({ ok: true as const }))
+    .execute(({ game, command }) => {
+      const amount =
+        typeof command.input.amount === "number" ? command.input.amount : 1;
+
+      game.counter += amount;
+    })
+    .build();
 
   const game = new GameDefinitionBuilder<{
     counter: number;
@@ -21,22 +34,7 @@ test("runScenario applies commands in order and returns per-command results", ()
     .initialState(() => ({
       counter: 0,
     }))
-    .commands({
-      increment_counter: defineCommand({
-        commandId: "increment_counter",
-        commandSchema: incrementCommandSchema,
-      })
-        .validate(() => ({ ok: true as const }))
-        .execute(({ game, command }) => {
-          const amount =
-            typeof command.input?.amount === "number"
-              ? command.input.amount
-              : 1;
-
-          game.counter += amount;
-        })
-        .build(),
-    })
+    .initialStage(createSelfLoopingTurnStage([incrementCounterCommand]))
     .build();
 
   const gameExecutor = createGameExecutor(game);

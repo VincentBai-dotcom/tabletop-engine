@@ -11,6 +11,7 @@ import {
 } from "../src/state-facade/metadata";
 import { t } from "../src/schema";
 import type { Viewer } from "../src/types/visibility";
+import { createSelfLoopingTurnStage } from "./helpers/stages";
 
 const gainScoreCommandSchema = t.object({
   amount: t.number(),
@@ -155,7 +156,7 @@ test("describeGameProtocol returns command payload schemas", () => {
       },
     }))
     .rootState(PlainProtocolRootState)
-    .commands([gainScoreCommand])
+    .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
 
   const protocol = describeGameProtocol(game);
@@ -213,7 +214,7 @@ test("describeGameProtocol includes custom view schemas when provided", () => {
       deck: { cards: [1, 2, 3] },
     }))
     .rootState(SchemaProtocolRootState)
-    .commands([gainScoreCommand])
+    .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
 
   const protocol = describeGameProtocol(game);
@@ -251,7 +252,7 @@ test("describeGameProtocol rejects commands without commandSchema", () => {
       deck: { cards: [1, 2, 3] },
     }))
     .rootState(ProtocolRootState)
-    .commands([missingPayloadCommand])
+    .initialStage(createSelfLoopingTurnStage([missingPayloadCommand]))
     .build();
 
   expect(() => describeGameProtocol(game)).toThrow(
@@ -291,7 +292,7 @@ test("describeGameProtocol rejects discovery handlers without draft schemas", ()
       },
     }))
     .rootState(PlainProtocolRootState)
-    .commands([missingDraftCommand])
+    .initialStage(createSelfLoopingTurnStage([missingDraftCommand]))
     .build();
 
   expect(() => describeGameProtocol(game)).toThrow(
@@ -331,7 +332,7 @@ test("describeGameProtocol rejects discovery draft schemas without handlers", ()
       },
     }))
     .rootState(PlainProtocolRootState)
-    .commands([orphanDraftCommand])
+    .initialStage(createSelfLoopingTurnStage([orphanDraftCommand]))
     .build();
 
   expect(() => describeGameProtocol(game)).toThrow(
@@ -372,7 +373,7 @@ test("describeGameProtocol rejects custom view methods without view schema", () 
       deck: { cards: [1, 2, 3] },
     }))
     .rootState(ProtocolRootState)
-    .commands([gainScoreCommand])
+    .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
 
   expect(() => describeGameProtocol(game)).toThrow(
@@ -409,7 +410,7 @@ test("describeGameProtocol rejects view schemas without projectCustomView", () =
       child: { value: 1 },
     }))
     .rootState(OrphanViewSchemaRootState)
-    .commands([gainScoreCommand])
+    .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
 
   expect(() => describeGameProtocol(game)).toThrow(
