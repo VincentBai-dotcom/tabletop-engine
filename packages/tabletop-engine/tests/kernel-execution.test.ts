@@ -757,6 +757,7 @@ test("initial automatic stages run before the initial state is returned", () => 
     id: "gameEnd",
     kind: "automatic",
   });
+  expect(initialState.runtime.progression.lastActingStage).toBeNull();
 });
 
 test("single-active stages reject commands from inactive players", () => {
@@ -886,6 +887,11 @@ test("successful stage-machine commands transition through automatic stages and 
     id: "gameEnd",
     kind: "automatic",
   });
+  expect(result.state.runtime.progression.lastActingStage).toEqual({
+    id: "playerTurn",
+    kind: "activePlayer",
+    activePlayerId: "player-1",
+  });
   expect(result.events.map((event) => event.type)).toEqual([
     "action_taken",
     "stage_exited",
@@ -948,6 +954,7 @@ test("automatic stages hydrate decorated state facades during run", () => {
     id: "gameEnd",
     kind: "automatic",
   });
+  expect(initialState.runtime.progression.lastActingStage).toBeNull();
 });
 
 test("game executor can list available commands through per-command availability hooks", () => {

@@ -9,23 +9,22 @@ type StageDefinitionBrand = {
   readonly [stageDefinitionBrand]: true;
 };
 
-export interface CurrentSingleActivePlayerStageState {
+export interface SingleActivePlayerStageState {
   id: string;
   kind: "activePlayer";
   activePlayerId: string;
 }
 
-export interface CurrentAutomaticStageState {
+export interface AutomaticStageState {
   id: string;
   kind: "automatic";
 }
 
-export type CurrentStageState =
-  | CurrentSingleActivePlayerStageState
-  | CurrentAutomaticStageState;
+export type StageState = SingleActivePlayerStageState | AutomaticStageState;
 
 export interface ProgressionState {
-  currentStage: CurrentStageState;
+  currentStage: StageState;
+  lastActingStage: SingleActivePlayerStageState | null;
 }
 
 export type StageDefinitionMap<FacadeGameState extends object = object> =

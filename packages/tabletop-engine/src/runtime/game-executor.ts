@@ -19,7 +19,11 @@ import type {
 } from "../types/command";
 import type { CommandDiscoveryResult } from "../types/command";
 import type { GameEvent } from "../types/event";
-import type { CurrentStageState, StageDefinition } from "../types/progression";
+import type {
+  SingleActivePlayerStageState,
+  StageDefinition,
+  StageState,
+} from "../types/progression";
 import type {
   ExecutionFailure,
   ExecutionResult,
@@ -102,6 +106,7 @@ function createInitialRuntimeState<
         id: game.initialStage.id,
         kind: "automatic",
       },
+      lastActingStage: null,
     },
     rng: {
       seed: game.rngSeed ?? 0,
@@ -203,7 +208,7 @@ function advanceStageMachine<
 
   while (currentStage) {
     if (currentStage.kind === "activePlayer") {
-      const stageState: CurrentStageState = {
+      const stageState: StageState = {
         id: currentStage.id,
         kind: "activePlayer",
         activePlayerId: currentStage.activePlayer({
@@ -216,7 +221,7 @@ function advanceStageMachine<
       return;
     }
 
-    const stageState: CurrentStageState = {
+    const stageState: StageState = {
       id: currentStage.id,
       kind: "automatic",
     };
@@ -575,6 +580,11 @@ export function createGameExecutor<
           collector.emit,
         ),
       );
+      workingState.runtime.progression.lastActingStage = {
+        id: currentStageState.id,
+        kind: "activePlayer",
+        activePlayerId: currentStageState.activePlayerId,
+      } satisfies SingleActivePlayerStageState;
       workingState.runtime.history.entries.push({
         id: String(workingState.runtime.history.entries.length + 1),
         commandType: command.type,

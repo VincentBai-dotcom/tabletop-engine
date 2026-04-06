@@ -34,6 +34,7 @@ test("foundational runtime types compose", () => {
           id: "gameEnd",
           kind: "automatic",
         },
+        lastActingStage: null,
       },
       rng: {
         seed: "seed",
@@ -139,6 +140,11 @@ test("discovery types compose for draft-based next-step options and completion",
     runtime: {
       progression: {
         currentStage: {
+          id: "turn",
+          kind: "activePlayer",
+          activePlayerId: "p1",
+        },
+        lastActingStage: {
           id: "turn",
           kind: "activePlayer",
           activePlayerId: "p1",
@@ -532,6 +538,7 @@ test("internal command definitions still expose canonical state separately from 
             id: "gameEnd",
             kind: "automatic",
           },
+          lastActingStage: null,
         },
         rng: {
           seed: "seed",
@@ -551,6 +558,7 @@ test("internal command definitions still expose canonical state separately from 
           id: "gameEnd",
           kind: "automatic",
         },
+        lastActingStage: null,
       },
       rng: {
         seed: "seed",

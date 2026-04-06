@@ -92,13 +92,13 @@ export type {
 } from "./types/visibility";
 export type {
   AutomaticStageDefinition,
-  CurrentAutomaticStageState,
-  CurrentSingleActivePlayerStageState,
-  CurrentStageState,
+  AutomaticStageState,
   ProgressionState,
   SingleActivePlayerSelectionContext,
+  SingleActivePlayerStageState,
   SingleActivePlayerStageDefinition,
   SingleActivePlayerTransitionContext,
+  StageState,
   StageDefinition,
   StageDefinitionMap,
 } from "./types/progression";
