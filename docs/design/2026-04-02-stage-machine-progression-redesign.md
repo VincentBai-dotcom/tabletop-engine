@@ -203,6 +203,69 @@ next player-facing stage or a terminal condition.
 
 ### Design Decisions Behind This Shape
 
+#### Required And Optional Builder Methods Should Differ By Stage Kind
+
+The chained stage builder should not require the same methods for every stage
+kind.
+
+Required vs optional methods should be:
+
+##### `singleActivePlayer`
+
+Required before `.build()`:
+
+- `.singleActivePlayer()`
+- `.activePlayer(...)`
+- `.commands(...)`
+- `.transition(...)`
+
+Optional:
+
+- `.nextStages(...)`
+
+If `.nextStages(...)` is omitted, then `transition(...)` should only be able to
+return `self`.
+
+Reasoning:
+
+- a player-facing stage must define who is active
+- it must define which command definitions belong to that stage
+- it must define what happens after a player action completes
+
+So `singleActivePlayer` stages are always part of an ongoing flow, not terminal
+sink stages.
+
+##### `automatic`
+
+Required before `.build()`:
+
+- `.automatic()`
+
+Optional:
+
+- `.run(...)`
+- `.nextStages(...)`
+- `.transition(...)`
+
+Meaning:
+
+- an `automatic` stage with `.transition(...)` is a routing or resolution stage
+- an `automatic` stage without `.transition(...)` is terminal
+- `.run(...)` is only needed if the automatic stage actually performs work
+  before transitioning or terminating
+
+This keeps terminal stages natural:
+
+```ts
+const gameEndStage = defineStage("gameEnd").automatic().build();
+```
+
+The design intention is:
+
+- terminal stages live in `automatic`
+- `singleActivePlayer` stages always remain explicit about how the flow
+  continues after a player acts
+
 #### Active Player Ownership Stays In `runtime.progression`
 
 The current active player should remain progression runtime data, not game
