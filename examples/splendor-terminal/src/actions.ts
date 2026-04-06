@@ -13,6 +13,7 @@ import {
   SPLENDOR_DISCOVERY_STEPS,
   type BuyFaceUpCardInput,
   type BuyReservedCardInput,
+  type ChooseNobleInput,
   type ReserveDeckCardInput,
   type ReserveFaceUpCardInput,
   type TakeThreeDistinctGemsInput,
@@ -26,6 +27,7 @@ export const COMMAND_LABELS: Record<string, string> = {
   reserve_deck_card: "Reserve a card from a deck",
   buy_face_up_card: "Buy a face-up card",
   buy_reserved_card: "Buy a reserved card",
+  choose_noble: "Choose a noble",
 };
 
 export function createCommandMenuOptions(
@@ -121,6 +123,10 @@ export function describeCommand(command: SplendorTerminalCommand): string {
       )}`;
     case "buy_reserved_card":
       return `Buy reserved card ${String(readReservedCardId(command))}`;
+    case "choose_noble":
+      return `Choose noble ${describeNoble(
+        (command.input as ChooseNobleInput).nobleId,
+      )}`;
     default:
       return COMMAND_LABELS[command.type] ?? command.type;
   }
