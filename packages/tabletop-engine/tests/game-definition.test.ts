@@ -3,6 +3,7 @@ import { createGameExecutor } from "../src/runtime/game-executor";
 import { GameDefinitionBuilder } from "../src/game-definition";
 import { createCommandFactory } from "../src/command-factory";
 import { createStageFactory } from "../src/stage-factory";
+import type { SingleActivePlayerStageDefinition } from "../src/types/progression";
 import {
   field,
   OwnedByPlayer,
@@ -106,12 +107,17 @@ test("GameDefinitionBuilder compiles stage command references into the command m
       game.score -= 1;
     })
     .build();
-  const scoreTurnStage = defineTestStage("scoreTurn")
-    .singleActivePlayer()
-    .activePlayer(() => "player-1")
-    .commands([incrementScoreCommand, decrementScoreCommand])
-    .transition(({ self }) => self)
-    .build();
+  const scoreTurnStage = createScoreTurnStage();
+
+  function createScoreTurnStage(): SingleActivePlayerStageDefinition<object> {
+    return defineTestStage("scoreTurn")
+      .singleActivePlayer()
+      .activePlayer(() => "player-1")
+      .commands([incrementScoreCommand, decrementScoreCommand])
+      .nextStages(() => ({ scoreTurnStage }))
+      .transition(({ nextStages }) => nextStages.scoreTurnStage)
+      .build();
+  }
 
   const game = new GameDefinitionBuilder<{
     score: number;
@@ -157,18 +163,22 @@ test("GameDefinitionBuilder accepts factory-defined commands through stages only
     })
     .build();
   const gameEndStage = defineTestStage("gameEnd").automatic().build();
-  const scoreTurnStage = defineTestStage("scoreTurn")
-    .singleActivePlayer()
-    .activePlayer(() => "player-1")
-    .commands([incrementScoreCommand, decrementScoreCommand])
-    .nextStages({
-      gameEndStage,
-    })
-    .transition(({ nextStages, self }) => {
-      const shouldEnd = "score" in self;
-      return shouldEnd ? nextStages.gameEndStage : self;
-    })
-    .build();
+  const scoreTurnStage = createScoreTurnStage();
+
+  function createScoreTurnStage(): SingleActivePlayerStageDefinition<object> {
+    return defineTestStage("scoreTurn")
+      .singleActivePlayer()
+      .activePlayer(() => "player-1")
+      .commands([incrementScoreCommand, decrementScoreCommand])
+      .nextStages(() => ({
+        scoreTurnStage,
+        gameEndStage,
+      }))
+      .transition(({ nextStages }) => {
+        return nextStages.gameEndStage ?? nextStages.scoreTurnStage;
+      })
+      .build();
+  }
 
   const game = new GameDefinitionBuilder<{
     score: number;
@@ -183,6 +193,7 @@ test("GameDefinitionBuilder accepts factory-defined commands through stages only
     "increment_score",
     "decrement_score",
   ]);
+  expect(Object.keys(game.stages)).toEqual(["scoreTurn", "gameEnd"]);
 });
 
 test("GameDefinitionBuilder rejects duplicate command ids across reachable stages", () => {
@@ -214,23 +225,28 @@ test("GameDefinitionBuilder rejects duplicate command ids across reachable stage
     .singleActivePlayer()
     .activePlayer(() => "player-1")
     .commands([incrementScoreCommand])
-    .nextStages({
+    .nextStages(() => ({
       gameEndStage,
-    })
+    }))
     .transition(({ nextStages }) => nextStages.gameEndStage)
     .build();
-  const bonusTurnStage = defineTestStage("bonusTurn")
-    .singleActivePlayer()
-    .activePlayer(() => "player-2")
-    .commands([duplicateIncrementScoreCommand])
-    .transition(({ self }) => self)
-    .build();
+  const bonusTurnStage = createBonusTurnStage();
+
+  function createBonusTurnStage(): SingleActivePlayerStageDefinition<object> {
+    return defineTestStage("bonusTurn")
+      .singleActivePlayer()
+      .activePlayer(() => "player-2")
+      .commands([duplicateIncrementScoreCommand])
+      .nextStages(() => ({ bonusTurnStage }))
+      .transition(({ nextStages }) => nextStages.bonusTurnStage)
+      .build();
+  }
   const rootStage = defineTestStage("root")
     .automatic()
-    .nextStages({
+    .nextStages(() => ({
       scoreTurnStage,
       bonusTurnStage,
-    })
+    }))
     .transition(({ nextStages }) => nextStages.scoreTurnStage)
     .build();
   void bonusTurnStage;
@@ -263,34 +279,42 @@ test("GameDefinitionBuilder only accepts commands created by the command factory
     score: 0,
   }));
 
-  builder.initialStage(
-    defineTestStage("turn")
+  const turnStage = createTurnStage();
+
+  function createTurnStage(): SingleActivePlayerStageDefinition<object> {
+    return defineTestStage("turn")
       .singleActivePlayer()
       .activePlayer(() => "player-1")
       .commands([
         // @ts-expect-error commands must be created by createCommandFactory
         legacyCommand,
       ])
-      .transition(({ self }) => self)
-      .build(),
-  );
+      .nextStages(() => ({ turnStage }))
+      .transition(({ nextStages }) => nextStages.turnStage)
+      .build();
+  }
+
+  builder.initialStage(turnStage);
 });
 
 test("createGameExecutor creates initial stage-machine runtime state", () => {
   const gameEndStage = defineTestStage("gameEnd").automatic().build();
-  const playerTurnStage = defineTestStage("playerTurn")
-    .singleActivePlayer()
-    .activePlayer(() => "player-1")
-    .nextStages({
-      gameEndStage,
-    })
-    .commands([])
-    .transition(({ nextStages, self }) => {
-      return self.id === nextStages.gameEndStage.id
-        ? nextStages.gameEndStage
-        : self;
-    })
-    .build();
+  const playerTurnStage = createPlayerTurnStage();
+
+  function createPlayerTurnStage(): SingleActivePlayerStageDefinition<object> {
+    return defineTestStage("playerTurn")
+      .singleActivePlayer()
+      .activePlayer(() => "player-1")
+      .nextStages(() => ({
+        playerTurnStage,
+        gameEndStage,
+      }))
+      .commands([])
+      .transition(({ nextStages }) => {
+        return nextStages.playerTurnStage;
+      })
+      .build();
+  }
   const game = new GameDefinitionBuilder<{
     score: number;
   }>("progression-game")

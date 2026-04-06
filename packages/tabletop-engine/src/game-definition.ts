@@ -1,5 +1,5 @@
 import type { CommandDefinition } from "./types/command";
-import type { StageDefinition } from "./types/progression";
+import type { StageDefinition, StageDefinitionMap } from "./types/progression";
 import type { RuntimeState } from "./types/state";
 import type { RNGApi } from "./types/rng";
 import {
@@ -202,12 +202,18 @@ function collectReachableStages<FacadeGameState extends object>(
 
     stages[stage.id] = stage;
 
-    for (const nextStage of Object.values(stage.nextStages ?? {})) {
+    for (const nextStage of Object.values(resolveNextStages(stage))) {
       stack.push(nextStage);
     }
   }
 
   return stages;
+}
+
+function resolveNextStages<FacadeGameState extends object>(
+  stage: StageDefinition<FacadeGameState>,
+): StageDefinitionMap<FacadeGameState> {
+  return stage.nextStages?.() ?? {};
 }
 
 function compileCommandMapFromStages<FacadeGameState extends object>(

@@ -30,6 +30,12 @@ export interface ProgressionState {
 export type StageDefinitionMap<FacadeGameState extends object = object> =
   Record<string, StageDefinition<FacadeGameState>>;
 
+export type StageDefinitionResolver<
+  FacadeGameState extends object = object,
+  NextStages extends StageDefinitionMap<FacadeGameState> =
+    StageDefinitionMap<FacadeGameState>,
+> = () => NextStages;
+
 export interface SingleActivePlayerSelectionContext<
   GameState extends object = object,
   Runtime = RuntimeState,
@@ -48,7 +54,6 @@ export interface SingleActivePlayerTransitionContext<
   runtime: Readonly<Runtime>;
   command: Command;
   nextStages: Readonly<NextStages>;
-  self: SingleActivePlayerStageDefinition<GameState>;
 }
 
 export interface AutomaticStageRunContext<
@@ -70,7 +75,6 @@ export interface AutomaticStageTransitionContext<
   game: Readonly<GameState>;
   runtime: Readonly<Runtime>;
   nextStages: Readonly<NextStages>;
-  self: AutomaticStageDefinition<GameState>;
 }
 
 export interface SingleActivePlayerStageDefinition<
@@ -85,7 +89,7 @@ export interface SingleActivePlayerStageDefinition<
     context: SingleActivePlayerSelectionContext<GameState, Runtime>,
   ): string;
   commands: readonly DefinedCommand<GameState>[];
-  nextStages?: NextStages;
+  nextStages?: StageDefinitionResolver<GameState, NextStages>;
   transition(
     context: SingleActivePlayerTransitionContext<
       GameState,
@@ -106,7 +110,7 @@ export interface AutomaticStageDefinition<
   id: string;
   kind: "automatic";
   run?(context: AutomaticStageRunContext<GameState, Runtime>): void;
-  nextStages?: NextStages;
+  nextStages?: StageDefinitionResolver<GameState, NextStages>;
   transition?(
     context: AutomaticStageTransitionContext<GameState, Runtime, NextStages>,
   ): AutomaticStageDefinition<GameState> | NextStages[keyof NextStages];

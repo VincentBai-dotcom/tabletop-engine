@@ -15,6 +15,7 @@ import {
   createSelfLoopingTurnStage,
   createTerminalStage,
 } from "./helpers/stages";
+import type { SingleActivePlayerStageDefinition } from "../src/types/progression";
 
 const emptyCommandSchema = t.object({});
 const amountCommandSchema = t.object({
@@ -729,9 +730,9 @@ test("initial automatic stages run before the initial state is returned", () => 
     .run(({ game }) => {
       game.incrementCounter(2);
     })
-    .nextStages({
+    .nextStages(() => ({
       gameEndStage,
-    })
+    }))
     .transition(({ nextStages }) => nextStages.gameEndStage)
     .build();
 
@@ -772,12 +773,19 @@ test("single-active stages reject commands from inactive players", () => {
       game.actions += 1;
     })
     .build();
-  const playerTurnStage = defineStage("playerTurn")
-    .singleActivePlayer()
-    .activePlayer(() => "player-1")
-    .commands([takeActionCommand])
-    .transition(({ self }) => self)
-    .build();
+  const playerTurnStage = createPlayerTurnStage();
+
+  function createPlayerTurnStage(): SingleActivePlayerStageDefinition<{
+    actions: number;
+  }> {
+    return defineStage("playerTurn")
+      .singleActivePlayer()
+      .activePlayer(() => "player-1")
+      .commands([takeActionCommand])
+      .nextStages(() => ({ playerTurnStage }))
+      .transition(({ nextStages }) => nextStages.playerTurnStage)
+      .build();
+  }
 
   const game = new GameDefinitionBuilder<{
     actions: number;
@@ -839,18 +847,18 @@ test("successful stage-machine commands transition through automatic stages and 
         payload: { cleaned: game.cleaned },
       });
     })
-    .nextStages({
+    .nextStages(() => ({
       gameEndStage,
-    })
+    }))
     .transition(({ nextStages }) => nextStages.gameEndStage)
     .build();
   const playerTurnStage = defineStage("playerTurn")
     .singleActivePlayer()
     .activePlayer(() => "player-1")
     .commands([takeActionCommand])
-    .nextStages({
+    .nextStages(() => ({
       cleanupStage,
-    })
+    }))
     .transition(({ nextStages }) => nextStages.cleanupStage)
     .build();
 
@@ -926,9 +934,9 @@ test("automatic stages hydrate decorated state facades during run", () => {
     .run(({ game }) => {
       game.incrementCounter(3);
     })
-    .nextStages({
+    .nextStages(() => ({
       gameEndStage,
-    })
+    }))
     .transition(({ nextStages }) => nextStages.gameEndStage)
     .build();
 

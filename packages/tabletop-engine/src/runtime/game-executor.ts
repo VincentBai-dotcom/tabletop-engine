@@ -136,6 +136,12 @@ function getCurrentStageDefinition<
     | undefined;
 }
 
+function resolveStageNextStages<GameState extends object>(
+  stage: StageDefinition<GameState>,
+) {
+  return stage.nextStages?.() ?? {};
+}
+
 function initializeStageMachine<
   CanonicalGameState extends object,
   FacadeGameState extends object = CanonicalGameState,
@@ -184,8 +190,7 @@ function initializeStageMachine<
     currentStage = currentStage.transition({
       game: createCommandGameView(game, state, { readonly: true }),
       runtime: state.runtime,
-      nextStages: currentStage.nextStages ?? {},
-      self: currentStage,
+      nextStages: resolveStageNextStages(currentStage),
     });
   }
 }
@@ -243,8 +248,7 @@ function advanceStageMachine<
     currentStage = currentStage.transition({
       game: createCommandGameView(game, state, { readonly: true }),
       runtime: state.runtime,
-      nextStages: currentStage.nextStages ?? {},
-      self: currentStage,
+      nextStages: resolveStageNextStages(currentStage),
     });
   }
 }
@@ -627,8 +631,7 @@ export function createGameExecutor<
           ),
           runtime: workingState.runtime,
           command,
-          nextStages: nextCurrentStage.nextStages ?? {},
-          self: nextCurrentStage,
+          nextStages: resolveStageNextStages(nextCurrentStage),
         }),
         rng,
         collector.emit,

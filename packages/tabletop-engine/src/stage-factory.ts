@@ -8,11 +8,15 @@ import {
   type SingleActivePlayerStageDefinition,
   type SingleActivePlayerTransitionContext,
   type StageDefinitionMap,
+  type StageDefinitionResolver,
 } from "./types/progression";
 import type { RuntimeState } from "./types/state";
 
 type NoBuilderMethod = Record<never, never>;
 type NoNextStages = Record<string, never>;
+type TExtractNextStages<Resolver> = Resolver extends () => infer NextStages
+  ? NextStages
+  : never;
 
 type SingleActivePlayerBuildMethod<
   GameState extends object,
@@ -69,7 +73,7 @@ export type SingleActivePlayerStageBuilder<
     HasTransition
   >;
   nextStages<TNextStages extends StageDefinitionMap<GameState>>(
-    nextStages: TNextStages,
+    nextStages: StageDefinitionResolver<GameState, TNextStages>,
   ): SingleActivePlayerStageBuilder<
     GameState,
     TNextStages,
@@ -110,7 +114,7 @@ export type AutomaticStageBuilder<
     run: (context: AutomaticStageRunContext<GameState, RuntimeState>) => void,
   ): AutomaticStageBuilder<GameState, NextStages>;
   nextStages<TNextStages extends StageDefinitionMap<GameState>>(
-    nextStages: TNextStages,
+    nextStages: StageDefinitionResolver<GameState, TNextStages>,
   ): AutomaticStageBuilder<GameState, TNextStages>;
   transition(
     transition: (
@@ -140,7 +144,7 @@ type SingleActivePlayerAccumulator<
     context: SingleActivePlayerSelectionContext<GameState, RuntimeState>,
   ) => string;
   commands?: readonly DefinedCommand<GameState>[];
-  nextStages?: NextStages;
+  nextStages?: StageDefinitionResolver<GameState, NextStages>;
   transition?: (
     context: SingleActivePlayerTransitionContext<
       GameState,
@@ -159,7 +163,7 @@ type AutomaticAccumulator<
   id: string;
   kind: "automatic";
   run?: (context: AutomaticStageRunContext<GameState, RuntimeState>) => void;
-  nextStages?: NextStages;
+  nextStages?: StageDefinitionResolver<GameState, NextStages>;
   transition?: (
     context: AutomaticStageTransitionContext<
       GameState,
@@ -234,11 +238,14 @@ function createSingleActivePlayerBuilder<
       const nextAccumulator = {
         ...accumulator,
         nextStages,
-      } as SingleActivePlayerAccumulator<GameState, typeof nextStages>;
+      } as SingleActivePlayerAccumulator<
+        GameState,
+        TExtractNextStages<typeof nextStages>
+      >;
 
       return createSingleActivePlayerBuilder<
         GameState,
-        typeof nextStages,
+        TExtractNextStages<typeof nextStages>,
         HasActivePlayer,
         HasCommands,
         HasTransition
@@ -306,10 +313,16 @@ function createAutomaticBuilder<
       });
     },
     nextStages(nextStages) {
-      return createAutomaticBuilder<GameState, typeof nextStages>({
+      return createAutomaticBuilder<
+        GameState,
+        TExtractNextStages<typeof nextStages>
+      >({
         ...accumulator,
         nextStages,
-      } as AutomaticAccumulator<GameState, typeof nextStages>);
+      } as AutomaticAccumulator<
+        GameState,
+        TExtractNextStages<typeof nextStages>
+      >);
     },
     transition(transition) {
       return createAutomaticBuilder({

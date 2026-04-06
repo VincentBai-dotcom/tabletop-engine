@@ -18,10 +18,18 @@ export function createSelfLoopingTurnStage<GameState extends object>(
     activePlayerId?: string;
   },
 ): SingleActivePlayerStageDefinition<GameState> {
-  return createStageFactory<GameState>()(options?.id ?? "turn")
-    .singleActivePlayer()
-    .activePlayer(() => options?.activePlayerId ?? "player-1")
-    .commands(commands)
-    .transition(({ self }) => self)
-    .build();
+  const defineStage = createStageFactory<GameState>();
+  const turnStage = createTurnStage();
+
+  return turnStage;
+
+  function createTurnStage(): SingleActivePlayerStageDefinition<GameState> {
+    return defineStage(options?.id ?? "turn")
+      .singleActivePlayer()
+      .activePlayer(() => options?.activePlayerId ?? "player-1")
+      .commands(commands)
+      .nextStages(() => ({ turnStage }))
+      .transition(({ nextStages }) => nextStages.turnStage)
+      .build();
+  }
 }

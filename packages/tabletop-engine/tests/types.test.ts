@@ -16,6 +16,7 @@ import type {
   InternalCommandDefinition,
   InternalExecuteContext,
 } from "../src/types/command";
+import type { SingleActivePlayerStageDefinition } from "../src/types/progression";
 import type { RuntimeState } from "../src/types/state";
 import { GameDefinitionBuilder } from "../src/game-definition";
 
@@ -76,27 +77,35 @@ test("stage machine types support single-active and automatic stage authoring", 
   const defineStage = createStageFactory<{ score: number }>();
   const gameEndStage = defineStage("gameEnd").automatic().build();
 
-  const playerTurnStage = defineStage("playerTurn")
-    .singleActivePlayer()
-    .activePlayer(({ runtime }) => {
-      const currentStage = runtime.progression.currentStage;
+  const playerTurnStage = createPlayerTurnStage();
 
-      if (currentStage.kind === "activePlayer") {
-        return currentStage.activePlayerId;
-      }
+  function createPlayerTurnStage(): SingleActivePlayerStageDefinition<{
+    score: number;
+  }> {
+    return defineStage("playerTurn")
+      .singleActivePlayer()
+      .activePlayer(({ runtime }) => {
+        const currentStage = runtime.progression.currentStage;
 
-      return "player-1";
-    })
-    .commands([])
-    .nextStages({
-      gameEndStage,
-    })
-    .transition(({ nextStages, self, command }) => {
-      expect(command.actorId).toBe("player-1");
-      void self;
-      return command.type === "end_game" ? nextStages.gameEndStage : self;
-    })
-    .build();
+        if (currentStage.kind === "activePlayer") {
+          return currentStage.activePlayerId;
+        }
+
+        return "player-1";
+      })
+      .commands([])
+      .nextStages(() => ({
+        playerTurnStage,
+        gameEndStage,
+      }))
+      .transition(({ nextStages, command }) => {
+        expect(command.actorId).toBe("player-1");
+        return command.type === "end_game"
+          ? nextStages.gameEndStage
+          : nextStages.playerTurnStage;
+      })
+      .build();
+  }
 
   const currentStage:
     | {
