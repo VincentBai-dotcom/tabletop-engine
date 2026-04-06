@@ -94,7 +94,10 @@ Stages should be authored as separate units, similar to commands.
 
 Recommended authoring style:
 
-- define stages one by one with a helper like `defineStage(...)`
+- define stages one by one with a chained helper like `defineStage("...")`
+- choose the stage kind through builder methods such as:
+  - `.singleActivePlayer()`
+  - `.automatic()`
 - connect stages through explicit transitions or stage references
 - pass only the initial stage into the game definition builder
 - let the engine compile the reachable stage graph from that initial stage
@@ -124,53 +127,51 @@ track.
 An `activePlayer` stage should define:
 
 - `id`
-- `kind: "activePlayer"`
+- stage kind through `.singleActivePlayer()`
 - `activePlayer({ game, runtime })`
 - `commands`
 - `nextStages`
-- `transition({ game, runtime, command })`
+- `transition({ game, runtime, command, nextStages, self })`
+- `.build()`
 
 Expected authoring shape:
 
 ```ts
-const gameEndStage = defineStage({
-  id: "gameEnd",
-  kind: "automatic",
-});
+const gameEndStage = defineStage("gameEnd").automatic().build();
 
-const playerTurnStage = defineStage({
-  id: "playerTurn",
-  kind: "activePlayer",
-
-  activePlayer({ game, runtime }) {
+const playerTurnStage = defineStage("playerTurn")
+  .singleActivePlayer()
+  .activePlayer(({ game, runtime }) => {
     const currentStage = runtime.progression.currentStage;
 
     return currentStage.kind === "activePlayer"
       ? game.getNextPlayerId(currentStage.activePlayerId)
       : game.firstPlayerId;
-  },
+  })
+  .commands([takeGemsCommand, reserveCardCommand, buyCardCommand])
+  .nextStages({
+    gameEndStage,
+  })
+  .transition(({ game, nextStages, self }) => {
+    return game.isFinished() ? nextStages.gameEndStage : self;
+  })
+  .build();
 
-  commands: [takeGemsCommand, reserveCardCommand, buyCardCommand],
-
-  nextStages: [playerTurnStage, gameEndStage],
-
-  transition({ game }) {
-    return game.isFinished() ? gameEndStage : playerTurnStage;
-  },
-});
-
-const cleanupStage = defineStage({
-  id: "cleanup",
-  kind: "automatic",
-
-  run({ game }) {
+const cleanupStage = defineStage("cleanup")
+  .automatic()
+  .run(({ game }) => {
     game.cleanupEndOfTurn();
-  },
-
-  transition({ game }) {
-    return game.isFinished() ? gameEndStage : playerTurnStage;
-  },
-});
+  })
+  .nextStages({
+    playerTurnStage,
+    gameEndStage,
+  })
+  .transition(({ game, nextStages }) => {
+    return game.isFinished()
+      ? nextStages.gameEndStage
+      : nextStages.playerTurnStage;
+  })
+  .build();
 
 const game = new GameDefinitionBuilder(...)
   .initialStage(playerTurnStage)
@@ -181,11 +182,12 @@ const game = new GameDefinitionBuilder(...)
 
 An `automatic` stage should define:
 
-- `id`
-- `kind: "automatic"`
+- `id` through `defineStage("...")`
+- stage kind through `.automatic()`
 - `run({ game, runtime })`
 - `nextStages`
-- `transition({ game, runtime })`
+- `transition({ game, runtime, nextStages, self })`
+- `.build()`
 
 It should not define active-player selection.
 
@@ -286,6 +288,34 @@ Reasoning:
 The developer should derive the next active player from the current game state
 and the previous progression runtime state.
 
+#### Stage Authoring Should Also Use The Chained Builder Pattern
+
+Stage authoring should follow the same direction as command authoring.
+
+Reasoning:
+
+- one-shot object literals produce poor editor feedback while the developer is
+  still typing an incomplete stage definition
+- stage definitions have the same problem commands had before the builder
+  migration:
+  - required fields may not all be present yet
+  - the object shape changes materially once the stage kind is chosen
+- a chained builder lets the editor expose only the methods relevant to the
+  chosen stage kind
+- `.build()` provides one explicit finalization point for required pieces such
+  as:
+  - `commands`, `nextStages`, and `transition(...)` for
+    `singleActivePlayer` stages
+  - `run(...)`, `nextStages`, and `transition(...)` for `automatic` stages
+
+Desired direction:
+
+- `defineStage("playerTurn").singleActivePlayer()...build()`
+- `defineStage("cleanup").automatic()...build()`
+
+This should replace the earlier one-shot `defineStage({ ... })` object pattern
+in the public API design.
+
 #### Stage Commands Should Be Static Command Definitions
 
 Stages should list command definitions directly:
@@ -352,15 +382,49 @@ the only source of next-stage information and may return stages dynamically.
 So stages should also declare a static superset of possible next stages:
 
 ```ts
-nextStages: [playerTurnStage, gameEndStage];
+nextStages({
+  playerTurnStage,
+  gameEndStage,
+});
 ```
 
 while `transition(...)` performs runtime selection:
 
 ```ts
-transition({ game }) {
-  return game.isFinished() ? gameEndStage : playerTurnStage;
-}
+transition(({ game, nextStages, self }) => {
+  return game.isFinished() ? nextStages.gameEndStage : self;
+});
+```
+
+The `transition(...)` hook should not return arbitrary stage objects.
+Instead it should receive:
+
+- `nextStages`
+  the statically declared named outgoing stages from `.nextStages({...})`
+- `self`
+  the current stage, always available for self-loop transitions
+
+This means:
+
+- self-looping does not need to be declared separately
+- transition targets are constrained to statically declared edges plus self
+- the developer gets autocomplete on named transition targets
+
+Because `.nextStages({...})` uses normal object literals, developers may use
+either semantic aliases:
+
+```ts
+nextStages({
+  gameEnd: gameEndStage,
+});
+```
+
+or plain variable-name keys:
+
+```ts
+nextStages({
+  gameEndStage,
+});
 ```
 
 This mirrors the stage-command split:
@@ -378,6 +442,32 @@ This is required so the builder can:
 - validate stage references
 - compile the command registry from reachable stages
 - support future protocol and tooling generation from the compiled graph
+
+#### Stage References Stay Internal To The Builder And Executor
+
+The stage objects exposed through:
+
+- `.nextStages({...})`
+- `transition(...).nextStages`
+- `transition(...).self`
+
+are authoring-time and executor-time handles only.
+
+They should not appear in canonical runtime state.
+
+The persisted runtime should continue to store only serializable stage data
+such as:
+
+- `runtime.progression.currentStage.id`
+- `runtime.progression.currentStage.kind`
+- `runtime.progression.currentStage.activePlayerId`
+
+This keeps the boundary clean:
+
+- stage-definition object references stay internal
+- canonical state stays plain serializable data
+- AsyncAPI and other protocol generation continue to describe the serialized
+  runtime shape, not the in-memory stage graph
 
 #### Keep Current-Stage Runtime Minimal For `activePlayer` And `automatic`
 
