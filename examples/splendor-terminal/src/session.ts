@@ -48,15 +48,13 @@ export class SplendorTerminalSession {
   }
 
   getActivePlayerId(): string | null {
-    const currentSegmentId = this.state.runtime.progression.current;
+    const currentStage = this.state.runtime.progression.currentStage;
 
-    if (!currentSegmentId) {
+    if (currentStage.kind !== "activePlayer") {
       return null;
     }
 
-    return (
-      this.state.runtime.progression.segments[currentSegmentId]?.ownerId ?? null
-    );
+    return currentStage.activePlayerId;
   }
 
   isFinished(): boolean {

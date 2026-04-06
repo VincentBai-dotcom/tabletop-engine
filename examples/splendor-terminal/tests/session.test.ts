@@ -1,6 +1,14 @@
 import { expect, test } from "bun:test";
 import { createLocalSplendorSession } from "../src/session.ts";
 
+test("local splendor session exposes the current active player from stage runtime", () => {
+  const session = createLocalSplendorSession({
+    seed: "session-seed",
+  });
+
+  expect(session.getActivePlayerId()).toBe("you");
+});
+
 test("failed commands do not overwrite recent activity summary", () => {
   const session = createLocalSplendorSession({
     seed: "session-seed",
