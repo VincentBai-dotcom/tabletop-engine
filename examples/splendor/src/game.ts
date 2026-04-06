@@ -29,7 +29,7 @@ export function createSplendorGame(
     .singleActivePlayer()
     .activePlayer(({ game, runtime }) => {
       const previousActorId =
-        runtime.history.entries[runtime.history.entries.length - 1]?.actorId;
+        runtime.progression.lastActingStage?.activePlayerId;
 
       return previousActorId
         ? game.getNextPlayerId(previousActorId)

@@ -32,6 +32,7 @@ test("splendor setup follows official 2-player rules", () => {
     kind: "activePlayer",
     activePlayerId: "p1",
   });
+  expect(state.runtime.progression.lastActingStage).toBeNull();
 });
 
 test("splendor game definition compiles a root state facade", () => {
@@ -225,6 +226,11 @@ test("taking three distinct gems updates tokens and advances the turn", () => {
     kind: "activePlayer",
     activePlayerId: "p2",
   });
+  expect(result.state.runtime.progression.lastActingStage).toEqual({
+    id: "playerTurn",
+    kind: "activePlayer",
+    activePlayerId: "p1",
+  });
   expect(result.events[0]).toMatchObject({
     category: "domain",
     type: "gems_taken",
@@ -331,6 +337,11 @@ test("reserving a face-up card grants gold and refills the market", () => {
     kind: "activePlayer",
     activePlayerId: "p2",
   });
+  expect(result.state.runtime.progression.lastActingStage).toEqual({
+    id: "playerTurn",
+    kind: "activePlayer",
+    activePlayerId: "p1",
+  });
 });
 
 test("buying a reserved card uses discounts and can claim a noble automatically", () => {
@@ -416,6 +427,11 @@ test("endgame finishes after the final player in turn order and breaks ties by f
     id: "playerTurn",
     kind: "activePlayer",
     activePlayerId: "p2",
+  });
+  expect(firstResult.state.runtime.progression.lastActingStage).toEqual({
+    id: "playerTurn",
+    kind: "activePlayer",
+    activePlayerId: "p1",
   });
 
   const secondResult = gameExecutor.executeCommand(firstResult.state, {
