@@ -1,5 +1,6 @@
-import type { Command, DefinedCommand } from "./types/command";
+import type { DefinedCommand } from "./types/command";
 import {
+  type CommandsFromDefinitions,
   stageDefinitionBrand,
   type AutomaticStageDefinition,
   type AutomaticStageRunContext,
@@ -21,16 +22,6 @@ type NoNextStages = Record<string, never>;
 type TExtractNextStages<Resolver> = Resolver extends () => infer NextStages
   ? NextStages
   : never;
-type CommandFromStageCommands<
-  Commands extends readonly DefinedCommand<object>[],
-> =
-  Commands[number] extends DefinedCommand<
-    object,
-    infer Input extends Record<string, unknown>,
-    Record<string, unknown>
-  >
-    ? Command<Input>
-    : Command;
 
 type SingleActivePlayerBuildMethod<
   GameState extends object,
@@ -143,7 +134,7 @@ export type SingleActivePlayerStageBuilder<
       context: SingleActivePlayerTransitionContext<
         GameState,
         RuntimeState,
-        CommandFromStageCommands<Commands>,
+        CommandsFromDefinitions<Commands>,
         NextStages
       >,
     ) =>
@@ -254,7 +245,7 @@ export type MultiActivePlayerStageBuilder<
         GameState,
         RuntimeState,
         Memory,
-        CommandFromStageCommands<Commands>
+        CommandsFromDefinitions<Commands>
       >,
     ) => void,
   ): MultiActivePlayerStageBuilder<
@@ -364,7 +355,7 @@ type SingleActivePlayerAccumulator<
     context: SingleActivePlayerTransitionContext<
       GameState,
       RuntimeState,
-      CommandFromStageCommands<Commands>,
+      CommandsFromDefinitions<Commands>,
       NextStages
     >,
   ) =>
@@ -407,7 +398,7 @@ type MultiActivePlayerAccumulator<
       GameState,
       RuntimeState,
       Memory,
-      CommandFromStageCommands<Commands>
+      CommandsFromDefinitions<Commands>
     >,
   ) => void;
   isComplete?: (
@@ -735,7 +726,7 @@ function createMultiActivePlayerBuilder<
           GameState,
           RuntimeState,
           Memory,
-          CommandFromStageCommands<Commands>
+          CommandsFromDefinitions<Commands>
         >,
       ) => void,
     ) {

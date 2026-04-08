@@ -60,7 +60,7 @@ type CommandFromDefinition<Definition> =
       : never
     : never;
 
-type CommandsFromDefinitions<Definitions extends readonly unknown[]> =
+export type CommandsFromDefinitions<Definitions extends readonly unknown[]> =
   CommandFromDefinition<Definitions[number]>;
 
 export interface SingleActivePlayerSelectionContext<
