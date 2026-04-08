@@ -867,9 +867,13 @@ test("multi-active stages stay active until completion and recompute active play
   const game = new GameDefinitionBuilder<{
     actions: string[];
   }>("multi-active-game")
-    .initialState(() => ({
-      actions: [],
-    }))
+    .initialState(
+      (): {
+        actions: string[];
+      } => ({
+        actions: [],
+      }),
+    )
     .initialStage(coordinatedStage)
     .build();
 

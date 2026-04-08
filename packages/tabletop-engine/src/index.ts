@@ -65,6 +65,7 @@ export type {
 export type { CommandFactory } from "./command-factory";
 export type {
   AutomaticStageBuilder,
+  MultiActivePlayerStageBuilder,
   SingleActivePlayerStageBuilder,
   StageFactory,
 } from "./stage-factory";
@@ -93,6 +94,11 @@ export type {
 export type {
   AutomaticStageDefinition,
   AutomaticStageState,
+  MultiActivePlayerMemoryContext,
+  MultiActivePlayerStageDefinition,
+  MultiActivePlayerStageState,
+  MultiActivePlayerSubmitContext,
+  MultiActivePlayerTransitionContext,
   ProgressionState,
   SingleActivePlayerSelectionContext,
   SingleActivePlayerStageState,

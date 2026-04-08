@@ -32,6 +32,8 @@ export function createStageExitedEvent(
       kind: stage.kind,
       activePlayerId:
         stage.kind === "activePlayer" ? stage.activePlayerId : null,
+      activePlayerIds:
+        stage.kind === "multiActivePlayer" ? stage.activePlayerIds : null,
     },
   };
 }
@@ -47,6 +49,8 @@ export function createStageEnteredEvent(
       kind: stage.kind,
       activePlayerId:
         stage.kind === "activePlayer" ? stage.activePlayerId : null,
+      activePlayerIds:
+        stage.kind === "multiActivePlayer" ? stage.activePlayerIds : null,
     },
   };
 }

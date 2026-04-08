@@ -221,7 +221,7 @@ function compileCommandMapFromStages<FacadeGameState extends object>(
 ): CommandDefinitionMap<FacadeGameState> {
   const commandMap: CommandDefinitionMap<FacadeGameState> = {};
   for (const stage of Object.values(stages)) {
-    if (stage.kind === "activePlayer") {
+    if (stage.kind === "activePlayer" || stage.kind === "multiActivePlayer") {
       for (const command of stage.commands) {
         const existing = commandMap[command.commandId];
 
