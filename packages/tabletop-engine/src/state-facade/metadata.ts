@@ -8,6 +8,7 @@ import type {
   SerializableSchema,
   StateFieldMetadata,
 } from "../schema";
+import { assertSerializableSchema } from "../schema";
 
 export { t };
 
@@ -77,6 +78,8 @@ export function field(fieldType: FieldType): PropertyDecorator {
 }
 
 export function viewSchema(schema: SerializableSchema): MethodDecorator {
+  assertSerializableSchema(schema);
+
   return (target) => {
     const metadata = ensureStateMetadata(resolveDecoratorTarget(target));
     metadata.customViewSchema = schema;
@@ -96,6 +99,10 @@ function resolveVisibilityMetadata(
   mode: VisibilityMode,
   options?: HiddenSummaryOptions,
 ): FieldVisibilityMetadata {
+  if (options?.schema) {
+    assertSerializableSchema(options.schema);
+  }
+
   return {
     mode,
     hiddenSummarySchema: options?.schema,

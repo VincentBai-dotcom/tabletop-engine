@@ -11,6 +11,7 @@ import type {
   NonDiscoverableCommandConfig,
 } from "./types/command";
 import { commandDefinitionBrand as brand } from "./types/command";
+import { assertSerializableSchema } from "./schema";
 
 export interface CommandFactory<FacadeGameState extends object> {
   <TCommandInput extends Record<string, unknown>>(
@@ -85,6 +86,10 @@ export function createCommandFactory<FacadeGameState extends object>() {
           TNextDiscoveryInput
         >,
       ) {
+        if ("kind" in config.discoverySchema) {
+          assertSerializableSchema(config.discoverySchema as never);
+        }
+
         return createBuilder<
           TCommandInput,
           TNextDiscoveryInput,
@@ -213,6 +218,10 @@ export function createCommandFactory<FacadeGameState extends object>() {
   function defineCommand<TCommandInput extends Record<string, unknown>>(
     config: CommandBuilderBaseConfig<TCommandInput>,
   ): CommandBuilder<FacadeGameState, TCommandInput> {
+    if ("kind" in config.commandSchema) {
+      assertSerializableSchema(config.commandSchema as never);
+    }
+
     return createBuilder({
       commandId: config.commandId,
       commandSchema: config.commandSchema,
