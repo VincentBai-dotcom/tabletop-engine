@@ -136,6 +136,57 @@ test("GameDefinitionBuilder compiles stage command references into the command m
   expect(game.commands.decrement_score).toBe(decrementScoreCommand);
 });
 
+test("GameDefinitionBuilder compiles multi-active stage command references into the command map shape", () => {
+  const defineCommand = createCommandFactory<{ score: number }>();
+  const submitVoteCommand = defineCommand({
+    commandId: "submit_vote",
+    commandSchema: emptyCommandSchema,
+  })
+    .validate(() => {
+      return { ok: true as const };
+    })
+    .execute(({ game }) => {
+      game.score += 1;
+    })
+    .build();
+  const gameEndStage = defineTestStage("gameEnd").automatic().build();
+  const voteStage = defineTestStage("voteStage")
+    .multiActivePlayer()
+    .memory<{ submittedByPlayerId: Record<string, true> }>(() => ({
+      submittedByPlayerId: {},
+    }))
+    .activePlayers(({ memory }) => {
+      return ["player-1", "player-2"].filter((playerId) => {
+        return memory.submittedByPlayerId[playerId] !== true;
+      });
+    })
+    .commands([submitVoteCommand])
+    .onSubmit(({ command, execute, memory }) => {
+      memory.submittedByPlayerId[command.actorId] = true;
+      execute(command);
+    })
+    .isComplete(({ memory }) => {
+      return Object.keys(memory.submittedByPlayerId).length === 2;
+    })
+    .nextStages(() => ({
+      gameEndStage,
+    }))
+    .transition(({ nextStages }) => nextStages.gameEndStage)
+    .build();
+
+  const game = new GameDefinitionBuilder<{
+    score: number;
+  }>("multi-active-list-builder-game")
+    .initialState(() => ({
+      score: 0,
+    }))
+    .initialStage(voteStage)
+    .build();
+
+  expect(Object.keys(game.commands)).toEqual(["submit_vote"]);
+  expect(game.commands.submit_vote).toBe(submitVoteCommand);
+});
+
 test("GameDefinitionBuilder accepts factory-defined commands through stages only", () => {
   const defineCommand = createCommandFactory<{ score: number }>();
 

@@ -813,6 +813,136 @@ test("single-active stages reject commands from inactive players", () => {
   expect(result.reason).toBe("not_active_player");
 });
 
+test("multi-active stages stay active until completion and recompute active players from memory", () => {
+  const defineCommand = createCommandFactory<{
+    actions: string[];
+  }>();
+  const defineStage = createStageFactory<{
+    actions: string[];
+  }>();
+  const submitActionCommand = defineCommand({
+    commandId: "submit_action",
+    commandSchema: t.object({
+      value: t.string(),
+    }),
+  })
+    .validate(() => ({ ok: true as const }))
+    .execute(({ game, command }) => {
+      game.actions.push(command.input.value);
+    })
+    .build();
+  const gameEndStage = defineStage("gameEnd").automatic().build();
+  const coordinatedStage = defineStage("coordinatedStage")
+    .multiActivePlayer()
+    .memory<{
+      submittedByPlayerId: Record<string, string>;
+    }>(() => ({
+      submittedByPlayerId: {},
+    }))
+    .activePlayers(({ memory }) => {
+      return ["player-1", "player-2"].filter((playerId) => {
+        return memory.submittedByPlayerId[playerId] === undefined;
+      });
+    })
+    .commands([submitActionCommand])
+    .onSubmit(({ command, execute, memory }) => {
+      memory.submittedByPlayerId[command.actorId] = command.input.value;
+      execute(command);
+    })
+    .isComplete(({ memory }) => {
+      return Object.keys(memory.submittedByPlayerId).length === 2;
+    })
+    .nextStages(() => ({
+      gameEndStage,
+    }))
+    .transition(({ nextStages, memory }) => {
+      expect(memory.submittedByPlayerId).toEqual({
+        "player-1": "first",
+        "player-2": "second",
+      });
+      return nextStages.gameEndStage;
+    })
+    .build();
+
+  const game = new GameDefinitionBuilder<{
+    actions: string[];
+  }>("multi-active-game")
+    .initialState(() => ({
+      actions: [],
+    }))
+    .initialStage(coordinatedStage)
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+
+  expect(initialState.runtime.progression.currentStage).toEqual({
+    id: "coordinatedStage",
+    kind: "multiActivePlayer",
+    activePlayerIds: ["player-1", "player-2"],
+  });
+
+  const afterFirstSubmission = executor.executeCommand(initialState, {
+    type: "submit_action",
+    actorId: "player-1",
+    input: {
+      value: "first",
+    },
+  });
+
+  expect(afterFirstSubmission.ok).toBe(true);
+
+  if (!afterFirstSubmission.ok) {
+    throw new Error("expected first multi-active submission to succeed");
+  }
+
+  expect(afterFirstSubmission.state.game.actions).toEqual(["first"]);
+  expect(afterFirstSubmission.state.runtime.progression.currentStage).toEqual({
+    id: "coordinatedStage",
+    kind: "multiActivePlayer",
+    activePlayerIds: ["player-2"],
+  });
+
+  const inactiveResult = executor.executeCommand(afterFirstSubmission.state, {
+    type: "submit_action",
+    actorId: "player-1",
+    input: {
+      value: "duplicate",
+    },
+  });
+
+  expect(inactiveResult.ok).toBe(false);
+
+  if (inactiveResult.ok) {
+    throw new Error("expected inactive multi-active submission rejection");
+  }
+
+  expect(inactiveResult.reason).toBe("not_active_player");
+
+  const afterSecondSubmission = executor.executeCommand(
+    afterFirstSubmission.state,
+    {
+      type: "submit_action",
+      actorId: "player-2",
+      input: {
+        value: "second",
+      },
+    },
+  );
+
+  expect(afterSecondSubmission.ok).toBe(true);
+
+  if (!afterSecondSubmission.ok) {
+    throw new Error("expected second multi-active submission to succeed");
+  }
+
+  expect(afterSecondSubmission.state.game.actions).toEqual(["first", "second"]);
+  expect(afterSecondSubmission.state.runtime.progression.currentStage).toEqual({
+    id: "gameEnd",
+    kind: "automatic",
+  });
+});
+
 test("successful stage-machine commands transition through automatic stages and emit stage events", () => {
   const defineCommand = createCommandFactory<{
     actions: number;
