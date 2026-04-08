@@ -170,6 +170,35 @@ For `@visibleToSelf(...)`, the visible schema must represent the union:
 For `@hidden(...)`, the visible schema is always the hidden envelope shape, with
 or without `value`.
 
+### Ban `t.state(...)` In Projection Schemas
+
+Hidden-summary schemas and custom view schemas should not allow `t.state(...)`.
+
+Reason:
+
+- projection/view schemas describe plain transport-visible data
+- `t.state(...)` is the engine-specific extension for canonical state authoring
+- projected views are not hydrated facade state
+
+So the engine should enforce that hidden-summary schemas remain fully
+serializable schemas only.
+
+This should be enforced at the type level, not only by convention.
+
+The current `SerializableSchema` type excludes `t.state(...)` only at the
+top-level union, but nested composition still leaks through because `t.object`,
+`t.array`, `t.record`, and `t.optional` currently accept broad `FieldType`
+inputs.
+
+Recommended follow-up:
+
+- introduce a recursive serializable field type that excludes `NestedStateFieldType`
+- use that stricter type for:
+  - `@viewSchema(...)`
+  - `@hidden({ schema })`
+  - `@visibleToSelf({ schema })`
+- keep a defensive runtime/protocol validation error as a backstop
+
 ## Boundary With `projectCustomView(viewer)`
 
 This feature is intentionally narrower than `projectCustomView(viewer)`.
