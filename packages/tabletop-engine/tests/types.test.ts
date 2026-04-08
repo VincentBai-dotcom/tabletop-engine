@@ -10,7 +10,17 @@ import type {
   GameEvent,
   ValidationOutcome,
 } from "../src/index";
-import { createCommandFactory, createStageFactory, t } from "../src/index";
+import {
+  createCommandFactory,
+  createStageFactory,
+  field,
+  hidden,
+  OwnedByPlayer,
+  State,
+  t,
+  viewSchema,
+  visibleToSelf,
+} from "../src/index";
 import type {
   CommandFromSchema,
   InternalCommandDefinition,
@@ -22,6 +32,80 @@ import type {
 } from "../src/types/progression";
 import type { RuntimeState } from "../src/types/state";
 import { GameDefinitionBuilder } from "../src/game-definition";
+
+@State()
+class TransportSchemaChildState {
+  @field(t.number())
+  count!: number;
+}
+
+@State()
+class TransportSchemaViewState {
+  @field(t.number())
+  count!: number;
+
+  // @ts-expect-error view schema should not allow nested t.state transport fields
+  @viewSchema(
+    t.object({
+      child: t.state(() => TransportSchemaChildState),
+    }),
+  )
+  projectCustomView() {
+    return {
+      child: {
+        count: this.count,
+      },
+    };
+  }
+}
+
+@State()
+class TransportSchemaHiddenState {
+  // @ts-expect-error hidden summary schema should not allow nested t.state transport fields
+  @hidden({
+    schema: t.object({
+      child: t.state(() => TransportSchemaChildState),
+    }),
+    project() {
+      return {
+        child: {
+          count: 1,
+        },
+      };
+    },
+  })
+  @field(t.array(t.number()))
+  cards!: number[];
+}
+
+@OwnedByPlayer()
+@State()
+class TransportSchemaVisibleToSelfState {
+  @field(t.string())
+  id!: string;
+
+  // @ts-expect-error visibleToSelf summary schema should not allow nested t.state transport fields
+  @visibleToSelf({
+    schema: t.object({
+      child: t.state(() => TransportSchemaChildState),
+    }),
+    project() {
+      return {
+        child: {
+          count: 1,
+        },
+      };
+    },
+  })
+  @field(t.array(t.number()))
+  cards!: number[];
+}
+
+test("transport schema red helpers are defined for type-level enforcement coverage", () => {
+  expect(TransportSchemaViewState).toBeDefined();
+  expect(TransportSchemaHiddenState).toBeDefined();
+  expect(TransportSchemaVisibleToSelfState).toBeDefined();
+});
 
 test("foundational runtime types compose", () => {
   const event: GameEvent = {
@@ -424,6 +508,42 @@ test("consumer command definitions only expose game state and command input gene
   const defineCommand = createCommandFactory<{
     increment(): void;
   }>();
+
+  // @ts-expect-error command schema should not allow nested t.state transport fields
+  defineCommand({
+    commandId: "invalid_command_schema",
+    commandSchema: {
+      static: {
+        child: {
+          count: 1,
+        },
+      },
+      schema: t.object({
+        child: t.state(() => TransportSchemaChildState),
+      }),
+    },
+  });
+
+  // @ts-expect-error discovery schema should not allow nested t.state transport fields
+  defineCommand({
+    commandId: "invalid_discovery_schema",
+    commandSchema: t.object({}),
+  }).discoverable({
+    discoverySchema: {
+      static: {
+        child: {
+          count: 1,
+        },
+      },
+      schema: t.object({
+        child: t.state(() => TransportSchemaChildState),
+      }),
+    },
+    discover() {
+      return null;
+    },
+  });
+
   const gainScoreCommandSchema = t.object({
     amount: t.number(),
   });

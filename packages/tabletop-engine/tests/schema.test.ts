@@ -9,6 +9,8 @@ import {
 type ExtendedSchemaApi = typeof t & {
   object: (properties: Record<string, unknown>) => unknown;
   optional: (item: unknown) => unknown;
+  array: (item: unknown) => unknown;
+  record: (key: unknown, value: unknown) => unknown;
 };
 
 @State()
@@ -68,4 +70,41 @@ test("state metadata can consume object schemas through field decorators", () =>
       },
     },
   });
+});
+
+@State()
+class NestedSerializableChildState {
+  @field(t.number())
+  count!: number;
+}
+
+test("serializable object schemas reject nested state fields", () => {
+  expect(() =>
+    (t as ExtendedSchemaApi).object({
+      child: t.state(() => NestedSerializableChildState),
+    }),
+  ).toThrow("state_field_not_allowed_in_serializable_schema");
+});
+
+test("serializable array schemas reject nested state items", () => {
+  expect(() =>
+    (t as ExtendedSchemaApi).array(t.state(() => NestedSerializableChildState)),
+  ).toThrow("state_field_not_allowed_in_serializable_schema");
+});
+
+test("serializable optional schemas reject nested state items", () => {
+  expect(() =>
+    (t as ExtendedSchemaApi).optional(
+      t.state(() => NestedSerializableChildState),
+    ),
+  ).toThrow("state_field_not_allowed_in_serializable_schema");
+});
+
+test("serializable record schemas reject nested state values", () => {
+  expect(() =>
+    (t as ExtendedSchemaApi).record(
+      t.string(),
+      t.state(() => NestedSerializableChildState),
+    ),
+  ).toThrow("state_field_not_allowed_in_serializable_schema");
 });
