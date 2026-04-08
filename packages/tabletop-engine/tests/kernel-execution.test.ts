@@ -884,6 +884,9 @@ test("multi-active stages stay active until completion and recompute active play
     id: "coordinatedStage",
     kind: "multiActivePlayer",
     activePlayerIds: ["player-1", "player-2"],
+    memory: {
+      submittedByPlayerId: {},
+    },
   });
 
   const afterFirstSubmission = executor.executeCommand(initialState, {
@@ -905,6 +908,11 @@ test("multi-active stages stay active until completion and recompute active play
     id: "coordinatedStage",
     kind: "multiActivePlayer",
     activePlayerIds: ["player-2"],
+    memory: {
+      submittedByPlayerId: {
+        "player-1": "first",
+      },
+    },
   });
 
   const inactiveResult = executor.executeCommand(afterFirstSubmission.state, {

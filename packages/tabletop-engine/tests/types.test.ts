@@ -202,10 +202,16 @@ test("stage machine types support multi-active stage authoring", () => {
         id: string;
         kind: "multiActivePlayer";
         activePlayerIds: string[];
+        memory: {
+          submittedByPlayerId: Record<string, string>;
+        };
       } = {
     id: "simultaneousTurn",
     kind: "multiActivePlayer",
     activePlayerIds: ["p1", "p2"],
+    memory: {
+      submittedByPlayerId: {},
+    },
   };
 
   const baseBuilder = defineStage("draft").multiActivePlayer();
@@ -226,6 +232,7 @@ test("stage machine types support multi-active stage authoring", () => {
   expect(currentStage.kind).toBe("multiActivePlayer");
   if (currentStage.kind === "multiActivePlayer") {
     expect(currentStage.activePlayerIds).toEqual(["p1", "p2"]);
+    expect(currentStage.memory.submittedByPlayerId).toEqual({});
   }
   expect(gameEndStage.id).toBe("gameEnd");
 });

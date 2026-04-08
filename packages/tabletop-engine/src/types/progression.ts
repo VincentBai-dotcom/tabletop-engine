@@ -20,10 +20,11 @@ export interface AutomaticStageState {
   kind: "automatic";
 }
 
-export interface MultiActivePlayerStageState {
+export interface MultiActivePlayerStageState<Memory extends object = object> {
   id: string;
   kind: "multiActivePlayer";
   activePlayerIds: string[];
+  memory: Memory;
 }
 
 export type StageState =
@@ -34,7 +35,6 @@ export type StageState =
 export interface ProgressionState {
   currentStage: StageState;
   lastActingStage: SingleActivePlayerStageState | null;
-  currentStageMemory?: unknown;
 }
 
 export type StageDefinitionMap<FacadeGameState extends object = object> =

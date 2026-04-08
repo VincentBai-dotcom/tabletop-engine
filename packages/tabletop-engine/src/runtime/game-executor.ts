@@ -108,7 +108,6 @@ function createInitialRuntimeState<
         kind: "automatic",
       },
       lastActingStage: null,
-      currentStageMemory: undefined,
     },
     rng: {
       seed: game.rngSeed ?? 0,
@@ -162,7 +161,6 @@ function initializeStageMachine<
 
   while (currentStage) {
     if (currentStage.kind === "activePlayer") {
-      state.runtime.progression.currentStageMemory = undefined;
       state.runtime.progression.currentStage = {
         id: currentStage.id,
         kind: "activePlayer",
@@ -176,7 +174,6 @@ function initializeStageMachine<
 
     if (currentStage.kind === "multiActivePlayer") {
       const memory = currentStage.memory();
-      state.runtime.progression.currentStageMemory = memory;
       state.runtime.progression.currentStage = {
         id: currentStage.id,
         kind: "multiActivePlayer",
@@ -185,11 +182,11 @@ function initializeStageMachine<
           runtime: state.runtime,
           memory,
         }),
+        memory,
       };
       return;
     }
 
-    state.runtime.progression.currentStageMemory = undefined;
     state.runtime.progression.currentStage = {
       id: currentStage.id,
       kind: "automatic",
@@ -232,7 +229,6 @@ function advanceStageMachine<
 
   while (currentStage) {
     if (currentStage.kind === "activePlayer") {
-      state.runtime.progression.currentStageMemory = undefined;
       const stageState: StageState = {
         id: currentStage.id,
         kind: "activePlayer",
@@ -248,7 +244,6 @@ function advanceStageMachine<
 
     if (currentStage.kind === "multiActivePlayer") {
       const memory = currentStage.memory();
-      state.runtime.progression.currentStageMemory = memory;
       const stageState: StageState = {
         id: currentStage.id,
         kind: "multiActivePlayer",
@@ -257,13 +252,13 @@ function advanceStageMachine<
           runtime: state.runtime,
           memory,
         }),
+        memory,
       };
       state.runtime.progression.currentStage = stageState;
       emitEvent(createStageEnteredEvent(stageState));
       return;
     }
 
-    state.runtime.progression.currentStageMemory = undefined;
     const stageState: StageState = {
       id: currentStage.id,
       kind: "automatic",
@@ -704,13 +699,10 @@ export function createGameExecutor<
         currentStage.kind === "multiActivePlayer" &&
         currentStageState.kind === "multiActivePlayer"
       ) {
-        const memory = workingState.runtime.progression.currentStageMemory as
-          | object
-          | undefined;
-
-        if (!memory) {
-          throw new Error("multi_active_stage_memory_missing");
-        }
+        const memory = (
+          workingState.runtime.progression
+            .currentStage as MultiActivePlayerStageState<object>
+        ).memory;
 
         currentStage.onSubmit({
           game: createCommandGameView(
@@ -769,6 +761,7 @@ export function createGameExecutor<
           id: currentStage.id,
           kind: "multiActivePlayer",
           activePlayerIds: nextActivePlayerIds,
+          memory,
         } satisfies MultiActivePlayerStageState;
 
         if (
