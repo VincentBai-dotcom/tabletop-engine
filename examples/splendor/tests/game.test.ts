@@ -54,6 +54,92 @@ test("splendor game definition compiles a root state facade", () => {
   expect(game.stateFacade?.states.SplendorPlayerState).toBeDefined();
 });
 
+test("splendor visible state hides deck contents and opponent reserved cards", () => {
+  const gameExecutor = createTestGameExecutor(["p1", "p2"]);
+  const state = gameExecutor.createInitialState();
+
+  state.game.players.p1!.reservedCardIds = [1, 2];
+  state.game.players.p2!.reservedCardIds = [3];
+  state.game.board.deckByLevel[1] = [11, 12, 13];
+  state.game.board.deckByLevel[2] = [21];
+  state.game.board.deckByLevel[3] = [];
+
+  const visibleForP1 = gameExecutor.getView(state, {
+    kind: "player",
+    playerId: "p1",
+  }) as {
+    game: {
+      players: Record<
+        string,
+        {
+          reservedCardIds:
+            | number[]
+            | {
+                __hidden: true;
+                value?: {
+                  count: number;
+                };
+              };
+        }
+      >;
+      board: {
+        deckByLevel: {
+          __hidden: true;
+          value?: Record<number, number>;
+        };
+      };
+    };
+  };
+  const visibleForP2 = gameExecutor.getView(state, {
+    kind: "player",
+    playerId: "p2",
+  }) as {
+    game: {
+      players: Record<
+        string,
+        {
+          reservedCardIds:
+            | number[]
+            | {
+                __hidden: true;
+                value?: {
+                  count: number;
+                };
+              };
+        }
+      >;
+      board: {
+        deckByLevel: {
+          __hidden: true;
+          value?: Record<number, number>;
+        };
+      };
+    };
+  };
+
+  expect(visibleForP1.game.players.p1?.reservedCardIds).toEqual([1, 2]);
+  expect(visibleForP1.game.players.p2?.reservedCardIds).toEqual({
+    __hidden: true,
+    value: {
+      count: 1,
+    },
+  });
+  expect(visibleForP2.game.players.p1?.reservedCardIds).toEqual({
+    __hidden: true,
+    value: {
+      count: 2,
+    },
+  });
+  expect(visibleForP1.game.board.deckByLevel).toEqual({
+    __hidden: true,
+    value: {
+      1: 3,
+      2: 1,
+      3: 0,
+    },
+  });
+});
+
 test("splendor setup follows official 4-player rules", () => {
   const gameExecutor = createTestGameExecutor(["p1", "p2", "p3", "p4"]);
   const state = gameExecutor.createInitialState();
