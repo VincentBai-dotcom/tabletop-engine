@@ -54,8 +54,8 @@ export interface GameExecutor<GameState extends object> {
   ): VisibleState<object>;
   listAvailableCommands(
     state: CanonicalState<GameState>,
-    options?: {
-      actorId?: string;
+    options: {
+      actorId: string;
     },
   ): string[];
   discoverCommand(
@@ -353,32 +353,20 @@ export function createGameExecutor<
         return [];
       }
 
-      let actorId: string;
-
       if (
         currentStage.kind === "activePlayer" &&
         currentStageState.kind === "activePlayer"
       ) {
-        if (
-          options?.actorId !== undefined &&
-          options.actorId !== currentStageState.activePlayerId
-        ) {
+        if (options.actorId !== currentStageState.activePlayerId) {
           return [];
         }
-
-        actorId = options?.actorId ?? currentStageState.activePlayerId;
       } else if (
         currentStage.kind === "multiActivePlayer" &&
         currentStageState.kind === "multiActivePlayer"
       ) {
-        if (
-          options?.actorId === undefined ||
-          !currentStageState.activePlayerIds.includes(options.actorId)
-        ) {
+        if (!currentStageState.activePlayerIds.includes(options.actorId)) {
           return [];
         }
-
-        actorId = options.actorId;
       } else {
         return [];
       }
@@ -402,7 +390,7 @@ export function createGameExecutor<
                 { readonly: true },
               ),
               definition.commandId,
-              actorId,
+              options.actorId,
             ),
           );
         })

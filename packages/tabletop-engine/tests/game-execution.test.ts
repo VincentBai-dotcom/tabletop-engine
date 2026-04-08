@@ -436,9 +436,9 @@ test("availability and discovery contexts hydrate readonly decorated state facad
   const executor = createGameExecutor(game);
   const initialState = executor.createInitialState();
 
-  expect(executor.listAvailableCommands(initialState)).toEqual([
-    "increment_counter",
-  ]);
+  expect(
+    executor.listAvailableCommands(initialState, { actorId: "player-1" }),
+  ).toEqual(["increment_counter"]);
   expect(
     executor.discoverCommand(initialState, {
       type: "increment_counter",
