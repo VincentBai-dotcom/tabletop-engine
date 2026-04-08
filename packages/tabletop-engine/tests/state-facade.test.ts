@@ -3,8 +3,11 @@ import * as visibilityMetadata from "../src/state-facade/metadata";
 import {
   field,
   getStateMetadata,
+  hidden,
+  OwnedByPlayer,
   State,
   t,
+  visibleToSelf,
 } from "../src/state-facade/metadata";
 import { compileStateFacadeDefinition } from "../src/state-facade/compile";
 import { hydrateStateFacade } from "../src/state-facade/hydrate";
@@ -60,6 +63,42 @@ class CardStateFacade {
 class CardCollectionStateFacade {
   @field(t.array(t.state(() => CardStateFacade)))
   cards!: CardStateFacade[];
+}
+
+const hiddenCountSummarySchema = t.object({
+  count: t.number(),
+});
+
+@OwnedByPlayer()
+@State()
+class SummaryVisibilityPlayerState {
+  @field(t.string())
+  id!: string;
+
+  @visibleToSelf({
+    schema: hiddenCountSummarySchema,
+    project(value) {
+      return {
+        count: Array.isArray(value) ? value.length : 0,
+      };
+    },
+  })
+  @field(t.array(t.string()))
+  cards!: string[];
+}
+
+@State()
+class SummaryVisibilityDeckState {
+  @hidden({
+    schema: hiddenCountSummarySchema,
+    project(value) {
+      return {
+        count: Array.isArray(value) ? value.length : 0,
+      };
+    },
+  })
+  @field(t.array(t.string()))
+  cards!: string[];
 }
 
 test("state decorators capture scalar and nested state metadata", () => {
@@ -150,6 +189,31 @@ test("state facade metadata exports visibility decorators", () => {
   expect(
     typeof (visibilityMetadata as Record<string, unknown>).OwnedByPlayer,
   ).toBe("function");
+});
+
+test("state decorators capture hidden summary visibility metadata", () => {
+  const playerMetadata = getStateMetadata(SummaryVisibilityPlayerState);
+  const deckMetadata = getStateMetadata(SummaryVisibilityDeckState);
+
+  expect(playerMetadata.fieldVisibility.cards).toMatchObject({
+    mode: "visible_to_self",
+    hiddenSummarySchema: hiddenCountSummarySchema,
+  });
+  expect(
+    playerMetadata.fieldVisibility.cards?.projectHiddenSummary?.(["a", "b"]),
+  ).toEqual({
+    count: 2,
+  });
+
+  expect(deckMetadata.fieldVisibility.cards).toMatchObject({
+    mode: "hidden",
+    hiddenSummarySchema: hiddenCountSummarySchema,
+  });
+  expect(
+    deckMetadata.fieldVisibility.cards?.projectHiddenSummary?.(["a"]),
+  ).toEqual({
+    count: 1,
+  });
 });
 
 test("state facade metadata exports the shared runtime schema api", () => {

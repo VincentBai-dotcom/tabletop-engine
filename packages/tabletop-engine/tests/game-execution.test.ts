@@ -63,6 +63,42 @@ class VisiblePlayerState {
   score!: number;
 }
 
+const hiddenSummarySchema = t.object({
+  count: t.number(),
+});
+
+@OwnedByPlayer()
+@State()
+class VisibleSummaryPlayerState {
+  @field(t.string())
+  id!: string;
+
+  @visibleToSelf({
+    schema: hiddenSummarySchema,
+    project(value) {
+      return {
+        count: Array.isArray(value) ? value.length : 0,
+      };
+    },
+  })
+  @field(t.array(t.string()))
+  hand!: string[];
+
+  @field(t.number())
+  score!: number;
+}
+
+@State()
+class VisibleSummaryRootState {
+  @field(
+    t.record(
+      t.string(),
+      t.state(() => VisibleSummaryPlayerState),
+    ),
+  )
+  players!: Record<string, VisibleSummaryPlayerState>;
+}
+
 @State()
 class VisibleRootState {
   @field(
@@ -79,6 +115,26 @@ class HiddenDeckState {
   @hidden()
   @field(t.array(t.string()))
   cards!: string[];
+}
+
+@State()
+class HiddenSummaryDeckState {
+  @hidden({
+    schema: hiddenSummarySchema,
+    project(value) {
+      return {
+        count: Array.isArray(value) ? value.length : 0,
+      };
+    },
+  })
+  @field(t.array(t.string()))
+  cards!: string[];
+}
+
+@State()
+class HiddenSummaryDeckRootState {
+  @field(t.state(() => HiddenSummaryDeckState))
+  deck!: HiddenSummaryDeckState;
 }
 
 @State()
@@ -307,6 +363,121 @@ test("createGameExecutor projects hidden fields for every viewer", () => {
   });
   expect(visibleForSpectator.game.deck.cards).toEqual({
     __hidden: true,
+  });
+});
+
+test("createGameExecutor projects hidden summary values for hidden fields", () => {
+  const game = new GameDefinitionBuilder<{
+    deck: {
+      cards: string[];
+    };
+  }>("hidden-summary-deck-game")
+    .rootState(HiddenSummaryDeckRootState)
+    .initialState(() => ({
+      deck: {
+        cards: ["a", "b", "c"],
+      },
+    }))
+    .initialStage(createTerminalStage())
+    .build();
+
+  const executor = createGameExecutor(game) as {
+    createInitialState(): unknown;
+    getView(
+      state: unknown,
+      viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
+    ): {
+      game: {
+        deck: {
+          cards: { __hidden: true; value?: { count: number } };
+        };
+      };
+    };
+  };
+  const state = executor.createInitialState();
+  const visibleForPlayer = executor.getView(state, {
+    kind: "player",
+    playerId: "p1",
+  });
+
+  expect(visibleForPlayer.game.deck.cards).toEqual({
+    __hidden: true,
+    value: {
+      count: 3,
+    },
+  });
+});
+
+test("createGameExecutor projects hidden summary values for visibleToSelf fields", () => {
+  const game = new GameDefinitionBuilder<{
+    players: Record<
+      string,
+      {
+        id: string;
+        hand: string[];
+        score: number;
+      }
+    >;
+  }>("private-hand-summary-game")
+    .rootState(VisibleSummaryRootState)
+    .initialState(() => ({
+      players: {
+        p1: {
+          id: "p1",
+          hand: ["a", "b"],
+          score: 3,
+        },
+        p2: {
+          id: "p2",
+          hand: ["x"],
+          score: 2,
+        },
+      },
+    }))
+    .initialStage(createTerminalStage())
+    .build();
+
+  const executor = createGameExecutor(game) as {
+    createInitialState(): unknown;
+    getView(
+      state: unknown,
+      viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
+    ): {
+      game: {
+        players: Record<
+          string,
+          {
+            id: string;
+            score: number;
+            hand: string[] | { __hidden: true; value?: { count: number } };
+          }
+        >;
+      };
+      progression: unknown;
+    };
+  };
+  const state = executor.createInitialState();
+  const visibleForP1 = executor.getView(state, {
+    kind: "player",
+    playerId: "p1",
+  });
+  const visibleForP2 = executor.getView(state, {
+    kind: "player",
+    playerId: "p2",
+  });
+
+  expect(visibleForP1.game.players.p1?.hand).toEqual(["a", "b"]);
+  expect(visibleForP1.game.players.p2?.hand).toEqual({
+    __hidden: true,
+    value: {
+      count: 1,
+    },
+  });
+  expect(visibleForP2.game.players.p1?.hand).toEqual({
+    __hidden: true,
+    value: {
+      count: 2,
+    },
   });
 });
 

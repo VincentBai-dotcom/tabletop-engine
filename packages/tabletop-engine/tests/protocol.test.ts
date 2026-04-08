@@ -22,6 +22,9 @@ const gainScoreDiscoverySchema = t.object({
 const customDeckViewSchema = t.object({
   count: t.number(),
 });
+const hiddenSummaryViewSchema = t.object({
+  count: t.number(),
+});
 
 @OwnedByPlayer()
 @State()
@@ -29,14 +32,28 @@ class ProtocolPlayerState {
   @field(t.string())
   id!: string;
 
-  @visibleToSelf()
+  @visibleToSelf({
+    schema: hiddenSummaryViewSchema,
+    project(value) {
+      return {
+        count: Array.isArray(value) ? value.length : 0,
+      };
+    },
+  })
   @field(t.array(t.number()))
   hand!: number[];
 }
 
 @State()
 class ProtocolDeckState {
-  @hidden()
+  @hidden({
+    schema: hiddenSummaryViewSchema,
+    project(value) {
+      return {
+        count: Array.isArray(value) ? value.length : 0,
+      };
+    },
+  })
   @field(t.array(t.number()))
   cards!: number[];
 
@@ -179,6 +196,17 @@ test("describeGameProtocol returns command payload schemas", () => {
   expect(playerSchema.type).toBe("object");
   expect(playerSchema.properties.id.type).toBe("string");
   expect(playerSchema.properties.hand.anyOf).toHaveLength(2);
+  expect(playerSchema.properties.hand.anyOf[1]).toEqual({
+    type: "object",
+    properties: {
+      __hidden: {
+        const: true,
+        type: "boolean",
+      },
+      value: hiddenSummaryViewSchema.schema,
+    },
+    required: ["__hidden", "value"],
+  });
 });
 
 test("describeGameProtocol includes custom view schemas when provided", () => {
