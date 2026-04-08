@@ -71,12 +71,13 @@ export interface SingleActivePlayerSelectionContext<
 export interface SingleActivePlayerTransitionContext<
   GameState extends object = object,
   Runtime = RuntimeState,
+  TCommand extends Command = Command,
   NextStages extends StageDefinitionMap<GameState> =
     StageDefinitionMap<GameState>,
 > {
   game: Readonly<GameState>;
   runtime: Readonly<Runtime>;
-  command: Command;
+  command: TCommand;
   nextStages: Readonly<NextStages>;
 }
 
@@ -134,6 +135,8 @@ export interface MultiActivePlayerTransitionContext<
 export interface SingleActivePlayerStageDefinition<
   GameState extends object = object,
   Runtime = RuntimeState,
+  Commands extends readonly DefinedCommand<GameState>[] =
+    readonly DefinedCommand<GameState>[],
   NextStages extends StageDefinitionMap<GameState> =
     StageDefinitionMap<GameState>,
 > extends StageDefinitionBrand {
@@ -142,12 +145,13 @@ export interface SingleActivePlayerStageDefinition<
   activePlayer(
     context: SingleActivePlayerSelectionContext<GameState, Runtime>,
   ): string;
-  commands: readonly DefinedCommand<GameState>[];
+  commands: Commands;
   nextStages?: StageDefinitionResolver<GameState, NextStages>;
   transition(
     context: SingleActivePlayerTransitionContext<
       GameState,
       Runtime,
+      CommandsFromDefinitions<Commands>,
       NextStages
     >,
   ):

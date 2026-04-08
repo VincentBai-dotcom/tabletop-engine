@@ -78,7 +78,17 @@ test("foundational runtime types compose", () => {
 
 test("stage machine types support single-active and automatic stage authoring", () => {
   const defineStage = createStageFactory<{ score: number }>();
+  const defineCommand = createCommandFactory<{ score: number }>();
   const gameEndStage = defineStage("gameEnd").automatic().build();
+  const drawCardCommand = defineCommand({
+    commandId: "draw_card",
+    commandSchema: t.object({
+      count: t.number(),
+    }),
+  })
+    .validate(() => ({ ok: true as const }))
+    .execute(() => {})
+    .build();
 
   const playerTurnStage = createPlayerTurnStage();
 
@@ -96,13 +106,14 @@ test("stage machine types support single-active and automatic stage authoring", 
 
         return "player-1";
       })
-      .commands([])
+      .commands([drawCardCommand])
       .nextStages(() => ({
         playerTurnStage,
         gameEndStage,
       }))
       .transition(({ nextStages, command }) => {
         expect(command.actorId).toBe("player-1");
+        expect(command.input.count).toBeNumber();
         return command.type === "end_game"
           ? nextStages.gameEndStage
           : nextStages.playerTurnStage;

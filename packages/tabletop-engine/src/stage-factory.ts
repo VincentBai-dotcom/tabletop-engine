@@ -22,21 +22,19 @@ type TExtractNextStages<Resolver> = Resolver extends () => infer NextStages
   ? NextStages
   : never;
 type CommandFromStageCommands<
-  GameState extends object,
-  Commands extends readonly DefinedCommand<GameState>[],
+  Commands extends readonly DefinedCommand<object>[],
 > =
   Commands[number] extends DefinedCommand<
-    GameState,
+    object,
     infer Input extends Record<string, unknown>,
-    infer DiscoveryInput extends Record<string, unknown>
+    Record<string, unknown>
   >
-    ? DiscoveryInput extends Record<string, unknown>
-      ? Command<Input>
-      : Command
+    ? Command<Input>
     : Command;
 
 type SingleActivePlayerBuildMethod<
   GameState extends object,
+  Commands extends readonly DefinedCommand<GameState>[],
   NextStages extends StageDefinitionMap<GameState>,
   HasActivePlayer extends boolean,
   HasCommands extends boolean,
@@ -48,6 +46,7 @@ type SingleActivePlayerBuildMethod<
           build(): SingleActivePlayerStageDefinition<
             GameState,
             RuntimeState,
+            Commands,
             NextStages
           >;
         }
@@ -100,6 +99,8 @@ type MultiActivePlayerBuildMethod<
 
 export type SingleActivePlayerStageBuilder<
   GameState extends object,
+  Commands extends readonly DefinedCommand<GameState>[] =
+    readonly DefinedCommand<GameState>[],
   NextStages extends StageDefinitionMap<GameState> = NoNextStages,
   HasActivePlayer extends boolean = false,
   HasCommands extends boolean = false,
@@ -111,15 +112,17 @@ export type SingleActivePlayerStageBuilder<
     ) => string,
   ): SingleActivePlayerStageBuilder<
     GameState,
+    Commands,
     NextStages,
     true,
     HasCommands,
     HasTransition
   >;
-  commands(
-    commands: readonly DefinedCommand<GameState>[],
+  commands<NextCommands extends readonly DefinedCommand<GameState>[]>(
+    commands: NextCommands,
   ): SingleActivePlayerStageBuilder<
     GameState,
+    NextCommands,
     NextStages,
     HasActivePlayer,
     true,
@@ -129,6 +132,7 @@ export type SingleActivePlayerStageBuilder<
     nextStages: StageDefinitionResolver<GameState, TNextStages>,
   ): SingleActivePlayerStageBuilder<
     GameState,
+    Commands,
     TNextStages,
     HasActivePlayer,
     HasCommands,
@@ -139,6 +143,7 @@ export type SingleActivePlayerStageBuilder<
       context: SingleActivePlayerTransitionContext<
         GameState,
         RuntimeState,
+        CommandFromStageCommands<Commands>,
         NextStages
       >,
     ) =>
@@ -146,6 +151,7 @@ export type SingleActivePlayerStageBuilder<
       | NextStages[keyof NextStages],
   ): SingleActivePlayerStageBuilder<
     GameState,
+    Commands,
     NextStages,
     HasActivePlayer,
     HasCommands,
@@ -153,6 +159,7 @@ export type SingleActivePlayerStageBuilder<
   >;
 } & SingleActivePlayerBuildMethod<
   GameState,
+  Commands,
   NextStages,
   HasActivePlayer,
   HasCommands,
@@ -247,7 +254,7 @@ export type MultiActivePlayerStageBuilder<
         GameState,
         RuntimeState,
         Memory,
-        CommandFromStageCommands<GameState, Commands>
+        CommandFromStageCommands<Commands>
       >,
     ) => void,
   ): MultiActivePlayerStageBuilder<
@@ -343,6 +350,7 @@ export interface StageFactory<GameState extends object = object> {
 
 type SingleActivePlayerAccumulator<
   GameState extends object,
+  Commands extends readonly DefinedCommand<GameState>[],
   NextStages extends StageDefinitionMap<GameState>,
 > = {
   id: string;
@@ -350,12 +358,13 @@ type SingleActivePlayerAccumulator<
   activePlayer?: (
     context: SingleActivePlayerSelectionContext<GameState, RuntimeState>,
   ) => string;
-  commands?: readonly DefinedCommand<GameState>[];
+  commands?: Commands;
   nextStages?: StageDefinitionResolver<GameState, NextStages>;
   transition?: (
     context: SingleActivePlayerTransitionContext<
       GameState,
       RuntimeState,
+      CommandFromStageCommands<Commands>,
       NextStages
     >,
   ) =>
@@ -398,7 +407,7 @@ type MultiActivePlayerAccumulator<
       GameState,
       RuntimeState,
       Memory,
-      CommandFromStageCommands<GameState, Commands>
+      CommandFromStageCommands<Commands>
     >,
   ) => void;
   isComplete?: (
@@ -423,7 +432,11 @@ export function createStageFactory<
   return ((id: string) => {
     return {
       singleActivePlayer() {
-        return createSingleActivePlayerBuilder<GameState, NoNextStages>({
+        return createSingleActivePlayerBuilder<
+          GameState,
+          readonly DefinedCommand<GameState>[],
+          NoNextStages
+        >({
           id,
           kind: "activePlayer",
         });
@@ -451,14 +464,16 @@ export function createStageFactory<
 
 function createSingleActivePlayerBuilder<
   GameState extends object,
+  Commands extends readonly DefinedCommand<GameState>[],
   NextStages extends StageDefinitionMap<GameState>,
   HasActivePlayer extends boolean = false,
   HasCommands extends boolean = false,
   HasTransition extends boolean = false,
 >(
-  accumulator: SingleActivePlayerAccumulator<GameState, NextStages>,
+  accumulator: SingleActivePlayerAccumulator<GameState, Commands, NextStages>,
 ): SingleActivePlayerStageBuilder<
   GameState,
+  Commands,
   NextStages,
   HasActivePlayer,
   HasCommands,
@@ -468,6 +483,7 @@ function createSingleActivePlayerBuilder<
     activePlayer(activePlayer) {
       return createSingleActivePlayerBuilder<
         GameState,
+        Commands,
         NextStages,
         true,
         HasCommands,
@@ -477,9 +493,12 @@ function createSingleActivePlayerBuilder<
         activePlayer,
       });
     },
-    commands(commands) {
+    commands<NextCommands extends readonly DefinedCommand<GameState>[]>(
+      commands: NextCommands,
+    ) {
       return createSingleActivePlayerBuilder<
         GameState,
+        NextCommands,
         NextStages,
         HasActivePlayer,
         true,
@@ -487,7 +506,7 @@ function createSingleActivePlayerBuilder<
       >({
         ...accumulator,
         commands,
-      });
+      } as SingleActivePlayerAccumulator<GameState, NextCommands, NextStages>);
     },
     nextStages(nextStages) {
       const nextAccumulator = {
@@ -495,11 +514,13 @@ function createSingleActivePlayerBuilder<
         nextStages,
       } as SingleActivePlayerAccumulator<
         GameState,
+        Commands,
         TExtractNextStages<typeof nextStages>
       >;
 
       return createSingleActivePlayerBuilder<
         GameState,
+        Commands,
         TExtractNextStages<typeof nextStages>,
         HasActivePlayer,
         HasCommands,
@@ -509,6 +530,7 @@ function createSingleActivePlayerBuilder<
     transition(transition) {
       return createSingleActivePlayerBuilder<
         GameState,
+        Commands,
         NextStages,
         HasActivePlayer,
         HasCommands,
@@ -542,11 +564,13 @@ function createSingleActivePlayerBuilder<
       } as SingleActivePlayerStageDefinition<
         GameState,
         RuntimeState,
+        Commands,
         NextStages
       >;
     },
   } as SingleActivePlayerStageBuilder<
     GameState,
+    Commands,
     NextStages,
     HasActivePlayer,
     HasCommands,
@@ -711,7 +735,7 @@ function createMultiActivePlayerBuilder<
           GameState,
           RuntimeState,
           Memory,
-          CommandFromStageCommands<GameState, Commands>
+          CommandFromStageCommands<Commands>
         >,
       ) => void,
     ) {

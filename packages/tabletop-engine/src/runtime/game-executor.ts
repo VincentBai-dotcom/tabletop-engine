@@ -689,7 +689,9 @@ export function createGameExecutor<
               { readonly: true },
             ),
             runtime: workingState.runtime,
-            command,
+            command: command as Parameters<
+              typeof nextCurrentStage.transition
+            >[0]["command"],
             nextStages: resolveStageNextStages(nextCurrentStage),
           }),
           rng,
