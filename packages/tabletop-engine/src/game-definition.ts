@@ -8,8 +8,10 @@ import {
 } from "./state-facade/compile";
 import { compileCanonicalGameStateSchema } from "./state-facade/canonical";
 import { createDefaultCanonicalGameState } from "./state-facade/canonical";
+import { compileRuntimeStateSchema } from "./runtime/runtime-schema";
 import type { StateClass } from "./state-facade/metadata";
 import type { ObjectFieldType, FieldType } from "./schema";
+import type { TSchema } from "@sinclair/typebox";
 
 type AnyCommandDefinition<FacadeGameState extends object> =
   CommandDefinition<FacadeGameState>;
@@ -38,6 +40,7 @@ export interface GameDefinition<
   commands: Commands;
   stateFacade: CompiledStateFacadeDefinition;
   canonicalGameStateSchema: ObjectFieldType<Record<string, FieldType>>;
+  runtimeStateSchema: TSchema;
   defaultCanonicalGameState: CanonicalGameState;
   initialStage: AnyStageDefinition;
   stages: Record<string, AnyStageDefinition>;
@@ -56,6 +59,7 @@ export interface GameDefinitionInput<
   | "commands"
   | "stateFacade"
   | "canonicalGameStateSchema"
+  | "runtimeStateSchema"
   | "defaultCanonicalGameState"
   | "stages"
 > {
@@ -73,6 +77,7 @@ interface GameDefinitionBuilderState<
     | "commands"
     | "stateFacade"
     | "canonicalGameStateSchema"
+    | "runtimeStateSchema"
     | "defaultCanonicalGameState"
     | "stages"
     | "setup"
@@ -146,6 +151,9 @@ export class GameDefinitionBuilder<
     const canonicalGameStateSchema = compileCanonicalGameStateSchema(
       this.config.rootState,
     );
+    const runtimeStateSchema = compileRuntimeStateSchema(
+      stages as Record<string, AnyStageDefinition>,
+    );
     const defaultCanonicalGameState = createDefaultCanonicalGameState(
       this.config.rootState,
     );
@@ -155,6 +163,7 @@ export class GameDefinitionBuilder<
       commands: commands as Commands,
       stateFacade,
       canonicalGameStateSchema,
+      runtimeStateSchema,
       defaultCanonicalGameState:
         defaultCanonicalGameState as CanonicalGameState,
       initialStage: this.config.initialStage,
