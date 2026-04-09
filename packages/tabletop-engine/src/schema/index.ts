@@ -59,6 +59,40 @@ function toTypeBoxSchema(field: FieldType): TSchema {
   return Type.Unknown();
 }
 
+export function assertSerializableSchema(
+  schema:
+    | FieldType
+    | {
+        kind: "object";
+        properties: Record<string, FieldType>;
+      },
+): void {
+  if (schema.kind === "state") {
+    throw new Error("state_field_not_allowed_in_serializable_schema");
+  }
+
+  if (schema.kind === "array") {
+    assertSerializableSchema(schema.item as FieldType);
+    return;
+  }
+
+  if (schema.kind === "record") {
+    assertSerializableSchema(schema.value as FieldType);
+    return;
+  }
+
+  if (schema.kind === "object") {
+    for (const nestedField of Object.values(schema.properties)) {
+      assertSerializableSchema(nestedField as FieldType);
+    }
+    return;
+  }
+
+  if (schema.kind === "optional") {
+    assertSerializableSchema(schema.item as FieldType);
+  }
+}
+
 export const t = {
   number(): NumberFieldType {
     return withSchema(

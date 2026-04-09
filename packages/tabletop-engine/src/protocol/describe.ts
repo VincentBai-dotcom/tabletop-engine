@@ -1,7 +1,7 @@
 import { Type, type TSchema } from "@sinclair/typebox";
 import type { GameDefinition } from "../game-definition";
 import type { FieldType, SerializableSchema } from "../schema";
-import type { CommandDefinition } from "../types/command";
+import type { CommandDefinition, CommandSchema } from "../types/command";
 import type {
   FieldVisibilityMetadata,
   VisibilityMode,
@@ -10,14 +10,8 @@ import type { CompiledStateFacadeDefinition } from "../state-facade/compile";
 
 export interface ProtocolCommandDescriptor {
   commandId: string;
-  commandSchema: {
-    readonly static: Record<string, unknown>;
-    readonly schema?: TSchema;
-  };
-  discoverySchema?: {
-    readonly static: Record<string, unknown>;
-    readonly schema?: TSchema;
-  };
+  commandSchema: CommandSchema<Record<string, unknown>>;
+  discoverySchema?: CommandSchema<Record<string, unknown>>;
 }
 
 export interface GameProtocolDescriptor {

@@ -1,4 +1,5 @@
 import type { TSchema } from "@sinclair/typebox";
+import type { FieldType } from "../schema";
 import type { GameEvent } from "./event";
 import type { RNGApi } from "./rng";
 import type { ValidationOutcome } from "./result";
@@ -30,6 +31,8 @@ export interface Discovery<Input extends DiscoveryData = DiscoveryData> {
 
 export type CommandSchema<TInput extends CommandData = CommandData> = {
   readonly static: TInput;
+  readonly kind: "object";
+  readonly properties: Record<string, FieldType>;
   readonly schema?: TSchema;
 };
 

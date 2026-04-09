@@ -424,6 +424,7 @@ test("consumer command definitions only expose game state and command input gene
   const defineCommand = createCommandFactory<{
     increment(): void;
   }>();
+
   const gainScoreCommandSchema = t.object({
     amount: t.number(),
   });
