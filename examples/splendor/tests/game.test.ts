@@ -604,7 +604,7 @@ test("endgame finishes after the final player in turn order and breaks ties by f
     triggeredByPlayerId: "p1",
     endsAfterPlayerId: "p2",
   });
-  expect(firstResult.state.game.winnerIds).toBeNull();
+  expect(firstResult.state.game.winnerIds).toBeUndefined();
   expect(firstResult.state.runtime.progression.currentStage).toEqual({
     id: "playerTurn",
     kind: "activePlayer",

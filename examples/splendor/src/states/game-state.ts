@@ -36,11 +36,11 @@ export class SplendorGameState {
   @field(t.state(() => SplendorBoardState))
   board!: SplendorBoardState;
 
-  @field(t.state(() => SplendorEndGameState))
-  endGame: SplendorEndGameState | null = null;
+  @field(t.optional(t.state(() => SplendorEndGameState)))
+  endGame?: SplendorEndGameState;
 
-  @field(t.array(t.string()))
-  winnerIds: string[] | null = null;
+  @field(t.optional(t.array(t.string())))
+  winnerIds?: string[];
 
   static createInitial(playerIds: readonly string[]): SplendorGameState {
     const game = new SplendorGameState();
@@ -53,8 +53,8 @@ export class SplendorGameState {
     ) as Record<string, SplendorPlayerState>;
     game.bank = TokenCountsState.empty();
     game.board = SplendorBoardState.createEmpty();
-    game.endGame = null;
-    game.winnerIds = null;
+    game.endGame = undefined;
+    game.winnerIds = undefined;
     return game;
   }
 
@@ -73,8 +73,8 @@ export class SplendorGameState {
   }
 
   resetEndGame(): void {
-    this.endGame = null;
-    this.winnerIds = null;
+    this.endGame = undefined;
+    this.winnerIds = undefined;
   }
 
   getPlayer(playerId: string): SplendorPlayerState {

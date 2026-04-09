@@ -83,6 +83,18 @@ class MissingRequiredDefaultRootState {
   names!: string[];
 }
 
+@State()
+class NullNestedDefaultRootState {
+  @field(t.state(() => DefaultChildState))
+  child: DefaultChildState | null = null;
+}
+
+@State()
+class OptionalNestedDefaultRootState {
+  @field(t.optional(t.state(() => DefaultChildState)))
+  child?: DefaultChildState;
+}
+
 @OwnedByPlayer()
 @State()
 class VisiblePlayerState {
@@ -402,10 +414,33 @@ test("createInitialState respects explicit nested state initializers", () => {
   });
 });
 
+test("createInitialState leaves missing optional nested state fields undefined", () => {
+  const game = new GameDefinitionBuilder("optional-nested-root-state-game")
+    .rootState(OptionalNestedDefaultRootState)
+    .initialStage(createTerminalStage())
+    .build();
+
+  const executor = createGameExecutor(game);
+  const state = executor.createInitialState();
+
+  expect(state.game).toEqual({
+    child: undefined,
+  });
+});
+
 test("GameDefinitionBuilder fails when a required non-optional field has no default", () => {
   expect(() =>
     new GameDefinitionBuilder("missing-required-root-state-game")
       .rootState(MissingRequiredDefaultRootState)
+      .initialStage(createTerminalStage())
+      .build(),
+  ).toThrow();
+});
+
+test("GameDefinitionBuilder fails when a non-optional nested state defaults to null", () => {
+  expect(() =>
+    new GameDefinitionBuilder("null-nested-root-state-game")
+      .rootState(NullNestedDefaultRootState)
       .initialStage(createTerminalStage())
       .build(),
   ).toThrow();

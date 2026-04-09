@@ -81,10 +81,6 @@ function createCanonicalFieldValue(
   },
 ): unknown {
   if (field.kind === "state") {
-    if (value === null) {
-      return null;
-    }
-
     const source = value === undefined ? new (field.target())() : value;
     return createCanonicalStateObject(field.target(), source as object);
   }
