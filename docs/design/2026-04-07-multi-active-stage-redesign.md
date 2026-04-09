@@ -81,9 +81,14 @@ Recommended public authoring shape:
 ```ts
 const mulliganStage = defineStage("mulligan")
   .multiActivePlayer()
-  .memory<MulliganStageMemory>(() => ({
-    submittedByPlayerId: {},
-  }))
+  .memory(
+    t.object({
+      submittedByPlayerId: t.record(t.string(), t.boolean()),
+    }),
+    () => ({
+      submittedByPlayerId: {},
+    }),
+  )
   .activePlayers(({ game, memory }) => {
     return game.playerOrder.filter((playerId) => {
       return memory.submittedByPlayerId[playerId] === undefined;
@@ -91,7 +96,7 @@ const mulliganStage = defineStage("mulligan")
   })
   .commands([keepHandCommand, redrawHandCommand])
   .onSubmit(({ command, memory, execute }) => {
-    memory.submittedByPlayerId[command.actorId] = command;
+    memory.submittedByPlayerId[command.actorId] = true;
     execute(command);
   })
   .isComplete(({ game, memory }) => {
@@ -113,7 +118,7 @@ const mulliganStage = defineStage("mulligan")
 ### Required
 
 - `.multiActivePlayer()`
-- `.memory<T>(() => initialMemory)`
+- `.memory(schema, () => initialMemory)`
 - `.activePlayers(...)`
 - `.commands([...])`
 - `.onSubmit(...)`
@@ -137,15 +142,19 @@ Reasoning:
 `multiActivePlayer` stages should declare coordination memory explicitly with:
 
 ```ts
-.memory<T>(() => initialMemory)
+.memory(schema, () => initialMemory)
 ```
 
 This method does two things:
 
-- binds the memory type for all later hooks
+- binds the runtime schema and static type for all later hooks
 - provides the initial value on stage entry
 
 This replaces a separate `.initialize(...)` hook.
+
+The memory schema should be authored with the normal `t.*` schema API. This is
+required so the engine can later include multi-active memory in runtime-state
+validation and snapshot validation.
 
 ### Why Memory Is Required
 
@@ -171,6 +180,28 @@ Coordination memory may need to store:
 - derived per-stage bookkeeping
 
 That data should stay plain and serializable inside progression runtime.
+
+### Why A Runtime Schema Is Required
+
+Type-only memory such as:
+
+```ts
+.memory<T>(() => initialMemory)
+```
+
+is not sufficient for the longer-term engine direction.
+
+The engine also needs a runtime schema for multi-active memory so it can:
+
+- validate the runtime portion of full canonical state
+- validate restored snapshots
+- assemble an engine-owned runtime schema that includes game-authored
+  multi-active memory shapes
+
+So multi-active memory should be declared with both:
+
+- a `t.*` runtime schema
+- an initializer function
 
 ## Memory In Hook Contexts
 
@@ -354,26 +385,26 @@ runtime.progression = {
     id: "mulligan",
     kind: "multiActivePlayer",
     activePlayerIds: ["p2", "p4"],
+    memory: {
+      submittedByPlayerId: {
+        p1: true,
+        p3: true,
+      },
+    },
   },
   lastActingStage: {
     id: "playerTurn",
     kind: "activePlayer",
     activePlayerId: "p1",
   },
-  multiActiveMemory: {
-    submittedByPlayerId: {
-      p1: { type: "keep_hand", actorId: "p1", input: {} },
-      p3: { type: "redraw_hand", actorId: "p3", input: {} },
-    },
-  },
 };
 ```
 
-The exact storage location of that memory inside progression runtime can still
-change during implementation, but the design intent is clear:
+The exact memory contents are game-authored, but the storage location should be
+part of the current multi-active stage runtime itself:
 
 - active player lists are public stage runtime
-- coordination memory is progression runtime data, not game state facade data
+- coordination memory is current-stage runtime data, not game state facade data
 
 ## Non-Goals For This Iteration
 
