@@ -1,6 +1,5 @@
-import { GameDefinitionBuilder, type GameDefinition } from "tabletop-engine";
+import { GameDefinitionBuilder } from "tabletop-engine";
 import { setupSplendorGame } from "./setup.ts";
-import type { SplendorGameState } from "./state.ts";
 import { SplendorGameState as SplendorRootState } from "./state.ts";
 import { createSplendorStages } from "./stages/index.ts";
 
@@ -9,9 +8,7 @@ export interface CreateSplendorGameOptions {
   seed?: string | number;
 }
 
-export function createSplendorGame(
-  options: CreateSplendorGameOptions,
-): GameDefinition<SplendorGameState, SplendorGameState> {
+export function createSplendorGame(options: CreateSplendorGameOptions) {
   const { playerIds, seed } = options;
 
   if (playerIds.length < 2 || playerIds.length > 4) {
@@ -20,7 +17,7 @@ export function createSplendorGame(
 
   const { initialStage } = createSplendorStages();
 
-  return new GameDefinitionBuilder<SplendorGameState>("splendor")
+  return new GameDefinitionBuilder("splendor")
     .rootState(SplendorRootState)
     .rngSeed(seed)
     .setup(({ game, rng }) => {

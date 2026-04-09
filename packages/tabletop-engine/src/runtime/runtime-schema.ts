@@ -34,7 +34,7 @@ function createMultiActivePlayerStageStateSchema(
     id: Type.Literal(stage.id),
     kind: Type.Literal("multiActivePlayer"),
     activePlayerIds: Type.Array(Type.String()),
-    memory: stage.memorySchema.schema,
+    memory: stage.memorySchema.schema!,
   });
 }
 

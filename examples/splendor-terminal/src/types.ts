@@ -1,5 +1,5 @@
 import type {
-  CanonicalState,
+  CanonicalStateOf,
   Command,
   CommandDiscoveryResult,
   Discovery,
@@ -9,10 +9,11 @@ import type {
 } from "tabletop-engine";
 import type {
   SplendorDiscoveryOption,
-  SplendorGameState,
+  createSplendorGame,
 } from "splendor-example";
 
-export type SplendorState = CanonicalState<SplendorGameState>;
+type SplendorGameDefinition = ReturnType<typeof createSplendorGame>;
+export type SplendorState = CanonicalStateOf<SplendorGameDefinition>;
 export type HiddenCountSummary = HiddenValue<{
   count: number;
 }>;
@@ -53,11 +54,11 @@ export interface SplendorVisibleGame {
     deckByLevel: HiddenDeckSummary;
     nobleIds: number[];
   };
-  endGame: {
-    triggeringPlayerId: string;
+  endGame?: {
+    triggeredByPlayerId: string;
     endsAfterPlayerId: string;
-  } | null;
-  winnerIds: string[] | null;
+  };
+  winnerIds?: string[];
 }
 
 export type SplendorVisibleState = VisibleState<SplendorVisibleGame>;

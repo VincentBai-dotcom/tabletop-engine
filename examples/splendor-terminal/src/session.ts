@@ -4,7 +4,7 @@ import {
   type GameExecutor,
   type GameEvent,
 } from "tabletop-engine";
-import { createSplendorGame, type SplendorGameState } from "splendor-example";
+import { createSplendorGame } from "splendor-example";
 import type {
   SessionActivity,
   SplendorState,
@@ -15,7 +15,7 @@ import type {
 } from "./types.ts";
 
 type SplendorGameExecutorApi = Pick<
-  GameExecutor<SplendorGameState>,
+  GameExecutor<SplendorState["game"]>,
   | "createInitialState"
   | "getView"
   | "listAvailableCommands"
@@ -64,10 +64,10 @@ export class SplendorTerminalSession {
   }
 
   isFinished(): boolean {
-    return this.getVisibleState().game.winnerIds !== null;
+    return this.getVisibleState().game.winnerIds !== undefined;
   }
 
-  getWinnerIds(): string[] | null {
+  getWinnerIds(): string[] | undefined {
     return this.getVisibleState().game.winnerIds;
   }
 

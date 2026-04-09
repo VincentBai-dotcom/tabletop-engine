@@ -1,16 +1,24 @@
 import { expect, test } from "bun:test";
 import type {
+  CanonicalGameStateOf,
   CommandAvailabilityContext,
   Command,
   CommandDiscoveryResult,
   CanonicalState,
+  CanonicalStateOf,
   Discovery,
   DiscoveryContext,
   ExecutionResult,
   GameEvent,
   ValidationOutcome,
 } from "../src/index";
-import { createCommandFactory, createStageFactory, t } from "../src/index";
+import {
+  createCommandFactory,
+  createStageFactory,
+  field,
+  State,
+  t,
+} from "../src/index";
 import type {
   CommandFromSchema,
   InternalCommandDefinition,
@@ -22,6 +30,22 @@ import type {
 } from "../src/types/progression";
 import type { RuntimeState } from "../src/types/state";
 import { GameDefinitionBuilder } from "../src/game-definition";
+
+@State()
+class TypedCounterChildState {
+  @field(t.number())
+  value = 0;
+}
+
+@State()
+class TypedCounterRootState {
+  @field(t.state(() => TypedCounterChildState))
+  counter!: TypedCounterChildState;
+
+  increment() {
+    this.counter.value += 1;
+  }
+}
 
 test("foundational runtime types compose", () => {
   const event: GameEvent = {
@@ -403,6 +427,45 @@ test("strict command and discovery requests require actorId and input", () => {
   expect(missingCommandInput).toBeDefined();
   expect(missingDiscoveryActorId).toBeDefined();
   expect(missingDiscoveryInput).toBeDefined();
+});
+
+test("rootState infers plain canonical data and exports canonical type helpers", () => {
+  const typedRootGame = new GameDefinitionBuilder("typed-root-game")
+    .rootState(TypedCounterRootState)
+    .initialStage(createStageFactory<object>()("gameEnd").automatic().build())
+    .build();
+
+  const canonicalGameState: CanonicalGameStateOf<typeof typedRootGame> = {
+    counter: {
+      value: 1,
+    },
+  };
+
+  const canonicalState: CanonicalStateOf<typeof typedRootGame> = {
+    game: canonicalGameState,
+    runtime: {
+      progression: {
+        currentStage: {
+          id: "gameEnd",
+          kind: "automatic",
+        },
+        lastActingStage: null,
+      },
+      rng: {
+        seed: "seed",
+        cursor: 0,
+      },
+      history: {
+        entries: [],
+      },
+    },
+  };
+
+  // @ts-expect-error canonical game data should not expose facade methods
+  void canonicalGameState.increment;
+
+  expect(typedRootGame.initialStage.id).toBe("gameEnd");
+  expect(canonicalState.game.counter.value).toBe(1);
 });
 
 test("game definition builder only exposes stage-based progression authoring", () => {

@@ -80,7 +80,9 @@ export type {
   ValidationResult,
 } from "./types/result";
 export type {
+  CanonicalGameStateOf,
   CanonicalState,
+  CanonicalStateOf,
   HistoryEntry,
   HistoryState,
   RuntimeState,

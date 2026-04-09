@@ -191,6 +191,7 @@ test("GameDefinitionBuilder compiles multi-active stage command references into 
 
 test("GameDefinitionBuilder assembles runtimeStateSchema with multi-active memory shape", () => {
   const defineCommand = createCommandFactory<{ score: number }>();
+  const defineStage = createStageFactory<{ score: number }>();
   const submitVoteCommand = defineCommand({
     commandId: "submit_vote",
     commandSchema: emptyCommandSchema,
@@ -200,7 +201,8 @@ test("GameDefinitionBuilder assembles runtimeStateSchema with multi-active memor
     })
     .execute(() => {})
     .build();
-  const voteStage = defineTestStage("voteStage")
+  const gameEndStage = defineStage("gameEnd").automatic().build();
+  const voteStage = defineStage("voteStage")
     .multiActivePlayer()
     .memory(
       t.object({
@@ -215,9 +217,9 @@ test("GameDefinitionBuilder assembles runtimeStateSchema with multi-active memor
     .onSubmit(() => {})
     .isComplete(() => false)
     .nextStages(() => ({
-      voteStage,
+      gameEndStage,
     }))
-    .transition(({ nextStages }) => nextStages.voteStage)
+    .transition(({ nextStages }) => nextStages.gameEndStage)
     .build();
 
   const game = new GameDefinitionBuilder("runtime-state-schema-game")

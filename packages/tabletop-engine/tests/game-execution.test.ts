@@ -454,14 +454,15 @@ test("createInitialState rejects invalid canonical game state produced by setup"
 
 test("createInitialState rejects invalid runtime state produced by stage initialization", () => {
   const defineStage = createStageFactory<{ score: number }>();
+  const gameEndStage = defineStage("gameEnd").automatic().build();
   const invalidPlayerTurnStage = defineStage("playerTurn")
     .singleActivePlayer()
     .activePlayer(() => 1 as never as string)
     .commands([])
     .nextStages(() => ({
-      invalidPlayerTurnStage,
+      gameEndStage,
     }))
-    .transition(({ nextStages }) => nextStages.invalidPlayerTurnStage)
+    .transition(({ nextStages }) => nextStages.gameEndStage)
     .build();
   const game = new GameDefinitionBuilder("invalid-runtime-state-game")
     .rootState(PlainCounterRootState)
