@@ -20,7 +20,7 @@ const TOKEN_COLOR_MAP = {
 @State()
 export class SplendorGameState {
   @field(t.array(t.string()))
-  playerOrder!: string[];
+  playerOrder: string[] = [];
 
   @field(
     t.record(
@@ -28,7 +28,7 @@ export class SplendorGameState {
       t.state(() => SplendorPlayerState),
     ),
   )
-  players!: Record<string, SplendorPlayerState>;
+  players: Record<string, SplendorPlayerState> = {};
 
   @field(t.state(() => TokenCountsState))
   bank!: TokenCountsState;
@@ -37,10 +37,10 @@ export class SplendorGameState {
   board!: SplendorBoardState;
 
   @field(t.state(() => SplendorEndGameState))
-  endGame!: SplendorEndGameState | null;
+  endGame: SplendorEndGameState | null = null;
 
   @field(t.array(t.string()))
-  winnerIds!: string[] | null;
+  winnerIds: string[] | null = null;
 
   static createInitial(playerIds: readonly string[]): SplendorGameState {
     const game = new SplendorGameState();

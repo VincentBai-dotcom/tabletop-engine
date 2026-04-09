@@ -6,22 +6,22 @@ export type ReturnTokensPayload = Partial<Record<TokenColor, number>>;
 @State()
 export class TokenCountsState {
   @field(t.number())
-  white!: number;
+  white = 0;
 
   @field(t.number())
-  blue!: number;
+  blue = 0;
 
   @field(t.number())
-  green!: number;
+  green = 0;
 
   @field(t.number())
-  red!: number;
+  red = 0;
 
   @field(t.number())
-  black!: number;
+  black = 0;
 
   @field(t.number())
-  gold!: number;
+  gold = 0;
 
   static empty(): TokenCountsState {
     const tokens = new TokenCountsState();

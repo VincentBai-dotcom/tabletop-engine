@@ -1,5 +1,5 @@
 import { GameDefinitionBuilder, type GameDefinition } from "tabletop-engine";
-import { createInitialGameState, setupSplendorGame } from "./setup.ts";
+import { setupSplendorGame } from "./setup.ts";
 import type { SplendorGameState } from "./state.ts";
 import { SplendorGameState as SplendorRootState } from "./state.ts";
 import { createSplendorStages } from "./stages/index.ts";
@@ -23,7 +23,6 @@ export function createSplendorGame(
   return new GameDefinitionBuilder<SplendorGameState>("splendor")
     .rootState(SplendorRootState)
     .rngSeed(seed)
-    .initialState(() => createInitialGameState(playerIds))
     .setup(({ game, runtime, rng }) => {
       setupSplendorGame(game, runtime, rng, playerIds);
     })

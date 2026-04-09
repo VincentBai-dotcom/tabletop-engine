@@ -33,7 +33,7 @@ const hiddenReservedCardSummarySchema = t.object({
 @State()
 export class SplendorPlayerState {
   @field(t.string())
-  id!: string;
+  id = "";
 
   @field(t.state(() => TokenCountsState))
   tokens!: TokenCountsState;
@@ -47,13 +47,13 @@ export class SplendorPlayerState {
     },
   })
   @field(t.array(t.number()))
-  reservedCardIds!: number[];
+  reservedCardIds: number[] = [];
 
   @field(t.array(t.number()))
-  purchasedCardIds!: number[];
+  purchasedCardIds: number[] = [];
 
   @field(t.array(t.number()))
-  nobleIds!: number[];
+  nobleIds: number[] = [];
 
   static create(playerId: string): SplendorPlayerState {
     const player = new SplendorPlayerState();

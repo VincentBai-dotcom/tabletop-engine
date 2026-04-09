@@ -10,7 +10,11 @@ const hiddenDeckSummarySchema = t.object({
 @State()
 export class SplendorBoardState {
   @field(t.record(t.number(), t.array(t.number())))
-  faceUpByLevel!: Record<DevelopmentLevel, number[]>;
+  faceUpByLevel: Record<DevelopmentLevel, number[]> = {
+    1: [],
+    2: [],
+    3: [],
+  };
 
   @hidden({
     schema: hiddenDeckSummarySchema,
@@ -28,10 +32,14 @@ export class SplendorBoardState {
     },
   })
   @field(t.record(t.number(), t.array(t.number())))
-  deckByLevel!: Record<DevelopmentLevel, number[]>;
+  deckByLevel: Record<DevelopmentLevel, number[]> = {
+    1: [],
+    2: [],
+    3: [],
+  };
 
   @field(t.array(t.number()))
-  nobleIds!: number[];
+  nobleIds: number[] = [];
 
   static createEmpty(): SplendorBoardState {
     const board = new SplendorBoardState();
