@@ -2,17 +2,43 @@ import { expect, test } from "bun:test";
 import {
   createCommandFactory,
   createGameExecutor,
+  field,
   GameDefinitionBuilder,
+  State,
   t,
 } from "../src/index";
 import { createSelfLoopingTurnStage } from "./helpers/stages";
 
+@State()
+class RandomDeckRootState {
+  @field(t.number())
+  roll = 0;
+
+  @field(t.number())
+  value = 0;
+
+  @field(t.array(t.string()))
+  deck = ["a", "b", "c"];
+
+  sampleRandomness(value: number, roll: number, deck: string[]) {
+    this.value = value;
+    this.roll = roll;
+    this.deck = deck;
+  }
+}
+
+@State()
+class RandomValueRootState {
+  @field(t.number())
+  value = 0;
+
+  setValue(value: number) {
+    this.value = value;
+  }
+}
+
 test("game executor rng is deterministic for the same seed and command sequence", () => {
-  const defineCommand = createCommandFactory<{
-    roll: number;
-    value: number;
-    deck: string[];
-  }>();
+  const defineCommand = createCommandFactory<RandomDeckRootState>();
   const emptyCommandSchema = t.object({});
   const sampleRandomnessCommand = defineCommand({
     commandId: "sample_randomness",
@@ -20,22 +46,16 @@ test("game executor rng is deterministic for the same seed and command sequence"
   })
     .validate(() => ({ ok: true as const }))
     .execute(({ game, rng }) => {
-      game.value = rng.number();
-      game.roll = rng.die(6) as number;
-      game.deck = rng.shuffle(game.deck);
+      game.sampleRandomness(
+        rng.number(),
+        rng.die(6) as number,
+        rng.shuffle(game.deck),
+      );
     })
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    roll: number;
-    value: number;
-    deck: string[];
-  }>("rng-game")
-    .initialState(() => ({
-      roll: 0,
-      value: 0,
-      deck: ["a", "b", "c"],
-    }))
+  const game = new GameDefinitionBuilder("rng-game")
+    .rootState(RandomDeckRootState)
     .rngSeed("seed-123")
     .initialStage(createSelfLoopingTurnStage([sampleRandomnessCommand]))
     .build();
@@ -66,9 +86,7 @@ test("game executor rng is deterministic for the same seed and command sequence"
 });
 
 test("game executor rng cursor advances when randomness is consumed", () => {
-  const defineCommand = createCommandFactory<{
-    value: number;
-  }>();
+  const defineCommand = createCommandFactory<RandomValueRootState>();
   const emptyCommandSchema = t.object({});
   const sampleRandomnessCommand = defineCommand({
     commandId: "sample_randomness",
@@ -76,16 +94,12 @@ test("game executor rng cursor advances when randomness is consumed", () => {
   })
     .validate(() => ({ ok: true as const }))
     .execute(({ game, rng }) => {
-      game.value = rng.number();
+      game.setValue(rng.number());
     })
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    value: number;
-  }>("rng-game")
-    .initialState(() => ({
-      value: 0,
-    }))
+  const game = new GameDefinitionBuilder("rng-game")
+    .rootState(RandomValueRootState)
     .rngSeed("seed-123")
     .initialStage(createSelfLoopingTurnStage([sampleRandomnessCommand]))
     .build();

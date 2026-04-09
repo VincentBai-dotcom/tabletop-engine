@@ -28,7 +28,7 @@ const playCardCommandSchema = t.object({
 @State()
 class CounterStateFacade {
   @field(t.number())
-  value!: number;
+  value = 0;
 
   increment(amount: number) {
     this.value += amount;
@@ -49,18 +49,48 @@ class RootCounterStateFacade {
   }
 }
 
+@State()
+class DefaultChildState {
+  @field(t.number())
+  count = 2;
+}
+
+@State()
+class DefaultRootState {
+  @field(t.array(t.string()))
+  names = ["alpha"];
+
+  @field(t.optional(t.string()))
+  label?: string;
+
+  @field(t.state(() => DefaultChildState))
+  child!: DefaultChildState;
+}
+
+@State()
+class ExplicitNestedDefaultRootState {
+  @field(t.state(() => DefaultChildState))
+  child = Object.assign(new DefaultChildState(), { count: 5 });
+}
+
+@State()
+class MissingRequiredDefaultRootState {
+  @field(t.array(t.string()))
+  names!: string[];
+}
+
 @OwnedByPlayer()
 @State()
 class VisiblePlayerState {
   @field(t.string())
-  id!: string;
+  id = "";
 
   @visibleToSelf()
   @field(t.array(t.string()))
-  hand!: string[];
+  hand: string[] = [];
 
   @field(t.number())
-  score!: number;
+  score = 0;
 }
 
 const hiddenSummarySchema = t.object({
@@ -71,7 +101,7 @@ const hiddenSummarySchema = t.object({
 @State()
 class VisibleSummaryPlayerState {
   @field(t.string())
-  id!: string;
+  id = "";
 
   @visibleToSelf({
     schema: hiddenSummarySchema,
@@ -82,10 +112,10 @@ class VisibleSummaryPlayerState {
     },
   })
   @field(t.array(t.string()))
-  hand!: string[];
+  hand: string[] = [];
 
   @field(t.number())
-  score!: number;
+  score = 0;
 }
 
 @State()
@@ -96,7 +126,7 @@ class VisibleSummaryRootState {
       t.state(() => VisibleSummaryPlayerState),
     ),
   )
-  players!: Record<string, VisibleSummaryPlayerState>;
+  players: Record<string, VisibleSummaryPlayerState> = {};
 }
 
 @State()
@@ -107,14 +137,14 @@ class VisibleRootState {
       t.state(() => VisiblePlayerState),
     ),
   )
-  players!: Record<string, VisiblePlayerState>;
+  players: Record<string, VisiblePlayerState> = {};
 }
 
 @State()
 class HiddenDeckState {
   @hidden()
   @field(t.array(t.string()))
-  cards!: string[];
+  cards: string[] = [];
 }
 
 @State()
@@ -128,7 +158,7 @@ class HiddenSummaryDeckState {
     },
   })
   @field(t.array(t.string()))
-  cards!: string[];
+  cards: string[] = [];
 }
 
 @State()
@@ -147,7 +177,7 @@ class HiddenDeckRootState {
 class CustomVisibleDeckState {
   @hidden()
   @field(t.array(t.string()))
-  cards!: string[];
+  cards: string[] = [];
 
   projectCustomView() {
     return {
@@ -160,6 +190,63 @@ class CustomVisibleDeckState {
 class CustomVisibleDeckRootState {
   @field(t.state(() => CustomVisibleDeckState))
   deck!: CustomVisibleDeckState;
+}
+
+@State()
+class PlainCounterRootState {
+  @field(t.number())
+  counter = 0;
+
+  incrementCounter(amount = 1) {
+    this.counter += amount;
+  }
+
+  decrementCounter(amount = 1) {
+    this.counter -= amount;
+  }
+}
+
+@State()
+class CanPlayRootState {
+  @field(t.boolean())
+  canPlay = true;
+}
+
+@State()
+class EnergyRootState {
+  @field(t.number())
+  energy = 1;
+
+  spendEnergy(amount = 1) {
+    this.energy -= amount;
+  }
+}
+
+@State()
+class NumericActionsRootState {
+  @field(t.number())
+  actions = 0;
+
+  @field(t.number())
+  cleaned = 0;
+
+  recordAction(amount = 1) {
+    this.actions += amount;
+  }
+
+  recordCleanup(amount = 1) {
+    this.cleaned += amount;
+  }
+}
+
+@State()
+class StringActionsRootState {
+  @field(t.array(t.string()))
+  actions: string[] = [];
+
+  recordAction(value: string) {
+    this.actions.push(value);
+  }
 }
 
 test("createGameExecutor hydrates decorated state facades for execution", () => {
@@ -184,11 +271,6 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
     };
   }>("facade-counter-game")
     .rootState(RootCounterStateFacade)
-    .initialState(() => ({
-      counter: {
-        value: 0,
-      },
-    }))
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
@@ -214,11 +296,9 @@ test("createGameExecutor can project viewer-safe visible state", () => {
     };
   }>("visible-state-game")
     .rootState(RootCounterStateFacade)
-    .initialState(() => ({
-      counter: {
-        value: 2,
-      },
-    }))
+    .setup(({ game }) => {
+      game.counter.value = 2;
+    })
     .initialStage(createTerminalStage())
     .build();
 
@@ -252,6 +332,49 @@ test("createGameExecutor can project viewer-safe visible state", () => {
   expect("history" in visibleState).toBe(false);
 });
 
+test("createInitialState synthesizes canonical game state from rootState defaults", () => {
+  const game = new GameDefinitionBuilder("default-root-state-game")
+    .rootState(DefaultRootState)
+    .initialStage(createTerminalStage())
+    .build();
+
+  const executor = createGameExecutor(game);
+  const state = executor.createInitialState();
+
+  expect(state.game).toEqual({
+    names: ["alpha"],
+    label: undefined,
+    child: {
+      count: 2,
+    },
+  });
+});
+
+test("createInitialState respects explicit nested state initializers", () => {
+  const game = new GameDefinitionBuilder("explicit-nested-root-state-game")
+    .rootState(ExplicitNestedDefaultRootState)
+    .initialStage(createTerminalStage())
+    .build();
+
+  const executor = createGameExecutor(game);
+  const state = executor.createInitialState();
+
+  expect(state.game).toEqual({
+    child: {
+      count: 5,
+    },
+  });
+});
+
+test("GameDefinitionBuilder fails when a required non-optional field has no default", () => {
+  expect(() =>
+    new GameDefinitionBuilder("missing-required-root-state-game")
+      .rootState(MissingRequiredDefaultRootState)
+      .initialStage(createTerminalStage())
+      .build(),
+  ).toThrow();
+});
+
 test("createGameExecutor projects visibleToSelf fields for the owner only", () => {
   const game = new GameDefinitionBuilder<{
     players: Record<
@@ -264,20 +387,20 @@ test("createGameExecutor projects visibleToSelf fields for the owner only", () =
     >;
   }>("private-hand-game")
     .rootState(VisibleRootState)
-    .initialState(() => ({
-      players: {
+    .setup(({ game }) => {
+      game.players = {
         p1: {
           id: "p1",
           hand: ["a", "b"],
           score: 3,
-        },
+        } as VisiblePlayerState,
         p2: {
           id: "p2",
           hand: ["x"],
           score: 2,
-        },
-      },
-    }))
+        } as VisiblePlayerState,
+      };
+    })
     .initialStage(createTerminalStage())
     .build();
 
@@ -328,11 +451,9 @@ test("createGameExecutor projects hidden fields for every viewer", () => {
     };
   }>("hidden-deck-game")
     .rootState(HiddenDeckRootState)
-    .initialState(() => ({
-      deck: {
-        cards: ["a", "b", "c"],
-      },
-    }))
+    .setup(({ game }) => {
+      game.deck.cards = ["a", "b", "c"];
+    })
     .initialStage(createTerminalStage())
     .build();
 
@@ -373,11 +494,9 @@ test("createGameExecutor projects hidden summary values for hidden fields", () =
     };
   }>("hidden-summary-deck-game")
     .rootState(HiddenSummaryDeckRootState)
-    .initialState(() => ({
-      deck: {
-        cards: ["a", "b", "c"],
-      },
-    }))
+    .setup(({ game }) => {
+      game.deck.cards = ["a", "b", "c"];
+    })
     .initialStage(createTerminalStage())
     .build();
 
@@ -420,20 +539,20 @@ test("createGameExecutor projects hidden summary values for visibleToSelf fields
     >;
   }>("private-hand-summary-game")
     .rootState(VisibleSummaryRootState)
-    .initialState(() => ({
-      players: {
+    .setup(({ game }) => {
+      game.players = {
         p1: {
           id: "p1",
           hand: ["a", "b"],
           score: 3,
-        },
+        } as VisibleSummaryPlayerState,
         p2: {
           id: "p2",
           hand: ["x"],
           score: 2,
-        },
-      },
-    }))
+        } as VisibleSummaryPlayerState,
+      };
+    })
     .initialStage(createTerminalStage())
     .build();
 
@@ -488,11 +607,9 @@ test("createGameExecutor lets a state override its visible projection shape", ()
     };
   }>("custom-visible-deck-game")
     .rootState(CustomVisibleDeckRootState)
-    .initialState(() => ({
-      deck: {
-        cards: ["a", "b", "c"],
-      },
-    }))
+    .setup(({ game }) => {
+      game.deck.cards = ["a", "b", "c"];
+    })
     .initialStage(createTerminalStage())
     .build();
 
@@ -531,15 +648,15 @@ test("createGameExecutor rejects owned player projection when id is empty", () =
     >;
   }>("invalid-player-owner-game")
     .rootState(VisibleRootState)
-    .initialState(() => ({
-      players: {
+    .setup(({ game }) => {
+      game.players = {
         p1: {
           id: "",
           hand: ["a", "b"],
           score: 3,
-        },
-      },
-    }))
+        } as VisiblePlayerState,
+      };
+    })
     .initialStage(createTerminalStage())
     .build();
 
@@ -596,11 +713,9 @@ test("availability and discovery contexts hydrate readonly decorated state facad
     };
   }>("readonly-facade-discovery-game")
     .rootState(RootCounterStateFacade)
-    .initialState(() => ({
-      counter: {
-        value: 2,
-      },
-    }))
+    .setup(({ game }) => {
+      game.counter.value = 2;
+    })
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
@@ -644,11 +759,6 @@ test("readonly decorated facades reject mutation during validation", () => {
     };
   }>("readonly-facade-validation-game")
     .rootState(RootCounterStateFacade)
-    .initialState(() => ({
-      counter: {
-        value: 0,
-      },
-    }))
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
@@ -666,7 +776,7 @@ test("readonly decorated facades reject mutation during validation", () => {
 });
 
 test("createGameExecutor creates initial state and commits successful commands", () => {
-  const defineCommand = createCommandFactory<{ counter: number }>();
+  const defineCommand = createCommandFactory<PlainCounterRootState>();
   const commands = {
     increment_counter: defineCommand({
       commandId: "increment_counter",
@@ -677,7 +787,7 @@ test("createGameExecutor creates initial state and commits successful commands",
         const amount =
           typeof command.input.amount === "number" ? command.input.amount : 1;
 
-        game.counter += amount;
+        game.incrementCounter(amount);
         emitEvent({
           category: "domain",
           type: "counter_incremented",
@@ -698,16 +808,12 @@ test("createGameExecutor creates initial state and commits successful commands",
             },
       )
       .execute(({ game }) => {
-        game.counter -= 1;
+        game.decrementCounter();
       })
       .build(),
   };
-  const game = new GameDefinitionBuilder<{
-    counter: number;
-  }>("counter-game")
-    .initialState(() => ({
-      counter: 0,
-    }))
+  const game = new GameDefinitionBuilder("counter-game")
+    .rootState(PlainCounterRootState)
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .rngSeed("test-seed")
     .build();
@@ -729,7 +835,7 @@ test("createGameExecutor creates initial state and commits successful commands",
 });
 
 test("createGameExecutor returns unchanged state for validation failures", () => {
-  const defineCommand = createCommandFactory<{ counter: number }>();
+  const defineCommand = createCommandFactory<PlainCounterRootState>();
   const commands = {
     decrement_counter: defineCommand({
       commandId: "decrement_counter",
@@ -745,16 +851,12 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
             },
       )
       .execute(({ game }) => {
-        game.counter -= 1;
+        game.decrementCounter();
       })
       .build(),
   };
-  const game = new GameDefinitionBuilder<{
-    counter: number;
-  }>("counter-game")
-    .initialState(() => ({
-      counter: 0,
-    }))
+  const game = new GameDefinitionBuilder("counter-game")
+    .rootState(PlainCounterRootState)
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
@@ -780,7 +882,7 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
 });
 
 test("createGameExecutor rejects commands missing actorId at runtime", () => {
-  const defineCommand = createCommandFactory<{ counter: number }>();
+  const defineCommand = createCommandFactory<PlainCounterRootState>();
   const commands = {
     increment_counter: defineCommand({
       commandId: "increment_counter",
@@ -788,16 +890,12 @@ test("createGameExecutor rejects commands missing actorId at runtime", () => {
     })
       .validate(() => ({ ok: true as const }))
       .execute(({ game }) => {
-        game.counter += 1;
+        game.incrementCounter();
       })
       .build(),
   };
-  const game = new GameDefinitionBuilder<{
-    counter: number;
-  }>("missing-actor-game")
-    .initialState(() => ({
-      counter: 0,
-    }))
+  const game = new GameDefinitionBuilder("missing-actor-game")
+    .rootState(PlainCounterRootState)
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
@@ -818,7 +916,7 @@ test("createGameExecutor rejects commands missing actorId at runtime", () => {
 });
 
 test("createGameExecutor rejects commands missing input at runtime", () => {
-  const defineCommand = createCommandFactory<{ counter: number }>();
+  const defineCommand = createCommandFactory<PlainCounterRootState>();
   const commands = {
     increment_counter: defineCommand({
       commandId: "increment_counter",
@@ -826,16 +924,12 @@ test("createGameExecutor rejects commands missing input at runtime", () => {
     })
       .validate(() => ({ ok: true as const }))
       .execute(({ game }) => {
-        game.counter += 1;
+        game.incrementCounter();
       })
       .build(),
   };
-  const game = new GameDefinitionBuilder<{
-    counter: number;
-  }>("missing-input-game")
-    .initialState(() => ({
-      counter: 0,
-    }))
+  const game = new GameDefinitionBuilder("missing-input-game")
+    .rootState(PlainCounterRootState)
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
@@ -856,7 +950,7 @@ test("createGameExecutor rejects commands missing input at runtime", () => {
 });
 
 test("createGameExecutor rejects discovery missing input at runtime", () => {
-  const defineCommand = createCommandFactory<{ canPlay: boolean }>();
+  const defineCommand = createCommandFactory<CanPlayRootState>();
   const commands = {
     play_card: defineCommand({
       commandId: "play_card",
@@ -874,12 +968,8 @@ test("createGameExecutor rejects discovery missing input at runtime", () => {
       .execute(() => {})
       .build(),
   };
-  const game = new GameDefinitionBuilder<{
-    canPlay: boolean;
-  }>("missing-discovery-input-game")
-    .initialState(() => ({
-      canPlay: true,
-    }))
+  const game = new GameDefinitionBuilder("missing-discovery-input-game")
+    .rootState(CanPlayRootState)
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
@@ -907,17 +997,8 @@ test("initial automatic stages run before the initial state is returned", () => 
     .transition(({ nextStages }) => nextStages.gameEndStage)
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    counter: {
-      value: number;
-    };
-  }>("bootstrap-stage-game")
+  const game = new GameDefinitionBuilder("bootstrap-stage-game")
     .rootState(RootCounterStateFacade)
-    .initialState(() => ({
-      counter: {
-        value: 0,
-      },
-    }))
     .initialStage(bootstrapStage)
     .build();
 
@@ -933,22 +1014,20 @@ test("initial automatic stages run before the initial state is returned", () => 
 });
 
 test("single-active stages reject commands from inactive players", () => {
-  const defineCommand = createCommandFactory<{ actions: number }>();
-  const defineStage = createStageFactory<{ actions: number }>();
+  const defineCommand = createCommandFactory<NumericActionsRootState>();
+  const defineStage = createStageFactory<NumericActionsRootState>();
   const takeActionCommand = defineCommand({
     commandId: "take_action",
     commandSchema: emptyCommandSchema,
   })
     .validate(() => ({ ok: true as const }))
     .execute(({ game }) => {
-      game.actions += 1;
+      game.recordAction();
     })
     .build();
   const playerTurnStage = createPlayerTurnStage();
 
-  function createPlayerTurnStage(): SingleActivePlayerStageDefinition<{
-    actions: number;
-  }> {
+  function createPlayerTurnStage(): SingleActivePlayerStageDefinition<NumericActionsRootState> {
     return defineStage("playerTurn")
       .singleActivePlayer()
       .activePlayer(() => "player-1")
@@ -958,12 +1037,8 @@ test("single-active stages reject commands from inactive players", () => {
       .build();
   }
 
-  const game = new GameDefinitionBuilder<{
-    actions: number;
-  }>("inactive-player-stage-game")
-    .initialState(() => ({
-      actions: 0,
-    }))
+  const game = new GameDefinitionBuilder("inactive-player-stage-game")
+    .rootState(NumericActionsRootState)
     .initialStage(playerTurnStage)
     .build();
 
@@ -985,12 +1060,8 @@ test("single-active stages reject commands from inactive players", () => {
 });
 
 test("multi-active stages stay active until completion and recompute active players from memory", () => {
-  const defineCommand = createCommandFactory<{
-    actions: string[];
-  }>();
-  const defineStage = createStageFactory<{
-    actions: string[];
-  }>();
+  const defineCommand = createCommandFactory<StringActionsRootState>();
+  const defineStage = createStageFactory<StringActionsRootState>();
   const submitActionCommand = defineCommand({
     commandId: "submit_action",
     commandSchema: t.object({
@@ -999,17 +1070,20 @@ test("multi-active stages stay active until completion and recompute active play
   })
     .validate(() => ({ ok: true as const }))
     .execute(({ game, command }) => {
-      game.actions.push(command.input.value);
+      game.recordAction(command.input.value);
     })
     .build();
   const gameEndStage = defineStage("gameEnd").automatic().build();
   const coordinatedStage = defineStage("coordinatedStage")
     .multiActivePlayer()
-    .memory<{
-      submittedByPlayerId: Record<string, string>;
-    }>(() => ({
-      submittedByPlayerId: {},
-    }))
+    .memory(
+      t.object({
+        submittedByPlayerId: t.record(t.string(), t.string()),
+      }),
+      () => ({
+        submittedByPlayerId: {} as Record<string, string>,
+      }),
+    )
     .activePlayers(({ memory }) => {
       return ["player-1", "player-2"].filter((playerId) => {
         return memory.submittedByPlayerId[playerId] === undefined;
@@ -1035,16 +1109,8 @@ test("multi-active stages stay active until completion and recompute active play
     })
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    actions: string[];
-  }>("multi-active-game")
-    .initialState(
-      (): {
-        actions: string[];
-      } => ({
-        actions: [],
-      }),
-    )
+  const game = new GameDefinitionBuilder("multi-active-game")
+    .rootState(StringActionsRootState)
     .initialStage(coordinatedStage)
     .build();
 
@@ -1140,21 +1206,15 @@ test("multi-active stages stay active until completion and recompute active play
 });
 
 test("successful stage-machine commands transition through automatic stages and emit stage events", () => {
-  const defineCommand = createCommandFactory<{
-    actions: number;
-    cleaned: number;
-  }>();
-  const defineStage = createStageFactory<{
-    actions: number;
-    cleaned: number;
-  }>();
+  const defineCommand = createCommandFactory<NumericActionsRootState>();
+  const defineStage = createStageFactory<NumericActionsRootState>();
   const takeActionCommand = defineCommand({
     commandId: "take_action",
     commandSchema: emptyCommandSchema,
   })
     .validate(() => ({ ok: true as const }))
     .execute(({ game, emitEvent }) => {
-      game.actions += 1;
+      game.recordAction();
       emitEvent({
         category: "domain",
         type: "action_taken",
@@ -1166,7 +1226,7 @@ test("successful stage-machine commands transition through automatic stages and 
   const cleanupStage = defineStage("cleanup")
     .automatic()
     .run(({ game, emitEvent }) => {
-      game.cleaned += 1;
+      game.recordCleanup();
       emitEvent({
         category: "runtime",
         type: "cleanup_ran",
@@ -1188,14 +1248,8 @@ test("successful stage-machine commands transition through automatic stages and 
     .transition(({ nextStages }) => nextStages.cleanupStage)
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    actions: number;
-    cleaned: number;
-  }>("stage-transition-game")
-    .initialState(() => ({
-      actions: 0,
-      cleaned: 0,
-    }))
+  const game = new GameDefinitionBuilder("stage-transition-game")
+    .rootState(NumericActionsRootState)
     .initialStage(playerTurnStage)
     .build();
 
@@ -1213,7 +1267,7 @@ test("successful stage-machine commands transition through automatic stages and 
     throw new Error("expected stage-machine transition");
   }
 
-  expect(result.state.game).toEqual({
+  expect(result.state.game).toMatchObject({
     actions: 1,
     cleaned: 1,
   });
@@ -1266,17 +1320,8 @@ test("automatic stages hydrate decorated state facades during run", () => {
     .transition(({ nextStages }) => nextStages.gameEndStage)
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    counter: {
-      value: number;
-    };
-  }>("automatic-facade-game")
+  const game = new GameDefinitionBuilder("automatic-facade-game")
     .rootState(RootCounterStateFacade)
-    .initialState(() => ({
-      counter: {
-        value: 0,
-      },
-    }))
     .initialStage(cleanupStage)
     .build();
 
@@ -1292,7 +1337,7 @@ test("automatic stages hydrate decorated state facades during run", () => {
 });
 
 test("game executor can list available commands through per-command availability hooks", () => {
-  const defineCommand = createCommandFactory<{ energy: number }>();
+  const defineCommand = createCommandFactory<EnergyRootState>();
   const commands = {
     pass_turn: defineCommand({
       commandId: "pass_turn",
@@ -1313,7 +1358,7 @@ test("game executor can list available commands through per-command availability
           : { ok: false as const, reason: "no_energy" },
       )
       .execute(({ game }) => {
-        game.energy -= 1;
+        game.spendEnergy();
       })
       .build(),
     impossible_action: defineCommand({
@@ -1325,12 +1370,8 @@ test("game executor can list available commands through per-command availability
       .execute(() => {})
       .build(),
   };
-  const game = new GameDefinitionBuilder<{
-    energy: number;
-  }>("availability-game")
-    .initialState(() => ({
-      energy: 1,
-    }))
+  const game = new GameDefinitionBuilder("availability-game")
+    .rootState(EnergyRootState)
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 
@@ -1361,9 +1402,7 @@ test("game executor can list available commands through per-command availability
 });
 
 test("game executor can discover the next semantic options for a command", () => {
-  const defineCommand = createCommandFactory<{
-    canPlay: boolean;
-  }>();
+  const defineCommand = createCommandFactory<CanPlayRootState>();
   const commands = {
     play_card: defineCommand({
       commandId: "play_card",
@@ -1400,12 +1439,8 @@ test("game executor can discover the next semantic options for a command", () =>
       .execute(() => {})
       .build(),
   };
-  const game = new GameDefinitionBuilder<{
-    canPlay: boolean;
-  }>("discovery-game")
-    .initialState(() => ({
-      canPlay: true,
-    }))
+  const game = new GameDefinitionBuilder("discovery-game")
+    .rootState(CanPlayRootState)
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();
 

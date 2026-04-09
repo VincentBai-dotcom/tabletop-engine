@@ -1,6 +1,7 @@
 import type { Command, DefinedCommand } from "./command";
 import type { GameEvent } from "./event";
 import type { RNGApi } from "./rng";
+import type { FieldType, ObjectFieldType } from "../schema";
 import type { RuntimeState } from "./state";
 
 export const stageDefinitionBrand = Symbol("tabletop-engine.stage-definition");
@@ -188,6 +189,7 @@ export interface MultiActivePlayerStageDefinition<
 > extends StageDefinitionBrand {
   id: string;
   kind: "multiActivePlayer";
+  memorySchema: ObjectFieldType<Record<string, FieldType>>;
   memory(): Memory;
   activePlayers(
     context: MultiActivePlayerMemoryContext<GameState, Runtime, Memory>,

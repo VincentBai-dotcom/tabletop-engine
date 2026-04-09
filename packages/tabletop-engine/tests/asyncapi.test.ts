@@ -31,18 +31,18 @@ const customDeckViewSchema = t.object({
 @State()
 class AsyncApiPlayerState {
   @field(t.string())
-  id!: string;
+  id = "";
 
   @hidden()
   @field(t.array(t.number()))
-  hand!: number[];
+  hand: number[] = [];
 }
 
 @State()
 class AsyncApiDeckState {
   @hidden()
   @field(t.array(t.number()))
-  cards!: number[];
+  cards: number[] = [];
 
   @viewSchema(customDeckViewSchema)
   projectCustomView(viewer: Viewer) {
@@ -61,7 +61,7 @@ class AsyncApiRootState {
       t.state(() => AsyncApiPlayerState),
     ),
   )
-  players!: Record<string, AsyncApiPlayerState>;
+  players: Record<string, AsyncApiPlayerState> = {};
 
   @field(t.state(() => AsyncApiDeckState))
   deck!: AsyncApiDeckState;
@@ -71,7 +71,7 @@ class AsyncApiRootState {
 class MissingViewSchemaDeckState {
   @hidden()
   @field(t.array(t.number()))
-  cards!: number[];
+  cards: number[] = [];
 
   projectCustomView(viewer: Viewer) {
     void viewer;
@@ -89,7 +89,7 @@ class MissingViewSchemaRootState {
       t.state(() => AsyncApiPlayerState),
     ),
   )
-  players!: Record<string, AsyncApiPlayerState>;
+  players: Record<string, AsyncApiPlayerState> = {};
 
   @field(t.state(() => MissingViewSchemaDeckState))
   deck!: MissingViewSchemaDeckState;
@@ -121,16 +121,7 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
     .execute(() => {})
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    players: Record<string, { id: string; hand: number[] }>;
-    deck: { cards: number[] };
-  }>("asyncapi-game")
-    .initialState(() => ({
-      players: {
-        p1: { id: "p1", hand: [1, 2] },
-      },
-      deck: { cards: [1, 2, 3] },
-    }))
+  const game = new GameDefinitionBuilder("asyncapi-game")
     .rootState(AsyncApiRootState)
     .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
@@ -230,16 +221,7 @@ test("generateAsyncApi propagates protocol schema validation failures", () => {
     .execute(() => {})
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    players: Record<string, { id: string; hand: number[] }>;
-    deck: { cards: number[] };
-  }>("invalid-asyncapi-game")
-    .initialState(() => ({
-      players: {
-        p1: { id: "p1", hand: [1, 2] },
-      },
-      deck: { cards: [1, 2, 3] },
-    }))
+  const game = new GameDefinitionBuilder("invalid-asyncapi-game")
     .rootState(MissingViewSchemaRootState)
     .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();

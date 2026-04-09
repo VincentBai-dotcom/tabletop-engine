@@ -2,16 +2,26 @@ import { expect, test } from "bun:test";
 import {
   createCommandFactory,
   createGameExecutor,
+  field,
   GameDefinitionBuilder,
   runScenario,
+  State,
   t,
 } from "../src/index";
 import { createSelfLoopingTurnStage } from "./helpers/stages";
 
+@State()
+class HarnessCounterRootState {
+  @field(t.number())
+  counter = 0;
+
+  incrementCounter(amount = 1) {
+    this.counter += amount;
+  }
+}
+
 test("runScenario applies commands in order and returns per-command results", () => {
-  const defineCommand = createCommandFactory<{
-    counter: number;
-  }>();
+  const defineCommand = createCommandFactory<HarnessCounterRootState>();
   const incrementCommandSchema = t.object({
     amount: t.optional(t.number()),
   });
@@ -24,16 +34,12 @@ test("runScenario applies commands in order and returns per-command results", ()
       const amount =
         typeof command.input.amount === "number" ? command.input.amount : 1;
 
-      game.counter += amount;
+      game.incrementCounter(amount);
     })
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    counter: number;
-  }>("counter-game")
-    .initialState(() => ({
-      counter: 0,
-    }))
+  const game = new GameDefinitionBuilder("counter-game")
+    .rootState(HarnessCounterRootState)
     .initialStage(createSelfLoopingTurnStage([incrementCounterCommand]))
     .build();
 

@@ -15,6 +15,8 @@ import {
   type StageDefinitionMap,
   type StageDefinitionResolver,
 } from "./types/progression";
+import { assertSerializableSchema } from "./schema";
+import type { FieldType, ObjectFieldType } from "./schema";
 import type { RuntimeState } from "./types/state";
 
 type NoBuilderMethod = Record<never, never>;
@@ -193,6 +195,7 @@ export type MultiActivePlayerStageBuilder<
   HasTransition extends boolean = false,
 > = {
   memory<NextMemory extends object>(
+    memorySchema: ObjectFieldType<Record<string, FieldType>>,
     memory: () => NextMemory,
   ): MultiActivePlayerStageBuilder<
     GameState,
@@ -388,6 +391,7 @@ type MultiActivePlayerAccumulator<
 > = {
   id: string;
   kind: "multiActivePlayer";
+  memorySchema?: ObjectFieldType<Record<string, FieldType>>;
   memory?: () => Memory;
   activePlayers?: (
     context: MultiActivePlayerMemoryContext<GameState, RuntimeState, Memory>,
@@ -646,7 +650,12 @@ function createMultiActivePlayerBuilder<
   HasTransition
 > {
   return {
-    memory<NextMemory extends object>(memory: () => NextMemory) {
+    memory<NextMemory extends object>(
+      memorySchema: ObjectFieldType<Record<string, FieldType>>,
+      memory: () => NextMemory,
+    ) {
+      assertSerializableSchema(memorySchema);
+
       return createMultiActivePlayerBuilder<
         GameState,
         NextMemory,
@@ -661,6 +670,7 @@ function createMultiActivePlayerBuilder<
         HasTransition
       >({
         ...accumulator,
+        memorySchema,
         memory,
       } as MultiActivePlayerAccumulator<
         GameState,
@@ -832,6 +842,10 @@ function createMultiActivePlayerBuilder<
         throw new Error("multi_active_player_stage_requires_memory");
       }
 
+      if (!accumulator.memorySchema) {
+        throw new Error("multi_active_player_stage_requires_memory_schema");
+      }
+
       if (!accumulator.activePlayers) {
         throw new Error("multi_active_player_stage_requires_active_players");
       }
@@ -859,6 +873,7 @@ function createMultiActivePlayerBuilder<
       return {
         id: accumulator.id,
         kind: "multiActivePlayer",
+        memorySchema: accumulator.memorySchema,
         memory: accumulator.memory,
         activePlayers: accumulator.activePlayers,
         commands: accumulator.commands,

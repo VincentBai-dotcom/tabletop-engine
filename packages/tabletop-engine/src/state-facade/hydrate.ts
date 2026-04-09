@@ -10,11 +10,12 @@ export function hydrateStateFacade<TState extends object>(
   backing: object,
   options?: {
     readonly?: boolean;
+    allowDirectMutation?: boolean;
   },
 ): TState {
   const mutationContext: MutationContext = {
     readonlyMode: options?.readonly ?? false,
-    mutationDepth: 0,
+    mutationDepth: options?.allowDirectMutation ? 1 : 0,
   };
 
   return hydrateStateInstance(
@@ -31,11 +32,12 @@ export function hydrateStateNode<TState extends object>(
   backing: object,
   options?: {
     readonly?: boolean;
+    allowDirectMutation?: boolean;
   },
 ): TState {
   const mutationContext: MutationContext = {
     readonlyMode: options?.readonly ?? false,
-    mutationDepth: 0,
+    mutationDepth: options?.allowDirectMutation ? 1 : 0,
   };
 
   return hydrateStateInstance(

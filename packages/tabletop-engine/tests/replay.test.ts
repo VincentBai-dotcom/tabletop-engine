@@ -3,20 +3,36 @@ import {
   appendReplayStep,
   createCommandFactory,
   createGameExecutor,
+  field,
   GameDefinitionBuilder,
   createReplayRecord,
   createSnapshot,
   replayRecord,
   restoreSnapshot,
+  State,
   t,
 } from "../src/index";
 import { createSelfLoopingTurnStage } from "./helpers/stages";
 
+@State()
+class ReplayRootState {
+  @field(t.number())
+  counter = 0;
+
+  @field(t.number())
+  value = 0;
+
+  incrementCounter(amount = 1) {
+    this.counter += amount;
+  }
+
+  setValue(value: number) {
+    this.value = value;
+  }
+}
+
 test("snapshots restore canonical state and replay reproduces final state", () => {
-  const defineCommand = createCommandFactory<{
-    counter: number;
-    value: number;
-  }>();
+  const defineCommand = createCommandFactory<ReplayRootState>();
   const incrementCommandSchema = t.object({
     amount: t.optional(t.number()),
   });
@@ -30,7 +46,7 @@ test("snapshots restore canonical state and replay reproduces final state", () =
       const amount =
         typeof command.input.amount === "number" ? command.input.amount : 1;
 
-      game.counter += amount;
+      game.incrementCounter(amount);
     })
     .build();
   const sampleRandomnessCommand = defineCommand({
@@ -39,18 +55,12 @@ test("snapshots restore canonical state and replay reproduces final state", () =
   })
     .validate(() => ({ ok: true as const }))
     .execute(({ game, rng }) => {
-      game.value = rng.number();
+      game.setValue(rng.number());
     })
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    counter: number;
-    value: number;
-  }>("replay-game")
-    .initialState(() => ({
-      counter: 0,
-      value: 0,
-    }))
+  const game = new GameDefinitionBuilder("replay-game")
+    .rootState(ReplayRootState)
     .rngSeed("seed-123")
     .initialStage(
       createSelfLoopingTurnStage([

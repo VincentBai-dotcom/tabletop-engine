@@ -30,7 +30,7 @@ const hiddenSummaryViewSchema = t.object({
 @State()
 class ProtocolPlayerState {
   @field(t.string())
-  id!: string;
+  id = "";
 
   @visibleToSelf({
     schema: hiddenSummaryViewSchema,
@@ -41,7 +41,7 @@ class ProtocolPlayerState {
     },
   })
   @field(t.array(t.number()))
-  hand!: number[];
+  hand: number[] = [];
 }
 
 @State()
@@ -55,7 +55,7 @@ class ProtocolDeckState {
     },
   })
   @field(t.array(t.number()))
-  cards!: number[];
+  cards: number[] = [];
 
   projectCustomView(viewer: Viewer) {
     void viewer;
@@ -69,7 +69,7 @@ class ProtocolDeckState {
 class SchemaProtocolDeckState {
   @hidden()
   @field(t.array(t.number()))
-  cards!: number[];
+  cards: number[] = [];
 
   @viewSchema(customDeckViewSchema)
   projectCustomView(viewer: Viewer) {
@@ -88,7 +88,7 @@ class PlainProtocolRootState {
       t.state(() => ProtocolPlayerState),
     ),
   )
-  players!: Record<string, ProtocolPlayerState>;
+  players: Record<string, ProtocolPlayerState> = {};
 }
 
 @State()
@@ -99,7 +99,7 @@ class ProtocolRootState {
       t.state(() => ProtocolPlayerState),
     ),
   )
-  players!: Record<string, ProtocolPlayerState>;
+  players: Record<string, ProtocolPlayerState> = {};
 
   @field(t.state(() => ProtocolDeckState))
   deck!: ProtocolDeckState;
@@ -113,7 +113,7 @@ class SchemaProtocolRootState {
       t.state(() => ProtocolPlayerState),
     ),
   )
-  players!: Record<string, ProtocolPlayerState>;
+  players: Record<string, ProtocolPlayerState> = {};
 
   @field(t.state(() => SchemaProtocolDeckState))
   deck!: SchemaProtocolDeckState;
@@ -122,7 +122,7 @@ class SchemaProtocolRootState {
 @State()
 class OrphanViewSchemaState {
   @field(t.number())
-  value!: number;
+  value = 0;
 
   @viewSchema(t.object({ count: t.number() }))
   describe(): number {
@@ -164,14 +164,7 @@ test("describeGameProtocol returns command payload schemas", () => {
     .execute(() => {})
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    players: Record<string, { id: string; hand: number[] }>;
-  }>("protocol-game")
-    .initialState(() => ({
-      players: {
-        p1: { id: "p1", hand: [1, 2] },
-      },
-    }))
+  const game = new GameDefinitionBuilder("protocol-game")
     .rootState(PlainProtocolRootState)
     .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
@@ -231,16 +224,7 @@ test("describeGameProtocol includes custom view schemas when provided", () => {
     .execute(() => {})
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    players: Record<string, { id: string; hand: number[] }>;
-    deck: { cards: number[] };
-  }>("protocol-view-schema-game")
-    .initialState(() => ({
-      players: {
-        p1: { id: "p1", hand: [1, 2] },
-      },
-      deck: { cards: [1, 2, 3] },
-    }))
+  const game = new GameDefinitionBuilder("protocol-view-schema-game")
     .rootState(SchemaProtocolRootState)
     .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
@@ -269,16 +253,7 @@ test("describeGameProtocol rejects commands without commandSchema", () => {
     }
   ).commandSchema;
 
-  const game = new GameDefinitionBuilder<{
-    players: Record<string, { id: string; hand: number[] }>;
-    deck: { cards: number[] };
-  }>("invalid-protocol-game")
-    .initialState(() => ({
-      players: {
-        p1: { id: "p1", hand: [1, 2] },
-      },
-      deck: { cards: [1, 2, 3] },
-    }))
+  const game = new GameDefinitionBuilder("invalid-protocol-game")
     .rootState(ProtocolRootState)
     .initialStage(createSelfLoopingTurnStage([missingPayloadCommand]))
     .build();
@@ -311,14 +286,7 @@ test("describeGameProtocol rejects discovery handlers without draft schemas", ()
     }
   ).discoverySchema;
 
-  const game = new GameDefinitionBuilder<{
-    players: Record<string, { id: string; hand: number[] }>;
-  }>("invalid-discovery-protocol-game")
-    .initialState(() => ({
-      players: {
-        p1: { id: "p1", hand: [1, 2] },
-      },
-    }))
+  const game = new GameDefinitionBuilder("invalid-discovery-protocol-game")
     .rootState(PlainProtocolRootState)
     .initialStage(createSelfLoopingTurnStage([missingDraftCommand]))
     .build();
@@ -351,14 +319,7 @@ test("describeGameProtocol rejects discovery draft schemas without handlers", ()
     }
   ).discover;
 
-  const game = new GameDefinitionBuilder<{
-    players: Record<string, { id: string; hand: number[] }>;
-  }>("orphan-discovery-draft-protocol-game")
-    .initialState(() => ({
-      players: {
-        p1: { id: "p1", hand: [1, 2] },
-      },
-    }))
+  const game = new GameDefinitionBuilder("orphan-discovery-draft-protocol-game")
     .rootState(PlainProtocolRootState)
     .initialStage(createSelfLoopingTurnStage([orphanDraftCommand]))
     .build();
@@ -390,16 +351,7 @@ test("describeGameProtocol rejects custom view methods without view schema", () 
     .execute(() => {})
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    players: Record<string, { id: string; hand: number[] }>;
-    deck: { cards: number[] };
-  }>("missing-view-schema-game")
-    .initialState(() => ({
-      players: {
-        p1: { id: "p1", hand: [1, 2] },
-      },
-      deck: { cards: [1, 2, 3] },
-    }))
+  const game = new GameDefinitionBuilder("missing-view-schema-game")
     .rootState(ProtocolRootState)
     .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
@@ -431,12 +383,7 @@ test("describeGameProtocol rejects view schemas without projectCustomView", () =
     .execute(() => {})
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    child: { value: number };
-  }>("orphan-view-schema-game")
-    .initialState(() => ({
-      child: { value: 1 },
-    }))
+  const game = new GameDefinitionBuilder("orphan-view-schema-game")
     .rootState(OrphanViewSchemaRootState)
     .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();

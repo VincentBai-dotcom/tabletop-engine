@@ -171,11 +171,14 @@ test("stage machine types support multi-active stage authoring", () => {
   > {
     return defineStage("simultaneousTurn")
       .multiActivePlayer()
-      .memory<{
-        submittedByPlayerId: Record<string, string>;
-      }>(() => ({
-        submittedByPlayerId: {},
-      }))
+      .memory(
+        t.object({
+          submittedByPlayerId: t.record(t.string(), t.string()),
+        }),
+        () => ({
+          submittedByPlayerId: {} as Record<string, string>,
+        }),
+      )
       .activePlayers(({ memory }) => {
         return ["p1", "p2"].filter((playerId) => {
           return memory.submittedByPlayerId[playerId] === undefined;
@@ -230,11 +233,14 @@ test("stage machine types support multi-active stage authoring", () => {
   // @ts-expect-error build should not exist before multi-active stage requirements are set
   void baseBuilder.build;
 
-  const memoryBuilder = baseBuilder.memory<{
-    submittedByPlayerId: Record<string, string>;
-  }>(() => ({
-    submittedByPlayerId: {},
-  }));
+  const memoryBuilder = baseBuilder.memory(
+    t.object({
+      submittedByPlayerId: t.record(t.string(), t.string()),
+    }),
+    () => ({
+      submittedByPlayerId: {} as Record<string, string>,
+    }),
+  );
 
   // @ts-expect-error build should not exist before activePlayers, commands, onSubmit, isComplete, nextStages, and transition are set
   void memoryBuilder.build;

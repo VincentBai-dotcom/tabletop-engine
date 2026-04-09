@@ -18,13 +18,13 @@ const defineTestStage = createStageFactory<object>();
 @State()
 class TestHandState {
   @field(t.number())
-  size!: number;
+  size = 0;
 }
 
 @State()
 class TestRootState {
   @field(t.number())
-  score!: number;
+  score = 0;
 
   @field(t.state(() => TestHandState))
   hand!: TestHandState;
@@ -43,43 +43,47 @@ class BrokenRootState {
 @State()
 class TestCardState {
   @field(t.string())
-  id!: string;
+  id = "";
 }
 
 @State()
 class TestCollectionRootState {
   @field(t.array(t.state(() => TestCardState)))
-  cards!: TestCardState[];
+  cards: TestCardState[] = [];
 }
 
 @State()
 class VisibleToSelfWithoutOwnerRootState {
   @visibleToSelf()
   @field(t.array(t.number()))
-  hiddenCards!: number[];
+  hiddenCards: number[] = [];
 }
 
 @OwnedByPlayer()
 @State()
 class OwnedPlayerStateWithoutId {
   @field(t.number())
-  score!: number;
+  score = 0;
+}
+
+@State()
+class ScoreRootState {
+  @field(t.number())
+  score = 0;
 }
 
 test("GameDefinitionBuilder preserves the supplied configuration", () => {
   const gameEndStage = defineTestStage("gameEnd").automatic().build();
 
-  const game = new GameDefinitionBuilder<{
-    score: number;
-  }>("test-game")
-    .initialState(() => ({
-      score: 0,
-    }))
+  const game = new GameDefinitionBuilder("test-game")
+    .rootState(ScoreRootState)
     .initialStage(gameEndStage)
     .build();
 
   expect(game.name).toBe("test-game");
-  expect(game.initialState().score).toBe(0);
+  expect(game.defaultCanonicalGameState).toEqual({
+    score: 0,
+  });
   expect(game.commands).toEqual({});
 });
 
@@ -119,12 +123,8 @@ test("GameDefinitionBuilder compiles stage command references into the command m
       .build();
   }
 
-  const game = new GameDefinitionBuilder<{
-    score: number;
-  }>("list-builder-game")
-    .initialState(() => ({
-      score: 0,
-    }))
+  const game = new GameDefinitionBuilder("list-builder-game")
+    .rootState(ScoreRootState)
     .initialStage(scoreTurnStage)
     .build();
 
@@ -152,9 +152,14 @@ test("GameDefinitionBuilder compiles multi-active stage command references into 
   const gameEndStage = defineTestStage("gameEnd").automatic().build();
   const voteStage = defineTestStage("voteStage")
     .multiActivePlayer()
-    .memory<{ submittedByPlayerId: Record<string, true> }>(() => ({
-      submittedByPlayerId: {},
-    }))
+    .memory(
+      t.object({
+        submittedByPlayerId: t.record(t.string(), t.boolean()),
+      }),
+      () => ({
+        submittedByPlayerId: {} as Record<string, true>,
+      }),
+    )
     .activePlayers(({ memory }) => {
       return ["player-1", "player-2"].filter((playerId) => {
         return memory.submittedByPlayerId[playerId] !== true;
@@ -174,12 +179,8 @@ test("GameDefinitionBuilder compiles multi-active stage command references into 
     .transition(({ nextStages }) => nextStages.gameEndStage)
     .build();
 
-  const game = new GameDefinitionBuilder<{
-    score: number;
-  }>("multi-active-list-builder-game")
-    .initialState(() => ({
-      score: 0,
-    }))
+  const game = new GameDefinitionBuilder("multi-active-list-builder-game")
+    .rootState(ScoreRootState)
     .initialStage(voteStage)
     .build();
 
@@ -231,12 +232,8 @@ test("GameDefinitionBuilder accepts factory-defined commands through stages only
       .build();
   }
 
-  const game = new GameDefinitionBuilder<{
-    score: number;
-  }>("factory-list-builder-game")
-    .initialState(() => ({
-      score: 0,
-    }))
+  const game = new GameDefinitionBuilder("factory-list-builder-game")
+    .rootState(ScoreRootState)
     .initialStage(scoreTurnStage)
     .build();
 
@@ -303,12 +300,8 @@ test("GameDefinitionBuilder rejects duplicate command ids across reachable stage
   void bonusTurnStage;
 
   expect(() =>
-    new GameDefinitionBuilder<{
-      score: number;
-    }>("duplicate-command-game")
-      .initialState(() => ({
-        score: 0,
-      }))
+    new GameDefinitionBuilder("duplicate-command-game")
+      .rootState(ScoreRootState)
       .initialStage(rootStage)
       .build(),
   ).toThrow("duplicate_command_id:increment_score");
@@ -324,11 +317,9 @@ test("GameDefinitionBuilder only accepts commands created by the command factory
     },
   };
 
-  const builder = new GameDefinitionBuilder<{
-    score: number;
-  }>("legacy-command-game").initialState(() => ({
-    score: 0,
-  }));
+  const builder = new GameDefinitionBuilder("legacy-command-game").rootState(
+    ScoreRootState,
+  );
 
   const turnStage = createTurnStage();
 
@@ -366,12 +357,8 @@ test("createGameExecutor creates initial stage-machine runtime state", () => {
       })
       .build();
   }
-  const game = new GameDefinitionBuilder<{
-    score: number;
-  }>("progression-game")
-    .initialState(() => ({
-      score: 0,
-    }))
+  const game = new GameDefinitionBuilder("progression-game")
+    .rootState(ScoreRootState)
     .initialStage(playerTurnStage)
     .build();
 
@@ -387,34 +374,21 @@ test("createGameExecutor creates initial stage-machine runtime state", () => {
 
 test("GameDefinitionBuilder builds the same game definition shape", () => {
   const gameEndStage = defineTestStage("gameEnd").automatic().build();
-  const game = new GameDefinitionBuilder<{
-    score: number;
-  }>("builder-game")
-    .initialState(() => ({
-      score: 0,
-    }))
+  const game = new GameDefinitionBuilder("builder-game")
+    .rootState(ScoreRootState)
     .initialStage(gameEndStage)
     .build();
 
   expect(game.name).toBe("builder-game");
-  expect(game.initialState().score).toBe(0);
+  expect(game.defaultCanonicalGameState).toEqual({
+    score: 0,
+  });
   expect(game.commands).toEqual({});
 });
 
 test("GameDefinitionBuilder compiles reachable root state metadata", () => {
-  const game = new GameDefinitionBuilder<{
-    score: number;
-    hand: {
-      size: number;
-    };
-  }>("root-state-game")
+  const game = new GameDefinitionBuilder("root-state-game")
     .rootState(TestRootState)
-    .initialState(() => ({
-      score: 0,
-      hand: {
-        size: 0,
-      },
-    }))
     .initialStage(defineTestStage("gameEnd").automatic().build())
     .build();
 
@@ -432,32 +406,16 @@ test("GameDefinitionBuilder compiles reachable root state metadata", () => {
 
 test("GameDefinitionBuilder rejects undecorated nested state targets", () => {
   expect(() =>
-    new GameDefinitionBuilder<{
-      child: {
-        cards: number[];
-      };
-    }>("broken-root-state-game")
+    new GameDefinitionBuilder("broken-root-state-game")
       .rootState(BrokenRootState)
-      .initialState(() => ({
-        child: {
-          cards: [],
-        },
-      }))
       .initialStage(defineTestStage("gameEnd").automatic().build())
       .build(),
   ).toThrow("state_field_target_must_be_decorated:UndecoratedChildState");
 });
 
 test("GameDefinitionBuilder compiles nested state references inside array field types", () => {
-  const game = new GameDefinitionBuilder<{
-    cards: {
-      id: string;
-    }[];
-  }>("collection-root-state-game")
+  const game = new GameDefinitionBuilder("collection-root-state-game")
     .rootState(TestCollectionRootState)
-    .initialState(() => ({
-      cards: [],
-    }))
     .initialStage(defineTestStage("gameEnd").automatic().build())
     .build();
 
@@ -480,13 +438,8 @@ test("GameDefinitionBuilder compiles nested state references inside array field 
 
 test("GameDefinitionBuilder rejects visibleToSelf fields without a player-owned ancestor", () => {
   expect(() =>
-    new GameDefinitionBuilder<{
-      hiddenCards: number[];
-    }>("visible-to-self-without-owner-game")
+    new GameDefinitionBuilder("visible-to-self-without-owner-game")
       .rootState(VisibleToSelfWithoutOwnerRootState)
-      .initialState(() => ({
-        hiddenCards: [],
-      }))
       .initialStage(defineTestStage("gameEnd").automatic().build())
       .build(),
   ).toThrow("visible_to_self_requires_owned_player_ancestor:hiddenCards");
@@ -494,13 +447,8 @@ test("GameDefinitionBuilder rejects visibleToSelf fields without a player-owned 
 
 test("GameDefinitionBuilder rejects owned player states without a string id field", () => {
   expect(() =>
-    new GameDefinitionBuilder<{
-      score: number;
-    }>("owned-player-without-id-game")
+    new GameDefinitionBuilder("owned-player-without-id-game")
       .rootState(OwnedPlayerStateWithoutId)
-      .initialState(() => ({
-        score: 0,
-      }))
       .initialStage(defineTestStage("gameEnd").automatic().build())
       .build(),
   ).toThrow("owned_player_requires_string_id_field:OwnedPlayerStateWithoutId");
