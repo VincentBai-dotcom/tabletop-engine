@@ -156,6 +156,15 @@ The memory schema should be authored with the normal `t.*` schema API. This is
 required so the engine can later include multi-active memory in runtime-state
 validation and snapshot validation.
 
+The memory schema should follow the same schema constraints as command input
+and discovery input:
+
+- no `t.state(...)`
+- top-level schema must be `t.object(...)`
+
+This keeps multi-active memory clearly in the plain-runtime-data world rather
+than the facade-state world.
+
 ### Why Memory Is Required
 
 The coordination rules of a multi-active stage usually need temporary state,
@@ -197,6 +206,9 @@ The engine also needs a runtime schema for multi-active memory so it can:
 - validate restored snapshots
 - assemble an engine-owned runtime schema that includes game-authored
   multi-active memory shapes
+
+The engine can reuse the same serializable-schema validation path already used
+for command input and discovery input schemas when enforcing these rules.
 
 So multi-active memory should be declared with both:
 

@@ -207,6 +207,15 @@ The memory API should instead capture both:
 - a `t.*` schema for runtime validation
 - an initializer for default memory value
 
+That memory schema should follow the same rules as command input and discovery
+input schemas:
+
+- no `t.state(...)`
+- top-level schema must be `t.object(...)`
+
+The engine should reuse the same serializable-schema validation path for this
+memory schema surface rather than introducing a separate validator concept.
+
 Conceptually:
 
 ```ts
