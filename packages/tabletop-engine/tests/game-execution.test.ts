@@ -40,6 +40,10 @@ class RootCounterStateFacade {
   @field(t.state(() => CounterStateFacade))
   counter!: CounterStateFacade;
 
+  setCounterValue(value: number) {
+    this.counter.value = value;
+  }
+
   incrementCounter(amount: number) {
     this.counter.increment(amount);
   }
@@ -127,6 +131,10 @@ class VisibleSummaryRootState {
     ),
   )
   players: Record<string, VisibleSummaryPlayerState> = {};
+
+  replacePlayers(players: Record<string, VisibleSummaryPlayerState>) {
+    this.players = players;
+  }
 }
 
 @State()
@@ -138,6 +146,10 @@ class VisibleRootState {
     ),
   )
   players: Record<string, VisiblePlayerState> = {};
+
+  replacePlayers(players: Record<string, VisiblePlayerState>) {
+    this.players = players;
+  }
 }
 
 @State()
@@ -145,6 +157,10 @@ class HiddenDeckState {
   @hidden()
   @field(t.array(t.string()))
   cards: string[] = [];
+
+  setCards(cards: string[]) {
+    this.cards = cards;
+  }
 }
 
 @State()
@@ -159,18 +175,30 @@ class HiddenSummaryDeckState {
   })
   @field(t.array(t.string()))
   cards: string[] = [];
+
+  setCards(cards: string[]) {
+    this.cards = cards;
+  }
 }
 
 @State()
 class HiddenSummaryDeckRootState {
   @field(t.state(() => HiddenSummaryDeckState))
   deck!: HiddenSummaryDeckState;
+
+  setDeckCards(cards: string[]) {
+    this.deck.setCards(cards);
+  }
 }
 
 @State()
 class HiddenDeckRootState {
   @field(t.state(() => HiddenDeckState))
   deck!: HiddenDeckState;
+
+  setDeckCards(cards: string[]) {
+    this.deck.setCards(cards);
+  }
 }
 
 @State()
@@ -178,6 +206,10 @@ class CustomVisibleDeckState {
   @hidden()
   @field(t.array(t.string()))
   cards: string[] = [];
+
+  setCards(cards: string[]) {
+    this.cards = cards;
+  }
 
   projectCustomView() {
     return {
@@ -190,6 +222,10 @@ class CustomVisibleDeckState {
 class CustomVisibleDeckRootState {
   @field(t.state(() => CustomVisibleDeckState))
   deck!: CustomVisibleDeckState;
+
+  setDeckCards(cards: string[]) {
+    this.deck.setCards(cards);
+  }
 }
 
 @State()
@@ -297,7 +333,7 @@ test("createGameExecutor can project viewer-safe visible state", () => {
   }>("visible-state-game")
     .rootState(RootCounterStateFacade)
     .setup(({ game }) => {
-      game.counter.value = 2;
+      game.setCounterValue(2);
     })
     .initialStage(createTerminalStage())
     .build();
@@ -388,7 +424,7 @@ test("createGameExecutor projects visibleToSelf fields for the owner only", () =
   }>("private-hand-game")
     .rootState(VisibleRootState)
     .setup(({ game }) => {
-      game.players = {
+      game.replacePlayers({
         p1: {
           id: "p1",
           hand: ["a", "b"],
@@ -399,7 +435,7 @@ test("createGameExecutor projects visibleToSelf fields for the owner only", () =
           hand: ["x"],
           score: 2,
         } as VisiblePlayerState,
-      };
+      });
     })
     .initialStage(createTerminalStage())
     .build();
@@ -452,7 +488,7 @@ test("createGameExecutor projects hidden fields for every viewer", () => {
   }>("hidden-deck-game")
     .rootState(HiddenDeckRootState)
     .setup(({ game }) => {
-      game.deck.cards = ["a", "b", "c"];
+      game.setDeckCards(["a", "b", "c"]);
     })
     .initialStage(createTerminalStage())
     .build();
@@ -495,7 +531,7 @@ test("createGameExecutor projects hidden summary values for hidden fields", () =
   }>("hidden-summary-deck-game")
     .rootState(HiddenSummaryDeckRootState)
     .setup(({ game }) => {
-      game.deck.cards = ["a", "b", "c"];
+      game.setDeckCards(["a", "b", "c"]);
     })
     .initialStage(createTerminalStage())
     .build();
@@ -540,7 +576,7 @@ test("createGameExecutor projects hidden summary values for visibleToSelf fields
   }>("private-hand-summary-game")
     .rootState(VisibleSummaryRootState)
     .setup(({ game }) => {
-      game.players = {
+      game.replacePlayers({
         p1: {
           id: "p1",
           hand: ["a", "b"],
@@ -551,7 +587,7 @@ test("createGameExecutor projects hidden summary values for visibleToSelf fields
           hand: ["x"],
           score: 2,
         } as VisibleSummaryPlayerState,
-      };
+      });
     })
     .initialStage(createTerminalStage())
     .build();
@@ -608,7 +644,7 @@ test("createGameExecutor lets a state override its visible projection shape", ()
   }>("custom-visible-deck-game")
     .rootState(CustomVisibleDeckRootState)
     .setup(({ game }) => {
-      game.deck.cards = ["a", "b", "c"];
+      game.setDeckCards(["a", "b", "c"]);
     })
     .initialStage(createTerminalStage())
     .build();
@@ -649,13 +685,13 @@ test("createGameExecutor rejects owned player projection when id is empty", () =
   }>("invalid-player-owner-game")
     .rootState(VisibleRootState)
     .setup(({ game }) => {
-      game.players = {
+      game.replacePlayers({
         p1: {
           id: "",
           hand: ["a", "b"],
           score: 3,
         } as VisiblePlayerState,
-      };
+      });
     })
     .initialStage(createTerminalStage())
     .build();
@@ -714,7 +750,7 @@ test("availability and discovery contexts hydrate readonly decorated state facad
   }>("readonly-facade-discovery-game")
     .rootState(RootCounterStateFacade)
     .setup(({ game }) => {
-      game.counter.value = 2;
+      game.setCounterValue(2);
     })
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
     .build();

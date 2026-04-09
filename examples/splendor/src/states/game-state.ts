@@ -58,6 +58,25 @@ export class SplendorGameState {
     return game;
   }
 
+  initializePlayers(playerIds: readonly string[]): void {
+    this.playerOrder = [...playerIds];
+    this.players = Object.fromEntries(
+      playerIds.map((playerId) => [
+        playerId,
+        SplendorPlayerState.create(playerId),
+      ]),
+    ) as Record<string, SplendorPlayerState>;
+  }
+
+  initializeBank(playerCount: number): void {
+    this.bank = TokenCountsState.createBank(playerCount);
+  }
+
+  resetEndGame(): void {
+    this.endGame = null;
+    this.winnerIds = null;
+  }
+
   getPlayer(playerId: string): SplendorPlayerState {
     const player = this.players[playerId];
 

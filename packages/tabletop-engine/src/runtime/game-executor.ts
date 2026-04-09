@@ -80,12 +80,10 @@ function createCommandGameView<
   state: CanonicalState<CanonicalGameState>,
   options?: {
     readonly?: boolean;
-    allowDirectMutation?: boolean;
   },
 ): FacadeGameState {
   return hydrateStateFacade(game.stateFacade, state.game, {
     readonly: options?.readonly ?? false,
-    allowDirectMutation: options?.allowDirectMutation ?? false,
   });
 }
 
@@ -317,7 +315,6 @@ export function createGameExecutor<
             game: gameState,
             runtime,
           },
-          { allowDirectMutation: true },
         ),
         runtime,
         rng,

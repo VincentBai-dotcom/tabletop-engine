@@ -57,6 +57,19 @@ export class SplendorBoardState {
     return board;
   }
 
+  setLevelCards(
+    level: DevelopmentLevel,
+    faceUpCardIds: number[],
+    deckCardIds: number[],
+  ): void {
+    this.faceUpByLevel[level] = faceUpCardIds;
+    this.deckByLevel[level] = deckCardIds;
+  }
+
+  setNobles(nobleIds: number[]): void {
+    this.nobleIds = nobleIds;
+  }
+
   removeFaceUpCard(level: DevelopmentLevel, cardId: number): void {
     this.faceUpByLevel[level] = this.faceUpByLevel[level].filter(
       (faceUpCardId) => faceUpCardId !== cardId,

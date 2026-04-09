@@ -23,8 +23,8 @@ export function createSplendorGame(
   return new GameDefinitionBuilder<SplendorGameState>("splendor")
     .rootState(SplendorRootState)
     .rngSeed(seed)
-    .setup(({ game, runtime, rng }) => {
-      setupSplendorGame(game, runtime, rng, playerIds);
+    .setup(({ game, rng }) => {
+      setupSplendorGame(game, rng, playerIds);
     })
     .initialStage(initialStage)
     .build();
