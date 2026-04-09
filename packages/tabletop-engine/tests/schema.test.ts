@@ -11,6 +11,7 @@ import {
   visibleToSelf,
 } from "../src/state-facade/metadata";
 import { assertSerializableSchema } from "../src/schema";
+import { assertSchemaValue } from "../src/runtime/validation";
 import type { CommandSchema } from "../src/types/command";
 
 type ExtendedSchemaApi = typeof t & {
@@ -115,6 +116,70 @@ test("serializable schema validation rejects nested state fields", () => {
       ) as never,
     ),
   ).toThrow("state_field_not_allowed_in_serializable_schema");
+});
+
+test("schema value validation rejects invalid nested values", () => {
+  const runtimeSchema = t.object({
+    count: t.number(),
+    label: t.optional(t.string()),
+    names: t.array(t.string()),
+    scores: t.record(t.string(), t.number()),
+    summary: t.object({
+      active: t.boolean(),
+    }),
+  });
+
+  expect(() =>
+    assertSchemaValue(runtimeSchema, {
+      count: 1,
+      names: ["alpha", "beta"],
+      scores: {
+        p1: 3,
+      },
+      summary: {
+        active: true,
+      },
+    }),
+  ).not.toThrow();
+
+  expect(() =>
+    assertSchemaValue(runtimeSchema, {
+      count: "one",
+      names: ["alpha", "beta"],
+      scores: {
+        p1: 3,
+      },
+      summary: {
+        active: true,
+      },
+    }),
+  ).toThrow("invalid_schema_value");
+
+  expect(() =>
+    assertSchemaValue(runtimeSchema, {
+      count: 1,
+      names: ["alpha", 2],
+      scores: {
+        p1: 3,
+      },
+      summary: {
+        active: true,
+      },
+    }),
+  ).toThrow("invalid_schema_value");
+
+  expect(() =>
+    assertSchemaValue(runtimeSchema, {
+      count: 1,
+      names: ["alpha"],
+      scores: {
+        p1: "three",
+      },
+      summary: {
+        active: true,
+      },
+    }),
+  ).toThrow("invalid_schema_value");
 });
 
 test("command schemas reject nested state transport fields at definition time", () => {

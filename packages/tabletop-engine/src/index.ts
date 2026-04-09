@@ -2,6 +2,7 @@ export { GameDefinitionBuilder } from "./game-definition";
 export { createCommandFactory } from "./command-factory";
 export { createStageFactory } from "./stage-factory";
 export { createGameExecutor } from "./runtime/game-executor";
+export { assertSchemaValue } from "./runtime/validation";
 export { generateAsyncApi } from "./protocol/asyncapi";
 export { describeGameProtocol } from "./protocol/describe";
 export { t } from "./schema";
