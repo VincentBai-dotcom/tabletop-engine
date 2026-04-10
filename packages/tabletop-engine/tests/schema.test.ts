@@ -180,6 +180,20 @@ test("schema value validation rejects invalid nested values", () => {
       },
     }),
   ).toThrow("invalid_schema_value");
+
+  expect(() =>
+    assertSchemaValue(runtimeSchema, {
+      count: 1,
+      names: ["alpha"],
+      scores: {
+        p1: 3,
+      },
+      summary: {
+        active: true,
+        extra: "invalid",
+      },
+    }),
+  ).toThrow("invalid_schema_value");
 });
 
 test("command schemas reject nested state transport fields at definition time", () => {

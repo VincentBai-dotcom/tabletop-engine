@@ -1632,6 +1632,13 @@ test("executor APIs reject invalid incoming canonical state", () => {
     },
     runtime: initialState.runtime,
   } as never;
+  const stateWithUndeclaredGameField = {
+    game: {
+      ...initialState.game,
+      cache: "not canonical",
+    },
+    runtime: initialState.runtime,
+  } as never;
   const invalidRuntimeState = {
     game: initialState.game,
     runtime: {
@@ -1648,6 +1655,11 @@ test("executor APIs reject invalid incoming canonical state", () => {
 
   expect(() =>
     executor.getView(invalidGameState, {
+      kind: "spectator",
+    }),
+  ).toThrow("invalid_schema_value");
+  expect(() =>
+    executor.getView(stateWithUndeclaredGameField, {
       kind: "spectator",
     }),
   ).toThrow("invalid_schema_value");

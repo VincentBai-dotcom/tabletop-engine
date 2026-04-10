@@ -136,6 +136,7 @@ export const t = {
             toTypeBoxSchema(value),
           ]),
         ),
+        { additionalProperties: false },
       ),
     ) as ObjectFieldType<TProperties>;
   },
