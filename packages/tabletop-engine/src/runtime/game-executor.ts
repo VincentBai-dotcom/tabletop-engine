@@ -308,14 +308,7 @@ export function createGameExecutor<
       );
       const rng = createRNGService(runtime.rng);
 
-      validateCanonicalGameState(
-        game as GameDefinition<
-          CanonicalGameState,
-          FacadeGameState,
-          CommandDefinitions<CanonicalGameState, FacadeGameState>
-        >,
-        gameState,
-      );
+      validateCanonicalGameState(game, gameState);
 
       game.setup?.({
         game: createCommandGameView(
@@ -334,14 +327,7 @@ export function createGameExecutor<
         playerIds: options?.playerIds ?? [],
       });
 
-      validateCanonicalGameState(
-        game as GameDefinition<
-          CanonicalGameState,
-          FacadeGameState,
-          CommandDefinitions<CanonicalGameState, FacadeGameState>
-        >,
-        gameState,
-      );
+      validateCanonicalGameState(game, gameState);
 
       initializeStageMachine(
         {
@@ -356,17 +342,10 @@ export function createGameExecutor<
         rng,
       );
 
-      validateCanonicalState(
-        game as GameDefinition<
-          CanonicalGameState,
-          FacadeGameState,
-          CommandDefinitions<CanonicalGameState, FacadeGameState>
-        >,
-        {
-          game: gameState,
-          runtime,
-        },
-      );
+      validateCanonicalState(game, {
+        game: gameState,
+        runtime,
+      });
 
       return {
         game: gameState,
@@ -375,26 +354,12 @@ export function createGameExecutor<
     },
 
     getView(state, viewer) {
-      validateCanonicalState(
-        game as GameDefinition<
-          CanonicalGameState,
-          FacadeGameState,
-          CommandDefinitions<CanonicalGameState, FacadeGameState>
-        >,
-        state,
-      );
+      validateCanonicalState(game, state);
       return getVisibleStateView(state, viewer, game.stateFacade);
     },
 
     listAvailableCommands(state, options) {
-      validateCanonicalState(
-        game as GameDefinition<
-          CanonicalGameState,
-          FacadeGameState,
-          CommandDefinitions<CanonicalGameState, FacadeGameState>
-        >,
-        state,
-      );
+      validateCanonicalState(game, state);
       const currentStageState = state.runtime.progression.currentStage;
       const currentStage = getCurrentStageDefinition(
         game as GameDefinition<
@@ -454,14 +419,7 @@ export function createGameExecutor<
     },
 
     discoverCommand(state, discovery) {
-      validateCanonicalState(
-        game as GameDefinition<
-          CanonicalGameState,
-          FacadeGameState,
-          CommandDefinitions<CanonicalGameState, FacadeGameState>
-        >,
-        state,
-      );
+      validateCanonicalState(game, state);
       const currentStage = getCurrentStageDefinition(
         game as GameDefinition<
           CanonicalGameState,
@@ -547,14 +505,7 @@ export function createGameExecutor<
     },
 
     executeCommand(state, command) {
-      validateCanonicalState(
-        game as GameDefinition<
-          CanonicalGameState,
-          FacadeGameState,
-          CommandDefinitions<CanonicalGameState, FacadeGameState>
-        >,
-        state,
-      );
+      validateCanonicalState(game, state);
       const definition = game.commands[command.type];
 
       if (!definition) {
@@ -881,14 +832,7 @@ export function createGameExecutor<
         }
       }
 
-      validateCanonicalState(
-        game as GameDefinition<
-          CanonicalGameState,
-          FacadeGameState,
-          CommandDefinitions<CanonicalGameState, FacadeGameState>
-        >,
-        workingState,
-      );
+      validateCanonicalState(game, workingState);
 
       const success: ExecutionSuccess<CanonicalState<CanonicalGameState>> = {
         ok: true,
