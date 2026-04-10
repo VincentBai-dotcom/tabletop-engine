@@ -9,6 +9,7 @@ import {
 import { compileCanonicalGameStateSchema } from "./state-facade/canonical";
 import { createDefaultCanonicalGameState } from "./state-facade/canonical";
 import { compileRuntimeStateSchema } from "./runtime/runtime-schema";
+import { assertSchemaValue } from "./runtime/validation";
 import type { StateClass } from "./state-facade/metadata";
 import type { ObjectFieldType, FieldType } from "./schema";
 import type { TSchema } from "@sinclair/typebox";
@@ -156,6 +157,7 @@ export class GameDefinitionBuilder<
     const defaultCanonicalGameState = createDefaultCanonicalGameState(
       this.config.rootState,
     );
+    assertSchemaValue(canonicalGameStateSchema, defaultCanonicalGameState);
 
     return {
       name: this.config.name,

@@ -73,6 +73,20 @@ class ScoreRootState {
   score = 0;
 }
 
+@State()
+class MismatchedDefaultRootState {
+  @field(t.number())
+  name = "";
+}
+
+@State()
+class UndeclaredDefaultRootState {
+  @field(t.number())
+  score = 0;
+
+  cache = "not canonical";
+}
+
 test("GameDefinitionBuilder preserves the supplied configuration", () => {
   const gameEndStage = defineTestStage("gameEnd").automatic().build();
 
@@ -86,6 +100,24 @@ test("GameDefinitionBuilder preserves the supplied configuration", () => {
     score: 0,
   });
   expect(game.commands).toEqual({});
+});
+
+test("GameDefinitionBuilder rejects field defaults that do not match their schema", () => {
+  expect(() =>
+    new GameDefinitionBuilder("mismatched-default-game")
+      .rootState(MismatchedDefaultRootState)
+      .initialStage(defineTestStage("gameEnd").automatic().build())
+      .build(),
+  ).toThrow("invalid_schema_value");
+});
+
+test("GameDefinitionBuilder rejects initialized public state properties without field metadata", () => {
+  expect(() =>
+    new GameDefinitionBuilder("undeclared-default-game")
+      .rootState(UndeclaredDefaultRootState)
+      .initialStage(defineTestStage("gameEnd").automatic().build())
+      .build(),
+  ).toThrow("undeclared_state_field_value:UndeclaredDefaultRootState.cache");
 });
 
 test("GameDefinitionBuilder compiles stage command references into the command map shape", () => {
