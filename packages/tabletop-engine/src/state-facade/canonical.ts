@@ -25,6 +25,13 @@ function createCanonicalStateObject(
   source: object,
 ): object {
   const metadata = getStateMetadata(target);
+  const stateName = target.name || "anonymous";
+
+  for (const fieldName of Object.keys(source)) {
+    if (metadata.fields[fieldName] === undefined) {
+      throw new Error(`undeclared_state_field_value:${stateName}.${fieldName}`);
+    }
+  }
 
   return Object.fromEntries(
     Object.entries(metadata.fields).map(([fieldName, field]) => [
@@ -33,7 +40,7 @@ function createCanonicalStateObject(
         field,
         (source as Record<string, unknown>)[fieldName],
         {
-          stateName: target.name || "anonymous",
+          stateName,
           fieldName,
         },
       ),

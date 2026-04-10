@@ -3,6 +3,7 @@ import { createGameExecutor } from "../src/runtime/game-executor";
 import { GameDefinitionBuilder } from "../src/game-definition";
 import { createCommandFactory } from "../src/command-factory";
 import { createStageFactory } from "../src/stage-factory";
+import { assertSchemaValue } from "../src/runtime/validation";
 import type { SingleActivePlayerStageDefinition } from "../src/types/progression";
 import {
   field,
@@ -72,6 +73,20 @@ class ScoreRootState {
   score = 0;
 }
 
+@State()
+class MismatchedDefaultRootState {
+  @field(t.number())
+  name = "";
+}
+
+@State()
+class UndeclaredDefaultRootState {
+  @field(t.number())
+  score = 0;
+
+  cache = "not canonical";
+}
+
 test("GameDefinitionBuilder preserves the supplied configuration", () => {
   const gameEndStage = defineTestStage("gameEnd").automatic().build();
 
@@ -85,6 +100,24 @@ test("GameDefinitionBuilder preserves the supplied configuration", () => {
     score: 0,
   });
   expect(game.commands).toEqual({});
+});
+
+test("GameDefinitionBuilder rejects field defaults that do not match their schema", () => {
+  expect(() =>
+    new GameDefinitionBuilder("mismatched-default-game")
+      .rootState(MismatchedDefaultRootState)
+      .initialStage(defineTestStage("gameEnd").automatic().build())
+      .build(),
+  ).toThrow("invalid_schema_value");
+});
+
+test("GameDefinitionBuilder rejects initialized public state properties without field metadata", () => {
+  expect(() =>
+    new GameDefinitionBuilder("undeclared-default-game")
+      .rootState(UndeclaredDefaultRootState)
+      .initialStage(defineTestStage("gameEnd").automatic().build())
+      .build(),
+  ).toThrow("undeclared_state_field_value:UndeclaredDefaultRootState.cache");
 });
 
 test("GameDefinitionBuilder compiles stage command references into the command map shape", () => {
@@ -186,6 +219,97 @@ test("GameDefinitionBuilder compiles multi-active stage command references into 
 
   expect(Object.keys(game.commands)).toEqual(["submit_vote"]);
   expect(game.commands.submit_vote).toBe(submitVoteCommand);
+});
+
+test("GameDefinitionBuilder assembles runtimeStateSchema with multi-active memory shape", () => {
+  const defineCommand = createCommandFactory<{ score: number }>();
+  const defineStage = createStageFactory<{ score: number }>();
+  const submitVoteCommand = defineCommand({
+    commandId: "submit_vote",
+    commandSchema: emptyCommandSchema,
+  })
+    .validate(() => {
+      return { ok: true as const };
+    })
+    .execute(() => {})
+    .build();
+  const gameEndStage = defineStage("gameEnd").automatic().build();
+  const voteStage = defineStage("voteStage")
+    .multiActivePlayer()
+    .memory(
+      t.object({
+        submittedByPlayerId: t.record(t.string(), t.boolean()),
+      }),
+      () => ({
+        submittedByPlayerId: {} as Record<string, true>,
+      }),
+    )
+    .activePlayers(() => ["player-1", "player-2"])
+    .commands([submitVoteCommand])
+    .onSubmit(() => {})
+    .isComplete(() => false)
+    .nextStages(() => ({
+      gameEndStage,
+    }))
+    .transition(({ nextStages }) => nextStages.gameEndStage)
+    .build();
+
+  const game = new GameDefinitionBuilder("runtime-state-schema-game")
+    .rootState(ScoreRootState)
+    .initialStage(voteStage)
+    .build();
+
+  expect(game.runtimeStateSchema).toBeDefined();
+
+  expect(() =>
+    assertSchemaValue(game.runtimeStateSchema, {
+      progression: {
+        currentStage: {
+          id: "voteStage",
+          kind: "multiActivePlayer",
+          activePlayerIds: ["player-1", "player-2"],
+          memory: {
+            submittedByPlayerId: {
+              "player-1": true,
+            },
+          },
+        },
+        lastActingStage: null,
+      },
+      rng: {
+        seed: "seed",
+        cursor: 0,
+      },
+      history: {
+        entries: [],
+      },
+    }),
+  ).not.toThrow();
+
+  expect(() =>
+    assertSchemaValue(game.runtimeStateSchema, {
+      progression: {
+        currentStage: {
+          id: "voteStage",
+          kind: "multiActivePlayer",
+          activePlayerIds: ["player-1", "player-2"],
+          memory: {
+            submittedByPlayerId: {
+              "player-1": "yes",
+            },
+          },
+        },
+        lastActingStage: null,
+      },
+      rng: {
+        seed: "seed",
+        cursor: 0,
+      },
+      history: {
+        entries: [],
+      },
+    }),
+  ).toThrow("invalid_schema_value");
 });
 
 test("GameDefinitionBuilder accepts factory-defined commands through stages only", () => {

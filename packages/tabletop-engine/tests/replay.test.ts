@@ -106,3 +106,40 @@ test("snapshots restore canonical state and replay reproduces final state", () =
   expect(replay.events).toHaveLength(4);
   expect(replayedState).toEqual(secondResult.state);
 });
+
+test("replay rejects invalid canonical state restored from snapshot", () => {
+  const defineCommand = createCommandFactory<ReplayRootState>();
+  const incrementCounterCommand = defineCommand({
+    commandId: "increment_counter",
+    commandSchema: t.object({}),
+  })
+    .validate(() => ({ ok: true as const }))
+    .execute(({ game }) => {
+      game.incrementCounter(1);
+    })
+    .build();
+
+  const game = new GameDefinitionBuilder("invalid-replay-game")
+    .rootState(ReplayRootState)
+    .initialStage(createSelfLoopingTurnStage([incrementCounterCommand]))
+    .build();
+  const gameExecutor = createGameExecutor(game);
+  const initialState = gameExecutor.createInitialState();
+  const invalidSnapshot = createSnapshot({
+    game: {
+      counter: "bad",
+      value: 0,
+    },
+    runtime: initialState.runtime,
+  } as never);
+  const replay = createReplayRecord(invalidSnapshot);
+  replay.commands.push({
+    type: "increment_counter",
+    actorId: "player-1",
+    input: {},
+  });
+
+  expect(() => replayRecord(gameExecutor, replay)).toThrow(
+    "invalid_schema_value",
+  );
+});

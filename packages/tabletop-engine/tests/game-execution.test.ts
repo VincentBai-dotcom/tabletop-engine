@@ -271,6 +271,26 @@ class EnergyRootState {
 }
 
 @State()
+class InvalidSetupScoreRootState {
+  @field(t.number())
+  score = 0;
+
+  assignInvalidScore(value: unknown) {
+    this.score = value as number;
+  }
+}
+
+@State()
+class InvalidExecutionScoreRootState {
+  @field(t.number())
+  score = 0;
+
+  assignInvalidScore() {
+    this.score = "not a number" as never as number;
+  }
+}
+
+@State()
 class NumericActionsRootState {
   @field(t.number())
   actions = 0;
@@ -335,6 +355,33 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
   expect(initialState.game.counter.value).toBe(0);
   expect(result.ok).toBe(true);
   expect(result.state.game.counter.value).toBe(3);
+});
+
+test("executeCommand rejects successful commands that produce invalid canonical state", () => {
+  const defineCommand = createCommandFactory<InvalidExecutionScoreRootState>();
+  const assignInvalidCommand = defineCommand({
+    commandId: "assign_invalid",
+    commandSchema: emptyCommandSchema,
+  })
+    .validate(() => ({ ok: true as const }))
+    .execute(({ game }) => {
+      game.assignInvalidScore();
+    })
+    .build();
+  const game = new GameDefinitionBuilder("invalid-execution-state-game")
+    .rootState(InvalidExecutionScoreRootState)
+    .initialStage(createSelfLoopingTurnStage([assignInvalidCommand]))
+    .build();
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+
+  expect(() =>
+    executor.executeCommand(initialState, {
+      type: "assign_invalid",
+      actorId: "player-1",
+      input: {},
+    }),
+  ).toThrow("invalid_schema_value");
 });
 
 test("createGameExecutor can project viewer-safe visible state", () => {
@@ -426,6 +473,42 @@ test("createInitialState leaves missing optional nested state fields undefined",
   expect(state.game).toEqual({
     child: undefined,
   });
+});
+
+test("createInitialState rejects invalid canonical game state produced by setup", () => {
+  const game = new GameDefinitionBuilder("invalid-setup-state-game")
+    .rootState(InvalidSetupScoreRootState)
+    .setup(({ game }) => {
+      game.assignInvalidScore("bad");
+    })
+    .initialStage(createTerminalStage())
+    .build();
+
+  const executor = createGameExecutor(game);
+
+  expect(() => executor.createInitialState()).toThrow("invalid_schema_value");
+});
+
+test("createInitialState rejects invalid runtime state produced by stage initialization", () => {
+  const defineStage = createStageFactory<{ score: number }>();
+  const gameEndStage = defineStage("gameEnd").automatic().build();
+  const invalidPlayerTurnStage = defineStage("playerTurn")
+    .singleActivePlayer()
+    .activePlayer(() => 1 as never as string)
+    .commands([])
+    .nextStages(() => ({
+      gameEndStage,
+    }))
+    .transition(({ nextStages }) => nextStages.gameEndStage)
+    .build();
+  const game = new GameDefinitionBuilder("invalid-runtime-state-game")
+    .rootState(PlainCounterRootState)
+    .initialStage(invalidPlayerTurnStage)
+    .build();
+
+  const executor = createGameExecutor(game);
+
+  expect(() => executor.createInitialState()).toThrow("invalid_schema_value");
 });
 
 test("GameDefinitionBuilder fails when a required non-optional field has no default", () => {
@@ -1549,4 +1632,91 @@ test("game executor can discover the next semantic options for a command", () =>
     id: "target-1",
     nextInput: { cardId: 2, targetId: 101 },
   });
+});
+
+test("executor APIs reject invalid incoming canonical state", () => {
+  const defineCommand = createCommandFactory<PlainCounterRootState>();
+  const incrementCounterCommand = defineCommand({
+    commandId: "increment_counter",
+    commandSchema: amountCommandSchema,
+  })
+    .discoverable({
+      discoverySchema: amountCommandSchema,
+      discover: () => ({
+        complete: false as const,
+        step: "pick_amount",
+        options: [{ id: "one", nextInput: { amount: 1 } }],
+      }),
+    })
+    .validate(() => ({ ok: true as const }))
+    .execute(({ game, command }) => {
+      const amount =
+        typeof command.input.amount === "number" ? command.input.amount : 1;
+
+      game.incrementCounter(amount);
+    })
+    .build();
+  const game = new GameDefinitionBuilder("invalid-canonical-state-apis-game")
+    .rootState(PlainCounterRootState)
+    .initialStage(createSelfLoopingTurnStage([incrementCounterCommand]))
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState();
+  const invalidGameState = {
+    game: {
+      counter: "bad",
+    },
+    runtime: initialState.runtime,
+  } as never;
+  const stateWithUndeclaredGameField = {
+    game: {
+      ...initialState.game,
+      cache: "not canonical",
+    },
+    runtime: initialState.runtime,
+  } as never;
+  const invalidRuntimeState = {
+    game: initialState.game,
+    runtime: {
+      ...initialState.runtime,
+      progression: {
+        ...initialState.runtime.progression,
+        currentStage: {
+          ...initialState.runtime.progression.currentStage,
+          activePlayerId: 1,
+        },
+      },
+    },
+  } as never;
+
+  expect(() =>
+    executor.getView(invalidGameState, {
+      kind: "spectator",
+    }),
+  ).toThrow("invalid_schema_value");
+  expect(() =>
+    executor.getView(stateWithUndeclaredGameField, {
+      kind: "spectator",
+    }),
+  ).toThrow("invalid_schema_value");
+  expect(() =>
+    executor.listAvailableCommands(invalidRuntimeState, {
+      actorId: "player-1",
+    }),
+  ).toThrow("invalid_schema_value");
+  expect(() =>
+    executor.discoverCommand(invalidRuntimeState, {
+      type: "increment_counter",
+      actorId: "player-1",
+      input: {},
+    }),
+  ).toThrow("invalid_schema_value");
+  expect(() =>
+    executor.executeCommand(invalidGameState, {
+      type: "increment_counter",
+      actorId: "player-1",
+      input: {},
+    }),
+  ).toThrow("invalid_schema_value");
 });

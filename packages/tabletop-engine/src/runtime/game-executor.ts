@@ -35,6 +35,10 @@ import type { Viewer, VisibleState } from "../types/visibility";
 import { createRNGService } from "../rng/service";
 import { hydrateStateFacade } from "../state-facade/hydrate";
 import { getView as getVisibleStateView } from "../state-facade/project";
+import {
+  validateCanonicalGameState,
+  validateCanonicalState,
+} from "./validation";
 
 type CommandDefinitions<
   CanonicalGameState extends object,
@@ -304,6 +308,8 @@ export function createGameExecutor<
       );
       const rng = createRNGService(runtime.rng);
 
+      validateCanonicalGameState(game, gameState);
+
       game.setup?.({
         game: createCommandGameView(
           game as GameDefinition<
@@ -321,6 +327,8 @@ export function createGameExecutor<
         playerIds: options?.playerIds ?? [],
       });
 
+      validateCanonicalGameState(game, gameState);
+
       initializeStageMachine(
         {
           game: gameState,
@@ -334,6 +342,11 @@ export function createGameExecutor<
         rng,
       );
 
+      validateCanonicalState(game, {
+        game: gameState,
+        runtime,
+      });
+
       return {
         game: gameState,
         runtime,
@@ -341,10 +354,12 @@ export function createGameExecutor<
     },
 
     getView(state, viewer) {
+      validateCanonicalState(game, state);
       return getVisibleStateView(state, viewer, game.stateFacade);
     },
 
     listAvailableCommands(state, options) {
+      validateCanonicalState(game, state);
       const currentStageState = state.runtime.progression.currentStage;
       const currentStage = getCurrentStageDefinition(
         game as GameDefinition<
@@ -404,6 +419,7 @@ export function createGameExecutor<
     },
 
     discoverCommand(state, discovery) {
+      validateCanonicalState(game, state);
       const currentStage = getCurrentStageDefinition(
         game as GameDefinition<
           CanonicalGameState,
@@ -489,6 +505,7 @@ export function createGameExecutor<
     },
 
     executeCommand(state, command) {
+      validateCanonicalState(game, state);
       const definition = game.commands[command.type];
 
       if (!definition) {
@@ -814,6 +831,8 @@ export function createGameExecutor<
           );
         }
       }
+
+      validateCanonicalState(game, workingState);
 
       const success: ExecutionSuccess<CanonicalState<CanonicalGameState>> = {
         ok: true,
