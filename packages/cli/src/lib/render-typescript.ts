@@ -4,13 +4,17 @@ export function renderTypeDeclaration(
   exportName: string,
   schema: JsonSchema,
 ): string {
-  const body = renderSchemaType(schema, 0);
+  const body = renderSchemaTypeString(schema);
 
   if (body.startsWith("{")) {
     return `export interface ${exportName} ${body}\n`;
   }
 
   return `export type ${exportName} = ${body};\n`;
+}
+
+export function renderSchemaTypeString(schema: JsonSchema): string {
+  return renderSchemaType(schema, 0);
 }
 
 function renderSchemaType(schema: JsonSchema, indentLevel: number): string {

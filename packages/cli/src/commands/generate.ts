@@ -1,6 +1,7 @@
 import { failure, success, type RunResult } from "../lib/command-result.ts";
 import { createGenerateHelpText } from "../lib/help-text.ts";
 import { isHelpFlag } from "../lib/parse-args.ts";
+import { runGenerateClientSdkCommand } from "./generate-client-sdk.ts";
 import { runGenerateProtocolCommand } from "./generate-protocol.ts";
 import { runGenerateSchemasCommand } from "./generate-schemas.ts";
 import { runGenerateTypesCommand } from "./generate-types.ts";
@@ -32,7 +33,7 @@ export async function runGenerateCommand(
   }
 
   if (target === "client-sdk") {
-    return success(`generate target scaffolded:${target}`);
+    return runGenerateClientSdkCommand(args.slice(1), options);
   }
 
   return failure(`unknown_generate_target:${target}`);
