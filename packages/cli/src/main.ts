@@ -4,7 +4,14 @@ import { failure, success, type RunResult } from "./lib/command-result.ts";
 import { createRootHelpText } from "./lib/help-text.ts";
 import { isHelpFlag } from "./lib/parse-args.ts";
 
-export async function run(argv: string[]): Promise<RunResult> {
+interface RunOptions {
+  cwd?: string;
+}
+
+export async function run(
+  argv: string[],
+  options: RunOptions = {},
+): Promise<RunResult> {
   const [command, ...args] = argv;
 
   if (!command || isHelpFlag(command)) {
@@ -12,7 +19,9 @@ export async function run(argv: string[]): Promise<RunResult> {
   }
 
   if (command === "generate") {
-    return runGenerateCommand(args);
+    return runGenerateCommand(args, {
+      cwd: options.cwd ?? process.cwd(),
+    });
   }
 
   if (command === "validate") {
