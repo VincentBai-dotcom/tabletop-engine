@@ -1,4 +1,5 @@
 import {
+  type CanonicalState,
   createGameExecutor,
   type ExecutionResult,
   type GameExecutor,
@@ -7,26 +8,40 @@ import {
 import { createSplendorGame } from "splendor-example";
 import type {
   SessionActivity,
-  SplendorState,
   SplendorTerminalCommand,
   SplendorTerminalDiscoveryRequest,
   SplendorTerminalDiscoveryResult,
   SplendorVisibleState,
 } from "./types.ts";
 
-type SplendorGameExecutorApi = Pick<
-  GameExecutor<SplendorState["game"]>,
-  | "createInitialState"
-  | "getView"
-  | "listAvailableCommands"
-  | "discoverCommand"
-  | "executeCommand"
->;
+type TerminalExecutor<TState extends CanonicalState<object>> = {
+  createInitialState(options?: { playerIds?: readonly string[] }): TState;
+  getView(
+    state: TState,
+    viewer: Parameters<GameExecutor<object>["getView"]>[1],
+  ): ReturnType<GameExecutor<object>["getView"]>;
+  listAvailableCommands(
+    state: TState,
+    options: {
+      actorId: string;
+    },
+  ): string[];
+  discoverCommand(
+    state: TState,
+    discovery: SplendorTerminalDiscoveryRequest,
+  ): ReturnType<GameExecutor<object>["discoverCommand"]>;
+  executeCommand(
+    state: TState,
+    command: SplendorTerminalCommand,
+  ): ExecutionResult<TState>;
+};
 
 export const DEFAULT_PLAYER_IDS = ["you", "bot-1", "bot-2", "bot-3"] as const;
 
-export class SplendorTerminalSession {
-  private state: SplendorState;
+export class SplendorTerminalSession<
+  TState extends CanonicalState<object> = CanonicalState<object>,
+> {
+  private state: TState;
   private activity: SessionActivity = {
     command: null,
     events: [],
@@ -35,8 +50,8 @@ export class SplendorTerminalSession {
   };
 
   constructor(
-    private readonly gameExecutor: SplendorGameExecutorApi,
-    initialState: SplendorState,
+    private readonly gameExecutor: TerminalExecutor<TState>,
+    initialState: TState,
     private readonly viewerId: string,
   ) {
     this.state = initialState;
@@ -87,7 +102,7 @@ export class SplendorTerminalSession {
   executeCommand(
     command: SplendorTerminalCommand,
     summary: string | null = null,
-  ): ExecutionResult<SplendorState> {
+  ): ExecutionResult<TState> {
     const result = this.gameExecutor.executeCommand(this.state, command);
 
     if (result.ok) {
@@ -114,12 +129,12 @@ export class SplendorTerminalSession {
 
 export function createLocalSplendorSession(options?: {
   seed?: string | number;
-}): SplendorTerminalSession {
+}) {
   const game = createSplendorGame({
     playerIds: [...DEFAULT_PLAYER_IDS],
     seed: options?.seed ?? "splendor-terminal-seed",
   });
-  const gameExecutor = createGameExecutor(game) as SplendorGameExecutorApi;
+  const gameExecutor = createGameExecutor(game);
   const initialState = gameExecutor.createInitialState({
     playerIds: [...DEFAULT_PLAYER_IDS],
   });
