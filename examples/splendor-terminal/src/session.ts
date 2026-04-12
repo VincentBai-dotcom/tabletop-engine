@@ -1,5 +1,8 @@
-import { createGameExecutor } from "tabletop-engine";
-import { createSplendorGame } from "splendor-example";
+import {
+  createSplendorExecutor,
+  type SplendorExecutor,
+  type SplendorState,
+} from "splendor-example";
 import type {
   SessionActivity,
   SplendorTerminalCommand,
@@ -10,22 +13,8 @@ import type {
 
 export const DEFAULT_PLAYER_IDS = ["you", "bot-1", "bot-2", "bot-3"] as const;
 
-function createLocalSplendorExecutor(options?: { seed?: string | number }) {
-  const game = createSplendorGame({
-    playerIds: [...DEFAULT_PLAYER_IDS],
-    seed: options?.seed ?? "splendor-terminal-seed",
-  });
-
-  return createGameExecutor(game);
-}
-
-type SplendorTerminalExecutor = ReturnType<typeof createLocalSplendorExecutor>;
-type SplendorTerminalState = ReturnType<
-  SplendorTerminalExecutor["createInitialState"]
->;
-
 export class SplendorTerminalSession {
-  private state: SplendorTerminalState;
+  private state: SplendorState;
   private activity: SessionActivity = {
     command: null,
     events: [],
@@ -34,8 +23,8 @@ export class SplendorTerminalSession {
   };
 
   constructor(
-    private readonly gameExecutor: SplendorTerminalExecutor,
-    initialState: SplendorTerminalState,
+    private readonly gameExecutor: SplendorExecutor,
+    initialState: SplendorState,
     private readonly viewerId: string,
   ) {
     this.state = initialState;
@@ -112,7 +101,10 @@ export class SplendorTerminalSession {
 export function createLocalSplendorSession(options?: {
   seed?: string | number;
 }) {
-  const gameExecutor = createLocalSplendorExecutor(options);
+  const gameExecutor = createSplendorExecutor({
+    playerIds: [...DEFAULT_PLAYER_IDS],
+    seed: options?.seed ?? "splendor-terminal-seed",
+  });
   const initialState = gameExecutor.createInitialState({
     playerIds: [...DEFAULT_PLAYER_IDS],
   });
