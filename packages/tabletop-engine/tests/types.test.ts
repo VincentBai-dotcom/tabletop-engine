@@ -1,4 +1,8 @@
 import { expect, test } from "bun:test";
+// @ts-expect-error legacy canonical helper types should be removed from the public API
+import type { CanonicalGameStateOf as RemovedCanonicalGameStateOf } from "../src/index";
+// @ts-expect-error legacy canonical helper types should be removed from the public API
+import type { CanonicalStateOf as RemovedCanonicalStateOf } from "../src/index";
 import type {
   CommandAvailabilityContext,
   Command,
@@ -29,15 +33,8 @@ import type {
 } from "../src/types/progression";
 import type { RuntimeState } from "../src/types/state";
 import { GameDefinitionBuilder } from "../src/game-definition";
-
-// @ts-expect-error legacy canonical helper types should be removed from the public API
-type LegacyCanonicalGameStateProbe =
-  import("../src/index").CanonicalGameStateOf<never>;
-void (0 as unknown as LegacyCanonicalGameStateProbe);
-
-// @ts-expect-error legacy canonical helper types should be removed from the public API
-type LegacyCanonicalStateProbe = import("../src/index").CanonicalStateOf<never>;
-void (0 as unknown as LegacyCanonicalStateProbe);
+void (0 as unknown as RemovedCanonicalGameStateOf<never>);
+void (0 as unknown as RemovedCanonicalStateOf<never>);
 
 @State()
 class TypedCounterChildState {

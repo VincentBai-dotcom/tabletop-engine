@@ -285,31 +285,27 @@ This keeps responsibilities clean:
 
 ## Existing Engine Surface To Remove
 
-Once generated artifacts become the standard developer path, the engine should
-stop carrying awkward type-helper surfaces whose main purpose is compensating
-for decorator metadata not being visible to TypeScript.
+The engine previously carried awkward canonical helper types whose main purpose
+was compensating for decorator metadata not being visible to TypeScript.
 
-The main cleanup targets are:
+Those helpers:
 
 - `CanonicalStateOf<TGame>`
 - `CanonicalGameStateOf<TGame>`
 - `CanonicalDataFromFacade<TFacade>`
 
-These helpers currently exist to approximate exact canonical state typing from
-facade class shapes. That approach is inherently imprecise because TypeScript
-cannot see decorator metadata at compile time.
-
-The CLI-generated artifacts should replace that approximation with exact emitted
-types.
+should be treated as legacy cleanup targets and removed from the engine surface.
 
 The intended direction is:
 
-- generated `CanonicalState` types become the preferred developer surface
-- generated `VisibleState` types become the preferred developer surface
-- the in-engine helper types above can later be deprecated and removed
+- local canonical inference should come directly from normal game/executor type
+  flow
+- generated `VisibleState` types and generated client SDKs remain valuable for
+  client-facing workflows
+- the CLI should not depend on those old in-engine canonical helper types
 
 The runtime validation and schema compilation logic should stay in the engine.
-Only the awkward static-type approximation layer should move out.
+Only the awkward static-type approximation layer should disappear.
 
 ## Future Expansion
 
