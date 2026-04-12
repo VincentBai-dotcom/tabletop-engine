@@ -40,3 +40,6 @@ examples/splendor/nobile tiles.md
 
 # local codex state
 .codex
+
+# local git worktrees
+.worktrees
