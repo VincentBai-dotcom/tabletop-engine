@@ -1,27 +1,15 @@
 import {
-  createGameExecutor,
-  type ExecutionResult,
-  type GameExecutor,
-  type GameEvent,
-} from "tabletop-engine";
-import { createSplendorGame } from "splendor-example";
+  createSplendorExecutor,
+  type SplendorExecutor,
+  type SplendorState,
+} from "splendor-example";
 import type {
   SessionActivity,
-  SplendorState,
   SplendorTerminalCommand,
   SplendorTerminalDiscoveryRequest,
   SplendorTerminalDiscoveryResult,
   SplendorVisibleState,
 } from "./types.ts";
-
-type SplendorGameExecutorApi = Pick<
-  GameExecutor<SplendorState["game"]>,
-  | "createInitialState"
-  | "getView"
-  | "listAvailableCommands"
-  | "discoverCommand"
-  | "executeCommand"
->;
 
 export const DEFAULT_PLAYER_IDS = ["you", "bot-1", "bot-2", "bot-3"] as const;
 
@@ -35,25 +23,25 @@ export class SplendorTerminalSession {
   };
 
   constructor(
-    private readonly gameExecutor: SplendorGameExecutorApi,
+    private readonly gameExecutor: SplendorExecutor,
     initialState: SplendorState,
     private readonly viewerId: string,
   ) {
     this.state = initialState;
   }
 
-  getVisibleState(): SplendorVisibleState {
+  getVisibleState() {
     return this.gameExecutor.getView(this.state, {
       kind: "player",
       playerId: this.viewerId,
     }) as SplendorVisibleState;
   }
 
-  getActivity(): SessionActivity {
+  getActivity() {
     return this.activity;
   }
 
-  getActivePlayerId(): string | null {
+  getActivePlayerId() {
     const currentStage = this.getVisibleState().progression.currentStage;
 
     if (currentStage.kind !== "activePlayer") {
@@ -63,21 +51,19 @@ export class SplendorTerminalSession {
     return currentStage.activePlayerId;
   }
 
-  isFinished(): boolean {
+  isFinished() {
     return this.getVisibleState().game.winnerIds !== undefined;
   }
 
-  getWinnerIds(): string[] | undefined {
+  getWinnerIds() {
     return this.getVisibleState().game.winnerIds;
   }
 
-  listAvailableCommands(actorId: string): string[] {
+  listAvailableCommands(actorId: string) {
     return this.gameExecutor.listAvailableCommands(this.state, { actorId });
   }
 
-  discoverCommand(
-    discovery: SplendorTerminalDiscoveryRequest,
-  ): SplendorTerminalDiscoveryResult | null {
+  discoverCommand(discovery: SplendorTerminalDiscoveryRequest) {
     return this.gameExecutor.discoverCommand(
       this.state,
       discovery,
@@ -87,7 +73,7 @@ export class SplendorTerminalSession {
   executeCommand(
     command: SplendorTerminalCommand,
     summary: string | null = null,
-  ): ExecutionResult<SplendorState> {
+  ) {
     const result = this.gameExecutor.executeCommand(this.state, command);
 
     if (result.ok) {
@@ -104,7 +90,7 @@ export class SplendorTerminalSession {
 
     this.activity = {
       command: null,
-      events: [] satisfies GameEvent[],
+      events: [],
       summary: null,
       error: result.reason,
     };
@@ -114,12 +100,11 @@ export class SplendorTerminalSession {
 
 export function createLocalSplendorSession(options?: {
   seed?: string | number;
-}): SplendorTerminalSession {
-  const game = createSplendorGame({
+}) {
+  const gameExecutor = createSplendorExecutor({
     playerIds: [...DEFAULT_PLAYER_IDS],
     seed: options?.seed ?? "splendor-terminal-seed",
   });
-  const gameExecutor = createGameExecutor(game) as SplendorGameExecutorApi;
   const initialState = gameExecutor.createInitialState({
     playerIds: [...DEFAULT_PLAYER_IDS],
   });

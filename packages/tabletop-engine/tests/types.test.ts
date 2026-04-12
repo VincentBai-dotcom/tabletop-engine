@@ -1,11 +1,13 @@
 import { expect, test } from "bun:test";
+// @ts-expect-error legacy canonical helper types should be removed from the public API
+import type { CanonicalGameStateOf as RemovedCanonicalGameStateOf } from "../src/index";
+// @ts-expect-error legacy canonical helper types should be removed from the public API
+import type { CanonicalStateOf as RemovedCanonicalStateOf } from "../src/index";
 import type {
-  CanonicalGameStateOf,
   CommandAvailabilityContext,
   Command,
   CommandDiscoveryResult,
   CanonicalState,
-  CanonicalStateOf,
   Discovery,
   DiscoveryContext,
   ExecutionResult,
@@ -13,6 +15,7 @@ import type {
   ValidationOutcome,
 } from "../src/index";
 import {
+  createGameExecutor,
   createCommandFactory,
   createStageFactory,
   field,
@@ -30,6 +33,8 @@ import type {
 } from "../src/types/progression";
 import type { RuntimeState } from "../src/types/state";
 import { GameDefinitionBuilder } from "../src/game-definition";
+void (0 as unknown as RemovedCanonicalGameStateOf<never>);
+void (0 as unknown as RemovedCanonicalStateOf<never>);
 
 @State()
 class TypedCounterChildState {
@@ -429,43 +434,40 @@ test("strict command and discovery requests require actorId and input", () => {
   expect(missingDiscoveryInput).toBeDefined();
 });
 
-test("rootState infers plain canonical data and exports canonical type helpers", () => {
+test("rootState infers plain canonical data directly through executor state", () => {
   const typedRootGame = new GameDefinitionBuilder("typed-root-game")
     .rootState(TypedCounterRootState)
     .initialStage(createStageFactory<object>()("gameEnd").automatic().build())
     .build();
-
-  const canonicalGameState: CanonicalGameStateOf<typeof typedRootGame> = {
-    counter: {
-      value: 1,
-    },
-  };
-
-  const canonicalState: CanonicalStateOf<typeof typedRootGame> = {
-    game: canonicalGameState,
-    runtime: {
-      progression: {
-        currentStage: {
-          id: "gameEnd",
-          kind: "automatic",
-        },
-        lastActingStage: null,
-      },
-      rng: {
-        seed: "seed",
-        cursor: 0,
-      },
-      history: {
-        entries: [],
-      },
-    },
-  };
-
-  // @ts-expect-error canonical game data should not expose facade methods
-  void canonicalGameState.increment;
+  const executor = createGameExecutor(typedRootGame);
+  const initialState = executor.createInitialState();
+  const updatedState = executor.executeCommand(initialState, {
+    type: "missing_command",
+    actorId: "p1",
+    input: {},
+  }).state;
+  const counterValue: number = initialState.game.counter.value;
+  const updatedCounterValue: number = updatedState.game.counter.value;
 
   expect(typedRootGame.initialStage.id).toBe("gameEnd");
-  expect(canonicalState.game.counter.value).toBe(1);
+  expect(counterValue).toBe(0);
+  expect(updatedCounterValue).toBe(0);
+});
+
+test("game definition builder preserves facade generic before rootState", () => {
+  const builder = new GameDefinitionBuilder<TypedCounterRootState>(
+    "typed-facade-builder",
+  ).setup(({ game }) => {
+    game.increment();
+    game.counter.value += 1;
+  });
+
+  const typedRootGame = builder
+    .rootState(TypedCounterRootState)
+    .initialStage(createStageFactory<object>()("gameEnd").automatic().build())
+    .build();
+
+  expect(typedRootGame.initialStage.id).toBe("gameEnd");
 });
 
 test("game definition builder only exposes stage-based progression authoring", () => {

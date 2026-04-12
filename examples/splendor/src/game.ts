@@ -1,4 +1,4 @@
-import { GameDefinitionBuilder } from "tabletop-engine";
+import { createGameExecutor, GameDefinitionBuilder } from "tabletop-engine";
 import { setupSplendorGame } from "./setup.ts";
 import { SplendorGameState as SplendorRootState } from "./state.ts";
 import { createSplendorStages } from "./stages/index.ts";
@@ -26,3 +26,10 @@ export function createSplendorGame(options: CreateSplendorGameOptions) {
     .initialStage(initialStage)
     .build();
 }
+
+export function createSplendorExecutor(options: CreateSplendorGameOptions) {
+  return createGameExecutor(createSplendorGame(options));
+}
+
+export type SplendorExecutor = ReturnType<typeof createSplendorExecutor>;
+export type SplendorState = ReturnType<SplendorExecutor["createInitialState"]>;

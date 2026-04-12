@@ -112,7 +112,7 @@ async function promptForDiscoveryOption(
   discovery: SplendorTerminalOpenDiscovery,
 ): Promise<SplendorTerminalDiscoveryOption> {
   const options: MenuOption<SplendorTerminalDiscoveryOption>[] =
-    discovery.options.map((option: SplendorTerminalDiscoveryOption) => ({
+    discovery.options.map((option) => ({
       label: describeDiscoveryOption(discovery, option),
       value: option,
     }));

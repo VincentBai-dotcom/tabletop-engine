@@ -5,8 +5,8 @@ import {
   chooseRandomDiscoveryOption,
   describeCommand,
 } from "../src/actions.ts";
+import { createLocalSplendorSession } from "../src/session.ts";
 import type {
-  SplendorState,
   SplendorTerminalDiscoveryRequest,
   SplendorTerminalDiscoveryResult,
 } from "../src/types.ts";
@@ -162,6 +162,9 @@ test("describeCommand renders splendor-specific summaries", () => {
 });
 
 test("render helper types remain compatible with session state shape", () => {
-  const state = {} as SplendorState;
-  expect(state).toBeDefined();
+  const session = createLocalSplendorSession({
+    seed: "session-seed",
+  });
+
+  expect(session).toBeDefined();
 });

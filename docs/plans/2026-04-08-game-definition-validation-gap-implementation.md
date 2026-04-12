@@ -4,7 +4,7 @@
 
 **Goal:** Finish the validation and canonical-type follow-up from the game-definition build redesign by validating incoming canonical state, assembling an engine-owned runtime schema, and exposing a trustworthy canonical state type surface.
 
-**Architecture:** Keep `canonicalGameStateSchema` as the consumer-authored game-data artifact and add a parallel engine-owned `runtimeStateSchema` for `state.runtime`. Validation should happen at canonical boundaries through three narrowly named helpers: `validateCanonicalGameState`, `validateRuntimeState`, and `validateCanonicalState`. Static DX should be fixed separately but in the same slice by deriving canonical plain-data types from the root facade type and exporting `CanonicalGameStateOf<TGame>` and `CanonicalStateOf<TGame>` helpers.
+**Architecture:** Keep `canonicalGameStateSchema` as the consumer-authored game-data artifact and add a parallel engine-owned `runtimeStateSchema` for `state.runtime`. Validation should happen at canonical boundaries through three narrowly named helpers: `validateCanonicalGameState`, `validateRuntimeState`, and `validateCanonicalState`. The helper-type export direction described below is now historical; local canonical inference should instead come from the normal builder/executor type flow.
 
 **Tech Stack:** TypeScript, Bun, TypeBox-backed `t` schemas, tabletop-engine runtime/state-facade system
 
@@ -22,14 +22,7 @@ Use these names consistently in code:
   validates `state.runtime` against `runtimeStateSchema`
 - `validateCanonicalState(...)`
   validates the full `{ game, runtime }` envelope by delegating to the two helpers above
-- `CanonicalGameStateOf<TGame>`
-  exported helper for the plain canonical `game` subtree type
-- `CanonicalStateOf<TGame>`
-  exported helper for the full `{ game, runtime }` state type
-- `CanonicalDataFromFacade<TFacade>`
-  internal type utility that strips methods and recursively maps hydrated facade state into plain canonical data
-
-Avoid introducing alternate names like `compiledValidator`, `stateValidator`, or `canonicalRuntimeStateSchema`.
+  Avoid introducing alternate names like `compiledValidator`, `stateValidator`, or `canonicalRuntimeStateSchema`.
 
 ### Task 1: Add schema-backed runtime validation helpers
 
@@ -189,7 +182,7 @@ git add packages/tabletop-engine/src/runtime/game-executor.ts packages/tabletop-
 git commit -m "feat: validate canonical state at executor boundaries"
 ```
 
-### Task 4: Fix canonical plain-data typing and export helpers
+### Task 4: Fix canonical plain-data typing and remove legacy helper exports
 
 **Files:**
 
@@ -209,34 +202,26 @@ Add type tests that prove:
 - `CanonicalGameStateOf<typeof game>` resolves to the plain `game` shape
 - `CanonicalStateOf<typeof game>` resolves to `{ game, runtime }`
 
-Also add/update the Splendor terminal types so they use the helper rather than `CanonicalState<SplendorGameState>`.
+Also add/update the Splendor terminal types so they rely on normal builder/game typing rather than `CanonicalStateOf<TGame>`.
 
 **Step 2: Run test to verify it fails**
 
 Run: `bun test ./packages/tabletop-engine/tests/types.test.ts`
 Run: `bun test ./examples/splendor-terminal/tests/actions.test.ts`
-Expected: FAIL because the common `rootState(...)` path still infers canonical state as the facade class.
+Expected: FAIL because the common `rootState(...)` path still depends on the legacy helper model.
 
 **Step 3: Write minimal implementation**
 
-Add an internal recursive type utility:
-
-- `CanonicalDataFromFacade<TFacade>`
-
-Rules:
-
-- drop function-valued properties
-- recursively map arrays
-- recursively map records/objects
-- preserve primitives
-- recursively map nested state-class fields into plain object data
+Rethread `GameDefinitionBuilder.rootState(...)` so canonical state is carried
+directly through the builder/executor type flow rather than reconstructed later
+through exported helper types.
 
 Then:
 
-- wire `GameDefinitionBuilder.rootState(...)` so `CanonicalGameState` becomes `CanonicalDataFromFacade<NextFacadeGameState>` in the common path
-- export `CanonicalGameStateOf<TGame>`
-- export `CanonicalStateOf<TGame>`
-- migrate `splendor-terminal` to the helper types
+- remove `CanonicalDataFromFacade<TFacade>`
+- remove `CanonicalGameStateOf<TGame>`
+- remove `CanonicalStateOf<TGame>`
+- migrate `splendor-terminal` off the helper types
 
 **Step 4: Run test to verify it passes**
 
@@ -248,7 +233,7 @@ Expected: PASS
 
 ```bash
 git add packages/tabletop-engine/src/game-definition.ts packages/tabletop-engine/src/types/state.ts packages/tabletop-engine/src/index.ts packages/tabletop-engine/tests/types.test.ts examples/splendor-terminal/src/session.ts examples/splendor-terminal/src/types.ts examples/splendor-terminal/tests/actions.test.ts
-git commit -m "feat: expose canonical state type helpers"
+git commit -m "refactor: remove canonical helper type exports"
 ```
 
 ### Task 5: Final verification and cleanup
@@ -279,8 +264,7 @@ Check that the implementation consistently uses:
 - `validateCanonicalGameState`
 - `validateRuntimeState`
 - `validateCanonicalState`
-- `CanonicalGameStateOf`
-- `CanonicalStateOf`
+- keep naming around canonical state simple and direct
 
 Rename any drift before finalizing.
 

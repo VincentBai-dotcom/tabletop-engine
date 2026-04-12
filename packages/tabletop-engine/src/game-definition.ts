@@ -1,6 +1,6 @@
 import type { CommandDefinition } from "./types/command";
 import type { StageDefinition, StageDefinitionMap } from "./types/progression";
-import type { CanonicalDataFromFacade, RuntimeState } from "./types/state";
+import type { RuntimeState } from "./types/state";
 import type { RNGApi } from "./types/rng";
 import {
   compileStateFacadeDefinition,
@@ -23,6 +23,22 @@ type CommandDefinitionMap<FacadeGameState extends object = object> = Record<
 >;
 
 type AnyStageDefinition = StageDefinition<object>;
+
+type NonFunctionPropertyKeys<TObject> = {
+  [K in keyof TObject]: TObject[K] extends (...args: never[]) => unknown
+    ? never
+    : K;
+}[keyof TObject];
+
+type CanonicalGameStateShape<TState> = TState extends readonly (infer TItem)[]
+  ? CanonicalGameStateShape<TItem>[]
+  : TState extends object
+    ? {
+        [K in NonFunctionPropertyKeys<TState>]: CanonicalGameStateShape<
+          TState[K]
+        >;
+      }
+    : TState;
 
 export interface GameSetupContext<GameState extends object = object> {
   game: GameState;
@@ -69,15 +85,12 @@ export interface GameDefinitionInput<
 
 interface GameDefinitionBuilderState<
   FacadeGameState extends object = object,
+  CanonicalGameState extends object = CanonicalGameStateShape<FacadeGameState>,
   Commands extends CommandDefinitionMap<FacadeGameState> =
     CommandDefinitionMap<FacadeGameState>,
 > extends Partial<
   Omit<
-    GameDefinition<
-      CanonicalDataFromFacade<FacadeGameState>,
-      FacadeGameState,
-      Commands
-    >,
+    GameDefinition<CanonicalGameState, FacadeGameState, Commands>,
     | "commands"
     | "stateFacade"
     | "canonicalGameStateSchema"
@@ -95,11 +108,13 @@ interface GameDefinitionBuilderState<
 
 export class GameDefinitionBuilder<
   FacadeGameState extends object = object,
+  CanonicalGameState extends object = CanonicalGameStateShape<FacadeGameState>,
   Commands extends CommandDefinitionMap<FacadeGameState> =
     CommandDefinitionMap<FacadeGameState>,
 > {
   private readonly config: GameDefinitionBuilderState<
     FacadeGameState,
+    CanonicalGameState,
     Commands
   >;
 
@@ -113,11 +128,13 @@ export class GameDefinitionBuilder<
     rootState: StateClass<NextFacadeGameState>,
   ): GameDefinitionBuilder<
     NextFacadeGameState,
+    CanonicalGameStateShape<NextFacadeGameState>,
     CommandDefinitionMap<NextFacadeGameState>
   > {
     this.config.rootState = rootState;
     return this as unknown as GameDefinitionBuilder<
       NextFacadeGameState,
+      CanonicalGameStateShape<NextFacadeGameState>,
       CommandDefinitionMap<NextFacadeGameState>
     >;
   }
@@ -132,11 +149,7 @@ export class GameDefinitionBuilder<
     return this;
   }
 
-  build(): GameDefinition<
-    CanonicalDataFromFacade<FacadeGameState>,
-    FacadeGameState,
-    Commands
-  > {
+  build(): GameDefinition<CanonicalGameState, FacadeGameState, Commands> {
     if (!this.config.rootState) {
       throw new Error("root_state_required");
     }
@@ -166,7 +179,7 @@ export class GameDefinitionBuilder<
       canonicalGameStateSchema,
       runtimeStateSchema,
       defaultCanonicalGameState:
-        defaultCanonicalGameState as CanonicalDataFromFacade<FacadeGameState>,
+        defaultCanonicalGameState as CanonicalGameState,
       initialStage: this.config.initialStage,
       stages,
       rngSeed: this.config.rngSeed,

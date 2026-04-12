@@ -1,5 +1,4 @@
 import type {
-  CanonicalStateOf,
   Command,
   CommandDiscoveryResult,
   Discovery,
@@ -7,13 +6,7 @@ import type {
   HiddenValue,
   VisibleState,
 } from "tabletop-engine";
-import type {
-  SplendorDiscoveryOption,
-  createSplendorGame,
-} from "splendor-example";
-
-type SplendorGameDefinition = ReturnType<typeof createSplendorGame>;
-export type SplendorState = CanonicalStateOf<SplendorGameDefinition>;
+import type { SplendorDiscoveryOption } from "splendor-example";
 export type HiddenCountSummary = HiddenValue<{
   count: number;
 }>;
