@@ -92,7 +92,7 @@ const defineProtocolCommand = createCommandFactory<ProtocolRootState>();
 const definePlainProtocolCommand =
   createCommandFactory<PlainProtocolRootState>();
 test("describeGameProtocol returns command payload schemas", () => {
-  const gainScoreCommand = definePlainProtocolCommand({
+  const gainScoreCommand = defineProtocolCommand({
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
   })
@@ -114,7 +114,7 @@ test("describeGameProtocol returns command payload schemas", () => {
     .build();
 
   const game = new GameDefinitionBuilder("protocol-game")
-    .rootState(PlainProtocolRootState)
+    .rootState(ProtocolRootState)
     .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
     .build();
 

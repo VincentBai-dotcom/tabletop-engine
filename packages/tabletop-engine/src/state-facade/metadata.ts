@@ -2,35 +2,43 @@ export type StateClass<TState extends object = object> = new (
   ...args: unknown[]
 ) => TState;
 
-import { t } from "../schema";
+import { assertSerializableSchema, t } from "../schema";
 import type {
   FieldType,
   SerializableSchema,
   StateFieldMetadata,
 } from "../schema";
-import { assertSerializableSchema } from "../schema";
 
 export { t };
 
 export type VisibilityMode = "hidden" | "visible_to_self";
 
-export interface HiddenSummaryOptions {
-  schema: SerializableSchema;
-  project(value: unknown): unknown;
+export interface HiddenFieldConfig {
+  mode: "hidden";
+  summary?: SerializableSchema;
+  derive?: (value: unknown) => unknown;
 }
 
-export interface FieldVisibilityMetadata {
-  mode: VisibilityMode;
-  hiddenSummarySchema?: SerializableSchema;
-  projectHiddenSummary?(value: unknown): unknown;
+export interface VisibleToSelfFieldConfig {
+  mode: "visible_to_self";
+  summary?: SerializableSchema;
+  derive?: (value: unknown) => unknown;
+}
+
+export type FieldVisibilityConfig =
+  | HiddenFieldConfig
+  | VisibleToSelfFieldConfig;
+
+export interface VisibilityConfigurationInput {
+  ownedBy?: string;
+  fields?: Record<string, FieldVisibilityConfig>;
 }
 
 export interface StateMetadata {
   type: "state";
   fields: Record<string, StateFieldMetadata>;
-  fieldVisibility: Record<string, FieldVisibilityMetadata>;
-  ownedByPlayer: boolean;
-  customViewSchema?: SerializableSchema;
+  fieldVisibility: Record<string, FieldVisibilityConfig>;
+  ownedByField?: string;
 }
 
 const STATE_METADATA = new WeakMap<StateClass, StateMetadata>();
@@ -46,8 +54,7 @@ function ensureStateMetadata(target: StateClass): StateMetadata {
     type: "state",
     fields: {},
     fieldVisibility: {},
-    ownedByPlayer: false,
-    customViewSchema: undefined,
+    ownedByField: undefined,
   };
   STATE_METADATA.set(target, created);
   return created;
@@ -57,16 +64,19 @@ function resolveDecoratorTarget(target: object): StateClass {
   return target.constructor as StateClass;
 }
 
+function assertVisibilityFieldConfig<TConfig extends FieldVisibilityConfig>(
+  config: TConfig,
+): TConfig {
+  if (config.summary) {
+    assertSerializableSchema(config.summary);
+  }
+
+  return config;
+}
+
 export function State(): ClassDecorator {
   return (target) => {
     ensureStateMetadata(target as unknown as StateClass);
-  };
-}
-
-export function OwnedByPlayer(): ClassDecorator {
-  return (target) => {
-    const metadata = ensureStateMetadata(target as unknown as StateClass);
-    metadata.ownedByPlayer = true;
   };
 }
 
@@ -77,59 +87,45 @@ export function field(fieldType: FieldType): PropertyDecorator {
   };
 }
 
-export function viewSchema(schema: SerializableSchema): MethodDecorator {
-  assertSerializableSchema(schema);
-
-  return (target) => {
-    const metadata = ensureStateMetadata(resolveDecoratorTarget(target));
-    metadata.customViewSchema = schema;
-  };
-}
-
-function setFieldVisibility(
-  target: object,
-  propertyKey: string | symbol,
-  visibility: FieldVisibilityMetadata,
-) {
-  const metadata = ensureStateMetadata(resolveDecoratorTarget(target));
-  metadata.fieldVisibility[String(propertyKey)] = visibility;
-}
-
-function resolveVisibilityMetadata(
-  mode: VisibilityMode,
-  options?: HiddenSummaryOptions,
-): FieldVisibilityMetadata {
-  if (options?.schema) {
-    assertSerializableSchema(options.schema);
-  }
-
-  return {
-    mode,
-    hiddenSummarySchema: options?.schema,
-    projectHiddenSummary: options?.project,
-  };
-}
-
-export function hidden(options?: HiddenSummaryOptions): PropertyDecorator {
-  return (target, propertyKey) => {
-    setFieldVisibility(
-      target,
-      propertyKey,
-      resolveVisibilityMetadata("hidden", options),
-    );
-  };
+export function hidden(
+  options: {
+    summary?: SerializableSchema;
+    derive?: (value: unknown) => unknown;
+  } = {},
+): HiddenFieldConfig {
+  return assertVisibilityFieldConfig({
+    mode: "hidden",
+    summary: options.summary,
+    derive: options.derive,
+  });
 }
 
 export function visibleToSelf(
-  options?: HiddenSummaryOptions,
-): PropertyDecorator {
-  return (target, propertyKey) => {
-    setFieldVisibility(
-      target,
-      propertyKey,
-      resolveVisibilityMetadata("visible_to_self", options),
-    );
-  };
+  options: {
+    summary?: SerializableSchema;
+    derive?: (value: unknown) => unknown;
+  } = {},
+): VisibleToSelfFieldConfig {
+  return assertVisibilityFieldConfig({
+    mode: "visible_to_self",
+    summary: options.summary,
+    derive: options.derive,
+  });
+}
+
+export function configureVisibility(
+  target: StateClass,
+  config: VisibilityConfigurationInput,
+): void {
+  const metadata = ensureStateMetadata(target);
+
+  metadata.ownedByField = config.ownedBy;
+  metadata.fieldVisibility = Object.fromEntries(
+    Object.entries(config.fields ?? {}).map(([fieldName, fieldConfig]) => [
+      fieldName,
+      assertVisibilityFieldConfig(fieldConfig),
+    ]),
+  );
 }
 
 export function getStateMetadata(target: StateClass): StateMetadata {

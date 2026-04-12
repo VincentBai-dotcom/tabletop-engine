@@ -1,20 +1,15 @@
 import {
-  type FieldVisibilityMetadata,
+  type FieldVisibilityConfig,
   getStateMetadata,
   type StateClass,
 } from "./metadata";
-import type {
-  FieldType,
-  SerializableSchema,
-  StateFieldMetadata,
-} from "../schema";
+import type { FieldType, StateFieldMetadata } from "../schema";
 
 export interface CompiledStateDefinition {
   type: StateClass;
   fields: Record<string, StateFieldMetadata>;
-  fieldVisibility: Record<string, FieldVisibilityMetadata>;
-  ownedByPlayer: boolean;
-  customViewSchema?: SerializableSchema;
+  fieldVisibility: Record<string, FieldVisibilityConfig>;
+  ownedByField?: string;
 }
 
 export interface CompiledStateFacadeDefinition {
@@ -47,10 +42,10 @@ function visitState(
   }
 
   const metadata = getStateMetadata(target);
-  validateOwnedPlayerState(target, metadata.fields, metadata.ownedByPlayer);
+  validateOwnedByField(target, metadata.fields, metadata.ownedByField);
   validateVisibleFieldOwnership(
     metadata.fieldVisibility,
-    hasOwningPlayerAncestor || metadata.ownedByPlayer,
+    hasOwningPlayerAncestor || metadata.ownedByField !== undefined,
   );
   visited.add(target);
   states[target.name] = {
@@ -61,8 +56,7 @@ function visitState(
     fieldVisibility: {
       ...metadata.fieldVisibility,
     },
-    ownedByPlayer: metadata.ownedByPlayer,
-    customViewSchema: metadata.customViewSchema,
+    ownedByField: metadata.ownedByField,
   };
 
   for (const field of Object.values(metadata.fields)) {
@@ -70,7 +64,7 @@ function visitState(
       field,
       states,
       visited,
-      hasOwningPlayerAncestor || metadata.ownedByPlayer,
+      hasOwningPlayerAncestor || metadata.ownedByField !== undefined,
     );
   }
 }
@@ -208,24 +202,30 @@ function visitNestedStateTarget(
   visitState(nestedTarget, states, visited, hasOwningPlayerAncestor);
 }
 
-function validateOwnedPlayerState(
+function validateOwnedByField(
   target: StateClass,
   fields: Record<string, StateFieldMetadata>,
-  ownedByPlayer: boolean,
+  ownedByField: string | undefined,
 ) {
-  if (!ownedByPlayer) {
+  if (!ownedByField) {
     return;
   }
 
-  if (fields.id?.kind !== "string") {
+  if (!(ownedByField in fields)) {
     throw new Error(
-      `owned_player_requires_string_id_field:${target.name || "anonymous"}`,
+      `owned_by_field_not_found:${target.name || "anonymous"}:${ownedByField}`,
+    );
+  }
+
+  if (fields[ownedByField]?.kind !== "string") {
+    throw new Error(
+      `owned_by_field_requires_string_field:${target.name || "anonymous"}:${ownedByField}`,
     );
   }
 }
 
 function validateVisibleFieldOwnership(
-  fieldVisibility: Record<string, FieldVisibilityMetadata>,
+  fieldVisibility: Record<string, FieldVisibilityConfig>,
   hasOwningPlayerAncestor: boolean,
 ) {
   for (const [fieldName, visibility] of Object.entries(fieldVisibility)) {

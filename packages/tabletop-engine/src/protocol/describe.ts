@@ -3,7 +3,7 @@ import type { GameDefinition } from "../game-definition";
 import type { FieldType, SerializableSchema } from "../schema";
 import type { CommandDefinition, CommandSchema } from "../types/command";
 import type {
-  FieldVisibilityMetadata,
+  FieldVisibilityConfig,
   VisibilityMode,
 } from "../state-facade/metadata";
 import type { CompiledStateFacadeDefinition } from "../state-facade/compile";
@@ -17,7 +17,6 @@ export interface ProtocolCommandDescriptor {
 export interface GameProtocolDescriptor {
   name: string;
   commands: Record<string, ProtocolCommandDescriptor>;
-  customViews: Record<string, SerializableSchema>;
   viewSchema: TSchema;
 }
 
@@ -29,7 +28,6 @@ export function describeGameProtocol<
   game: GameDefinition<CanonicalGameState, FacadeGameState, Commands>,
 ): GameProtocolDescriptor {
   const commands: Record<string, ProtocolCommandDescriptor> = {};
-  const customViews: Record<string, SerializableSchema> = {};
 
   for (const [commandId, command] of Object.entries(game.commands)) {
     if (!command.commandSchema) {
@@ -51,33 +49,9 @@ export function describeGameProtocol<
     };
   }
 
-  for (const state of Object.values(game.stateFacade?.states ?? {})) {
-    const hasCustomViewMethod =
-      typeof state.type.prototype.projectCustomView === "function";
-
-    if (state.customViewSchema && !hasCustomViewMethod) {
-      throw new Error(
-        `custom_view_schema_requires_project_custom_view:${
-          state.type.name || "anonymous"
-        }`,
-      );
-    }
-
-    if (hasCustomViewMethod && !state.customViewSchema) {
-      throw new Error(
-        `custom_view_schema_required:${state.type.name || "anonymous"}`,
-      );
-    }
-
-    if (state.customViewSchema) {
-      customViews[state.type.name || "anonymous"] = state.customViewSchema;
-    }
-  }
-
   return {
     name: game.name,
     commands,
-    customViews,
     viewSchema: createVisibleStateSchema(game.stateFacade),
   };
 }
@@ -103,10 +77,6 @@ function inferStateViewSchema(
     throw new Error(`compiled_state_not_found:${stateName}`);
   }
 
-  if (state.customViewSchema) {
-    return toTypeBoxSchema(state.customViewSchema);
-  }
-
   return Type.Object(
     Object.fromEntries(
       Object.entries(state.fields).map(([fieldName, fieldType]) => {
@@ -129,13 +99,11 @@ function inferStateViewSchema(
 function inferFieldViewSchema(
   compiled: CompiledStateFacadeDefinition,
   fieldType: FieldType,
-  fieldVisibility: FieldVisibilityMetadata | undefined,
+  fieldVisibility: FieldVisibilityConfig | undefined,
   visibility?: VisibilityMode,
 ): TSchema {
   const visibleSchema = inferVisibleFieldSchema(compiled, fieldType);
-  const hiddenSchema = inferHiddenEnvelopeSchema(
-    fieldVisibility?.hiddenSummarySchema,
-  );
+  const hiddenSchema = inferHiddenEnvelopeSchema(fieldVisibility?.summary);
 
   if (visibility === "hidden") {
     return hiddenSchema;
