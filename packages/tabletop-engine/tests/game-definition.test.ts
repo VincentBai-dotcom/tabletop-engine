@@ -6,8 +6,8 @@ import { createStageFactory } from "../src/stage-factory";
 import { assertSchemaValue } from "../src/runtime/validation";
 import type { SingleActivePlayerStageDefinition } from "../src/types/progression";
 import {
+  configureVisibility,
   field,
-  OwnedByPlayer,
   State,
   t,
   visibleToSelf,
@@ -55,17 +55,25 @@ class TestCollectionRootState {
 
 @State()
 class VisibleToSelfWithoutOwnerRootState {
-  @visibleToSelf()
   @field(t.array(t.number()))
   hiddenCards: number[] = [];
 }
 
-@OwnedByPlayer()
 @State()
 class OwnedPlayerStateWithoutId {
   @field(t.number())
   score = 0;
 }
+
+configureVisibility(VisibleToSelfWithoutOwnerRootState, {
+  fields: {
+    hiddenCards: visibleToSelf(),
+  },
+});
+
+configureVisibility(OwnedPlayerStateWithoutId, {
+  ownedBy: "id",
+});
 
 @State()
 class ScoreRootState {
@@ -575,5 +583,5 @@ test("GameDefinitionBuilder rejects owned player states without a string id fiel
       .rootState(OwnedPlayerStateWithoutId)
       .initialStage(defineTestStage("gameEnd").automatic().build())
       .build(),
-  ).toThrow("owned_player_requires_string_id_field:OwnedPlayerStateWithoutId");
+  ).toThrow("owned_by_field_not_found:OwnedPlayerStateWithoutId:id");
 });

@@ -4,9 +4,9 @@ import { createStageFactory } from "../src/stage-factory";
 import { createGameExecutor } from "../src/runtime/game-executor";
 import { GameDefinitionBuilder } from "../src/game-definition";
 import {
+  configureVisibility,
   field,
   hidden,
-  OwnedByPlayer,
   State,
   t,
   visibleToSelf,
@@ -95,13 +95,11 @@ class OptionalNestedDefaultRootState {
   child?: DefaultChildState;
 }
 
-@OwnedByPlayer()
 @State()
 class VisiblePlayerState {
   @field(t.string())
   id = "";
 
-  @visibleToSelf()
   @field(t.array(t.string()))
   hand: string[] = [];
 
@@ -113,20 +111,11 @@ const hiddenSummarySchema = t.object({
   count: t.number(),
 });
 
-@OwnedByPlayer()
 @State()
 class VisibleSummaryPlayerState {
   @field(t.string())
   id = "";
 
-  @visibleToSelf({
-    schema: hiddenSummarySchema,
-    project(value) {
-      return {
-        count: Array.isArray(value) ? value.length : 0,
-      };
-    },
-  })
   @field(t.array(t.string()))
   hand: string[] = [];
 
@@ -166,7 +155,6 @@ class VisibleRootState {
 
 @State()
 class HiddenDeckState {
-  @hidden()
   @field(t.array(t.string()))
   cards: string[] = [];
 
@@ -177,14 +165,6 @@ class HiddenDeckState {
 
 @State()
 class HiddenSummaryDeckState {
-  @hidden({
-    schema: hiddenSummarySchema,
-    project(value) {
-      return {
-        count: Array.isArray(value) ? value.length : 0,
-      };
-    },
-  })
   @field(t.array(t.string()))
   cards: string[] = [];
 
@@ -214,33 +194,6 @@ class HiddenDeckRootState {
 }
 
 @State()
-class CustomVisibleDeckState {
-  @hidden()
-  @field(t.array(t.string()))
-  cards: string[] = [];
-
-  setCards(cards: string[]) {
-    this.cards = cards;
-  }
-
-  projectCustomView() {
-    return {
-      count: this.cards.length,
-    };
-  }
-}
-
-@State()
-class CustomVisibleDeckRootState {
-  @field(t.state(() => CustomVisibleDeckState))
-  deck!: CustomVisibleDeckState;
-
-  setDeckCards(cards: string[]) {
-    this.deck.setCards(cards);
-  }
-}
-
-@State()
 class PlainCounterRootState {
   @field(t.number())
   counter = 0;
@@ -253,6 +206,46 @@ class PlainCounterRootState {
     this.counter -= amount;
   }
 }
+
+configureVisibility(VisiblePlayerState, {
+  ownedBy: "id",
+  fields: {
+    hand: visibleToSelf(),
+  },
+});
+
+configureVisibility(VisibleSummaryPlayerState, {
+  ownedBy: "id",
+  fields: {
+    hand: visibleToSelf({
+      summary: hiddenSummarySchema,
+      derive(value) {
+        return {
+          count: Array.isArray(value) ? value.length : 0,
+        };
+      },
+    }),
+  },
+});
+
+configureVisibility(HiddenDeckState, {
+  fields: {
+    cards: hidden(),
+  },
+});
+
+configureVisibility(HiddenSummaryDeckState, {
+  fields: {
+    cards: hidden({
+      summary: hiddenSummarySchema,
+      derive(value) {
+        return {
+          count: Array.isArray(value) ? value.length : 0,
+        };
+      },
+    }),
+  },
+});
 
 @State()
 class CanPlayRootState {
@@ -754,42 +747,6 @@ test("createGameExecutor projects hidden summary values for visibleToSelf fields
   });
 });
 
-test("createGameExecutor lets a state override its visible projection shape", () => {
-  const game = new GameDefinitionBuilder<{
-    deck: {
-      cards: string[];
-    };
-  }>("custom-visible-deck-game")
-    .rootState(CustomVisibleDeckRootState)
-    .setup(({ game }) => {
-      game.setDeckCards(["a", "b", "c"]);
-    })
-    .initialStage(createTerminalStage())
-    .build();
-
-  const executor = createGameExecutor(game) as {
-    createInitialState(): unknown;
-    getView(
-      state: unknown,
-      viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
-    ): {
-      game: {
-        deck: {
-          count: number;
-        };
-      };
-    };
-  };
-  const state = executor.createInitialState();
-  const visibleState = executor.getView(state, {
-    kind: "spectator",
-  });
-
-  expect(visibleState.game.deck).toEqual({
-    count: 3,
-  });
-});
-
 test("createGameExecutor rejects owned player projection when id is empty", () => {
   const game = new GameDefinitionBuilder<{
     players: Record<
@@ -821,7 +778,9 @@ test("createGameExecutor rejects owned player projection when id is empty", () =
     executor.getView(state, {
       kind: "spectator",
     }),
-  ).toThrow("owned_player_requires_non_empty_id_value:VisiblePlayerState");
+  ).toThrow(
+    "owned_by_field_requires_non_empty_string_value:VisiblePlayerState:id",
+  );
 });
 
 test("availability and discovery contexts hydrate readonly decorated state facades", () => {
