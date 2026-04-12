@@ -484,6 +484,31 @@ signature:
 - method input must match the canonical field value
 - method return type must match the summary schema
 
+## Remove `projectCustomView()` Aggressively
+
+The current class-level `projectCustomView()` escape hatch should be removed
+aggressively rather than carried forward as a primary feature.
+
+Why:
+
+- field-level `hidden` and `visibleToSelf` on `field(t.state(...), config)` can
+  already cover the normal “hide this whole nested subtree” case
+- exact `getView(...)` inference is much easier when visibility stays inside the
+  schema object
+- class-level custom projection reintroduces runtime-only shape changes that are
+  harder for TypeScript to see
+
+So the intended direction is:
+
+- keep field-level visibility as the normal hidden-information mechanism
+- let a whole nested state be hidden by applying `hidden` or `visibleToSelf` to
+  `field(t.state(...), config)`
+- do not preserve `projectCustomView()` as a routine state-authoring feature
+
+If a true whole-node shape replacement capability is still needed later, it
+should be redesigned in a schema-visible way rather than carried forward from
+the current decorator-era API.
+
 ## Ownership Resolution During View Projection
 
 The runtime ownership rule should remain the same conceptually as today:
