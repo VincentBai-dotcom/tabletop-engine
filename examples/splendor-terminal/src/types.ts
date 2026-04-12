@@ -1,5 +1,5 @@
 import type {
-  CanonicalStateOf,
+  CanonicalState,
   Command,
   CommandDiscoveryResult,
   Discovery,
@@ -13,7 +13,9 @@ import type {
 } from "splendor-example";
 
 type SplendorGameDefinition = ReturnType<typeof createSplendorGame>;
-export type SplendorState = CanonicalStateOf<SplendorGameDefinition>;
+export type SplendorState = CanonicalState<
+  SplendorGameDefinition["defaultCanonicalGameState"]
+>;
 export type HiddenCountSummary = HiddenValue<{
   count: number;
 }>;

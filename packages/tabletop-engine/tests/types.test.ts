@@ -31,11 +31,13 @@ import type { RuntimeState } from "../src/types/state";
 import { GameDefinitionBuilder } from "../src/game-definition";
 
 // @ts-expect-error legacy canonical helper types should be removed from the public API
-type LegacyCanonicalHelperProbe = [
-  import("../src/index").CanonicalGameStateOf<never>,
-  import("../src/index").CanonicalStateOf<never>,
-];
-void (0 as unknown as LegacyCanonicalHelperProbe);
+type LegacyCanonicalGameStateProbe =
+  import("../src/index").CanonicalGameStateOf<never>;
+void (0 as unknown as LegacyCanonicalGameStateProbe);
+
+// @ts-expect-error legacy canonical helper types should be removed from the public API
+type LegacyCanonicalStateProbe = import("../src/index").CanonicalStateOf<never>;
+void (0 as unknown as LegacyCanonicalStateProbe);
 
 @State()
 class TypedCounterChildState {
