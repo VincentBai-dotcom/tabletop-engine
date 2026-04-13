@@ -1,4 +1,4 @@
-import { field, OwnedByPlayer, State, t, visibleToSelf } from "tabletop-engine";
+import { configureVisibility, field, State, t } from "tabletop-engine";
 import { developmentCardsById } from "../data/cards.ts";
 import type { CardCost, DevelopmentCard } from "../data/types.ts";
 import { type GemTokenColor } from "./constants.ts";
@@ -25,11 +25,10 @@ function getCardOrThrow(cardId: number): DevelopmentCard {
   return card;
 }
 
-const hiddenReservedCardSummarySchema = t.object({
+const hiddenReservedCardSchema = t.object({
   count: t.number(),
 });
 
-@OwnedByPlayer()
 @State()
 export class SplendorPlayerState {
   @field(t.string())
@@ -38,14 +37,6 @@ export class SplendorPlayerState {
   @field(t.state(() => TokenCountsState))
   tokens!: TokenCountsState;
 
-  @visibleToSelf({
-    schema: hiddenReservedCardSummarySchema,
-    project(value) {
-      return {
-        count: Array.isArray(value) ? value.length : 0,
-      };
-    },
-  })
   @field(t.array(t.number()))
   reservedCardIds: number[] = [];
 
@@ -182,3 +173,17 @@ export class SplendorPlayerState {
     this.tokens.transferTo(bank, returnTokens);
   }
 }
+
+configureVisibility(SplendorPlayerState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.reservedCardIds.visibleToSelf({
+      schema: hiddenReservedCardSchema,
+      derive(reservedCardIds) {
+        return {
+          count: reservedCardIds.length,
+        };
+      },
+    }),
+  ],
+}));

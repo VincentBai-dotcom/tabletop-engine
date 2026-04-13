@@ -21,11 +21,8 @@ Current implemented capabilities include:
 - transactional execution against a cloned working state
 - decorator-authored state facades via `@State()`, `@field(...)`, and `t`
 - viewer-specific state projection through `getView(...)`
-- hidden-information helpers:
-  - `@hidden`
-  - `@visibleToSelf`
-  - `@OwnedByPlayer()`
-  - `projectCustomView(...)`
+- visibility configuration through `configureVisibility(...)`, `hidden(...)`,
+  and `visibleToSelf(...)`
 - snapshots, replay helpers, and scenario-style test harness support
 - protocol descriptor generation
 - initial hosted AsyncAPI generation

@@ -11,9 +11,9 @@ The CLI command name should be:
 
 The CLI exists to solve a structural limitation in the current engine:
 
-- runtime metadata derived from `@field(...)`, `@hidden(...)`,
-  `@visibleToSelf(...)`, `@viewSchema(...)`, progression stages, and command
-  definitions is exact at runtime
+- runtime metadata derived from `@field(...)`,
+  `configureVisibility(...)`, progression stages, and command definitions is
+  exact at runtime
 - TypeScript cannot derive equally exact static helper types from decorator
   metadata alone
 

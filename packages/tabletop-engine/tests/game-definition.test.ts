@@ -6,11 +6,10 @@ import { createStageFactory } from "../src/stage-factory";
 import { assertSchemaValue } from "../src/runtime/validation";
 import type { SingleActivePlayerStageDefinition } from "../src/types/progression";
 import {
+  configureVisibility,
   field,
-  OwnedByPlayer,
   State,
   t,
-  visibleToSelf,
 } from "../src/state-facade/metadata";
 
 const emptyCommandSchema = t.object({});
@@ -55,17 +54,36 @@ class TestCollectionRootState {
 
 @State()
 class VisibleToSelfWithoutOwnerRootState {
-  @visibleToSelf()
   @field(t.array(t.number()))
   hiddenCards: number[] = [];
 }
 
-@OwnedByPlayer()
 @State()
 class OwnedPlayerStateWithoutId {
   @field(t.number())
   score = 0;
 }
+
+@State()
+class VisibilityFieldTypoRootState {
+  @field(t.array(t.number()))
+  hiddenCards: number[] = [];
+}
+
+configureVisibility(VisibleToSelfWithoutOwnerRootState, ({ field }) => ({
+  fields: [field.hiddenCards.visibleToSelf()],
+}));
+
+configureVisibility(OwnedPlayerStateWithoutId, ({ field }) => ({
+  ownedBy: field.score as never,
+}));
+
+configureVisibility(VisibilityFieldTypoRootState, ({ field }) => ({
+  fields: [
+    ((field as unknown as { cardz: { hidden(): unknown } }).cardz.hidden() ??
+      undefined) as never,
+  ],
+}));
 
 @State()
 class ScoreRootState {
@@ -575,5 +593,16 @@ test("GameDefinitionBuilder rejects owned player states without a string id fiel
       .rootState(OwnedPlayerStateWithoutId)
       .initialStage(defineTestStage("gameEnd").automatic().build())
       .build(),
-  ).toThrow("owned_player_requires_string_id_field:OwnedPlayerStateWithoutId");
+  ).toThrow(
+    "owned_by_field_requires_string_field:OwnedPlayerStateWithoutId:score",
+  );
+});
+
+test("GameDefinitionBuilder rejects unknown configured visibility fields", () => {
+  expect(() =>
+    new GameDefinitionBuilder("visibility-field-typo-game")
+      .rootState(VisibilityFieldTypoRootState)
+      .initialStage(defineTestStage("gameEnd").automatic().build())
+      .build(),
+  ).toThrow("visibility_field_not_found:VisibilityFieldTypoRootState:cardz");
 });

@@ -126,3 +126,20 @@ export type ObjectSchemaStatic<TProperties> = Static<
 export type OptionalSchemaStatic<TItem> = Static<
   TOptional<ExtractSchema<TItem>>
 >;
+
+export type SerializableSchemaStatic<TSchema extends SerializableSchema> =
+  TSchema extends NumberFieldType
+    ? number
+    : TSchema extends StringFieldType
+      ? string
+      : TSchema extends BooleanFieldType
+        ? boolean
+        : TSchema extends ArrayFieldType<infer TItem>
+          ? ArraySchemaStatic<TItem>
+          : TSchema extends RecordFieldType<infer TKey, infer TValue>
+            ? RecordSchemaStatic<TKey, TValue>
+            : TSchema extends ObjectFieldType<infer TProperties>
+              ? ObjectSchemaStatic<TProperties>
+              : TSchema extends OptionalFieldType<infer TItem>
+                ? OptionalSchemaStatic<TItem>
+                : never;

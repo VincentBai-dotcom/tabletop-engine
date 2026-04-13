@@ -7,13 +7,10 @@ export { generateAsyncApi } from "./protocol/asyncapi";
 export { describeGameProtocol } from "./protocol/describe";
 export { t } from "./schema";
 export {
+  configureVisibility,
   field,
   getStateMetadata,
-  hidden,
-  OwnedByPlayer,
   State,
-  viewSchema,
-  visibleToSelf,
 } from "./state-facade/metadata";
 export {
   appendReplayStep,

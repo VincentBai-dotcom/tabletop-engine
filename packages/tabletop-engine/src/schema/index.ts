@@ -26,6 +26,7 @@ export type {
   OptionalFieldType,
   PrimitiveFieldType,
   RecordSchemaStatic,
+  SerializableSchemaStatic,
   RecordFieldType,
   SerializableSchema,
   StateFieldMetadata,

@@ -1,14 +1,11 @@
 import { expect, test } from "bun:test";
 import { createCommandFactory } from "../src/command-factory";
 import {
+  configureVisibility,
   field,
   getStateMetadata,
-  hidden,
-  OwnedByPlayer,
   State,
   t,
-  viewSchema,
-  visibleToSelf,
 } from "../src/state-facade/metadata";
 import { assertSerializableSchema } from "../src/schema";
 import { assertSchemaValue } from "../src/runtime/validation";
@@ -237,75 +234,62 @@ test("discovery schemas reject nested state transport fields at definition time"
   ).toThrow("state_field_not_allowed_in_serializable_schema");
 });
 
-test("hidden summary and custom view schemas reject nested state transport fields", () => {
+test("visibility schemas reject nested state transport fields", () => {
   expect(() => {
     @State()
     class InvalidHiddenSummaryState {
-      @hidden({
-        schema: (t as ExtendedSchemaApi).object({
-          child: t.state(() => NestedSerializableChildState),
-        }) as never,
-        project() {
-          return {
-            child: {
-              count: 1,
-            },
-          };
-        },
-      })
       @field(t.array(t.number()))
       cards!: number[];
     }
+
+    configureVisibility(InvalidHiddenSummaryState, ({ field }) => ({
+      fields: [
+        field.cards.hidden({
+          schema: (t as ExtendedSchemaApi).object({
+            child: t.state(() => NestedSerializableChildState),
+          }) as never,
+          derive() {
+            return {
+              child: {
+                count: 1,
+              },
+            };
+          },
+        } as never),
+      ],
+    }));
 
     return InvalidHiddenSummaryState;
   }).toThrow("state_field_not_allowed_in_serializable_schema");
 
   expect(() => {
-    @OwnedByPlayer()
     @State()
     class InvalidVisibleToSelfSummaryState {
       @field(t.string())
       id!: string;
 
-      @visibleToSelf({
-        schema: (t as ExtendedSchemaApi).object({
-          child: t.state(() => NestedSerializableChildState),
-        }) as never,
-        project() {
-          return {
-            child: {
-              count: 1,
-            },
-          };
-        },
-      })
       @field(t.array(t.number()))
       cards!: number[];
     }
 
-    return InvalidVisibleToSelfSummaryState;
-  }).toThrow("state_field_not_allowed_in_serializable_schema");
-
-  expect(() => {
-    @State()
-    class InvalidCustomViewState {
-      @field(t.number())
-      count!: number;
-
-      @viewSchema(
-        (t as ExtendedSchemaApi).object({
-          child: t.state(() => NestedSerializableChildState),
-        }) as never,
-      )
-      projectCustomView() {
-        return {
-          child: {
-            count: this.count,
+    configureVisibility(InvalidVisibleToSelfSummaryState, ({ field }) => ({
+      ownedBy: field.id,
+      fields: [
+        field.cards.visibleToSelf({
+          schema: (t as ExtendedSchemaApi).object({
+            child: t.state(() => NestedSerializableChildState),
+          }) as never,
+          derive() {
+            return {
+              child: {
+                count: 1,
+              },
+            };
           },
-        };
-      }
-    }
+        } as never),
+      ],
+    }));
 
-    return InvalidCustomViewState;
+    return InvalidVisibleToSelfSummaryState;
   }).toThrow("state_field_not_allowed_in_serializable_schema");
 });

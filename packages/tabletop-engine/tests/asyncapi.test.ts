@@ -6,14 +6,11 @@ import {
   describeGameProtocol,
 } from "../src/index";
 import {
-  hidden,
-  OwnedByPlayer,
+  configureVisibility,
   State,
   field,
-  viewSchema,
 } from "../src/state-facade/metadata";
 import { t } from "../src/schema";
-import type { Viewer } from "../src/types/visibility";
 import { createSelfLoopingTurnStage } from "./helpers/stages";
 
 const gainScoreCommandSchema = t.object({
@@ -23,34 +20,19 @@ const gainScoreDiscoverySchema = t.object({
   selectedAmount: t.optional(t.number()),
 });
 
-const customDeckViewSchema = t.object({
-  count: t.number(),
-});
-
-@OwnedByPlayer()
 @State()
 class AsyncApiPlayerState {
   @field(t.string())
   id = "";
 
-  @hidden()
   @field(t.array(t.number()))
   hand: number[] = [];
 }
 
 @State()
 class AsyncApiDeckState {
-  @hidden()
   @field(t.array(t.number()))
   cards: number[] = [];
-
-  @viewSchema(customDeckViewSchema)
-  projectCustomView(viewer: Viewer) {
-    void viewer;
-    return {
-      count: this.cards.length,
-    };
-  }
 }
 
 @State()
@@ -67,37 +49,16 @@ class AsyncApiRootState {
   deck!: AsyncApiDeckState;
 }
 
-@State()
-class MissingViewSchemaDeckState {
-  @hidden()
-  @field(t.array(t.number()))
-  cards: number[] = [];
+configureVisibility(AsyncApiPlayerState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [field.hand.hidden()],
+}));
 
-  projectCustomView(viewer: Viewer) {
-    void viewer;
-    return {
-      count: this.cards.length,
-    };
-  }
-}
-
-@State()
-class MissingViewSchemaRootState {
-  @field(
-    t.record(
-      t.string(),
-      t.state(() => AsyncApiPlayerState),
-    ),
-  )
-  players: Record<string, AsyncApiPlayerState> = {};
-
-  @field(t.state(() => MissingViewSchemaDeckState))
-  deck!: MissingViewSchemaDeckState;
-}
+configureVisibility(AsyncApiDeckState, ({ field }) => ({
+  fields: [field.cards.hidden()],
+}));
 
 const defineAsyncApiCommand = createCommandFactory<AsyncApiRootState>();
-const defineMissingViewSchemaCommand =
-  createCommandFactory<MissingViewSchemaRootState>();
 
 test("generateAsyncApi emits the default hosted channels and schemas", () => {
   const gainScoreCommand = defineAsyncApiCommand({
@@ -196,37 +157,5 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
   expect(document.components.schemas.VisibleState).toEqual(protocol.viewSchema);
   expect(document.components.schemas.MatchView!.properties.view).toEqual(
     protocol.viewSchema,
-  );
-});
-
-test("generateAsyncApi propagates protocol schema validation failures", () => {
-  const gainScoreCommand = defineMissingViewSchemaCommand({
-    commandId: "gain_score",
-    commandSchema: gainScoreCommandSchema,
-  })
-    .discoverable({
-      discoverySchema: gainScoreDiscoverySchema,
-      discover() {
-        return {
-          complete: true as const,
-          input: {
-            amount: 1,
-          },
-        };
-      },
-    })
-    .validate(() => {
-      return { ok: true as const };
-    })
-    .execute(() => {})
-    .build();
-
-  const game = new GameDefinitionBuilder("invalid-asyncapi-game")
-    .rootState(MissingViewSchemaRootState)
-    .initialStage(createSelfLoopingTurnStage([gainScoreCommand]))
-    .build();
-
-  expect(() => generateAsyncApi(game)).toThrow(
-    "custom_view_schema_required:MissingViewSchemaDeckState",
   );
 });

@@ -15,6 +15,7 @@ import type {
   ValidationOutcome,
 } from "../src/index";
 import {
+  configureVisibility,
   createGameExecutor,
   createCommandFactory,
   createStageFactory,
@@ -51,6 +52,76 @@ class TypedCounterRootState {
     this.counter.value += 1;
   }
 }
+
+const typedHiddenSchema = t.object({
+  count: t.number(),
+  health: t.number(),
+});
+
+@State()
+class TypedVisibilityState {
+  @field(t.string())
+  id = "";
+
+  @field(t.number())
+  health = 0;
+
+  @field(t.array(t.number()))
+  hand: number[] = [];
+
+  getLabel() {
+    return `${this.id}:${this.health}`;
+  }
+}
+
+configureVisibility(TypedVisibilityState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.hand.visibleToSelf({
+      schema: typedHiddenSchema,
+      derive(hand, state) {
+        const typedHand: number[] = hand;
+        const typedHealth: number = state.health;
+        const typedLabel: string = state.getLabel();
+
+        expect(typedHand).toBeArray();
+        expect(typedHealth).toBeNumber();
+        expect(typedLabel).toBeString();
+
+        return {
+          count: hand.length,
+          health: state.health,
+        };
+      },
+    }),
+  ],
+}));
+
+@State()
+class InvalidTypedVisibilityState {
+  @field(t.string())
+  id = "";
+
+  @field(t.array(t.number()))
+  hand: number[] = [];
+}
+
+configureVisibility(InvalidTypedVisibilityState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.hand.visibleToSelf({
+      schema: t.object({
+        count: t.number(),
+      }),
+      // @ts-expect-error derive must return the static type of the visibility schema
+      derive(hand) {
+        return {
+          wrong: hand.length,
+        };
+      },
+    }),
+  ],
+}));
 
 test("foundational runtime types compose", () => {
   const event: GameEvent = {

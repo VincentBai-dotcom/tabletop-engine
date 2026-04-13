@@ -1,13 +1,11 @@
 import { expect, test } from "bun:test";
 import * as visibilityMetadata from "../src/state-facade/metadata";
 import {
+  configureVisibility,
   field,
   getStateMetadata,
-  hidden,
-  OwnedByPlayer,
   State,
   t,
-  visibleToSelf,
 } from "../src/state-facade/metadata";
 import { compileStateFacadeDefinition } from "../src/state-facade/compile";
 import { hydrateStateFacade } from "../src/state-facade/hydrate";
@@ -65,41 +63,51 @@ class CardCollectionStateFacade {
   cards!: CardStateFacade[];
 }
 
-const hiddenCountSummarySchema = t.object({
+const hiddenCountSchema = t.object({
   count: t.number(),
 });
 
-@OwnedByPlayer()
 @State()
 class SummaryVisibilityPlayerState {
   @field(t.string())
   id!: string;
 
-  @visibleToSelf({
-    schema: hiddenCountSummarySchema,
-    project(value) {
-      return {
-        count: Array.isArray(value) ? value.length : 0,
-      };
-    },
-  })
   @field(t.array(t.string()))
   cards!: string[];
 }
 
 @State()
 class SummaryVisibilityDeckState {
-  @hidden({
-    schema: hiddenCountSummarySchema,
-    project(value) {
-      return {
-        count: Array.isArray(value) ? value.length : 0,
-      };
-    },
-  })
   @field(t.array(t.string()))
   cards!: string[];
 }
+
+configureVisibility(SummaryVisibilityPlayerState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.cards.visibleToSelf({
+      schema: hiddenCountSchema,
+      derive(cards) {
+        return {
+          count: cards.length,
+        };
+      },
+    }),
+  ],
+}));
+
+configureVisibility(SummaryVisibilityDeckState, ({ field }) => ({
+  fields: [
+    field.cards.hidden({
+      schema: hiddenCountSchema,
+      derive(cards) {
+        return {
+          count: cards.length,
+        };
+      },
+    }),
+  ],
+}));
 
 test("state decorators capture scalar and nested state metadata", () => {
   const handMetadata = getStateMetadata(HandState);
@@ -179,41 +187,59 @@ test("state facades lazily hydrate nested state arrays", () => {
   expect(backing.cards[0]?.id).toBe("renamed-card");
 });
 
-test("state facade metadata exports visibility decorators", () => {
-  expect(typeof (visibilityMetadata as Record<string, unknown>).hidden).toBe(
-    "function",
-  );
+test("state facade metadata exports visibility configuration api", () => {
   expect(
-    typeof (visibilityMetadata as Record<string, unknown>).visibleToSelf,
-  ).toBe("function");
-  expect(
-    typeof (visibilityMetadata as Record<string, unknown>).OwnedByPlayer,
+    typeof (visibilityMetadata as Record<string, unknown>).configureVisibility,
   ).toBe("function");
 });
 
-test("state decorators capture hidden summary visibility metadata", () => {
+test("configureVisibility captures hidden visibility schema metadata", () => {
   const playerMetadata = getStateMetadata(SummaryVisibilityPlayerState);
   const deckMetadata = getStateMetadata(SummaryVisibilityDeckState);
 
   expect(playerMetadata.fieldVisibility.cards).toMatchObject({
     mode: "visible_to_self",
-    hiddenSummarySchema: hiddenCountSummarySchema,
+    schema: hiddenCountSchema,
   });
   expect(
-    playerMetadata.fieldVisibility.cards?.projectHiddenSummary?.(["a", "b"]),
+    playerMetadata.fieldVisibility.cards?.derive?.(["a", "b"], {
+      id: "p1",
+      cards: ["a", "b"],
+    }),
   ).toEqual({
     count: 2,
   });
+  expect(playerMetadata.ownedByField).toBe("id");
 
   expect(deckMetadata.fieldVisibility.cards).toMatchObject({
     mode: "hidden",
-    hiddenSummarySchema: hiddenCountSummarySchema,
+    schema: hiddenCountSchema,
   });
   expect(
-    deckMetadata.fieldVisibility.cards?.projectHiddenSummary?.(["a"]),
+    deckMetadata.fieldVisibility.cards?.derive?.(["a"], {
+      cards: ["a"],
+    }),
   ).toEqual({
     count: 1,
   });
+});
+
+test("configureVisibility rejects schema visibility without derive", () => {
+  expect(() => {
+    @State()
+    class MissingHiddenDeriveState {
+      @field(t.array(t.string()))
+      cards!: string[];
+    }
+
+    configureVisibility(MissingHiddenDeriveState, ({ field }) => ({
+      fields: [
+        field.cards.hidden({
+          schema: hiddenCountSchema,
+        } as never),
+      ],
+    }));
+  }).toThrow("visibility_schema_requires_derive");
 });
 
 test("state facade metadata exports the shared runtime schema api", () => {

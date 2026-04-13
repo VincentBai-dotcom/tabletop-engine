@@ -1,7 +1,7 @@
 import type { CompiledStateFacadeDefinition } from "./compile";
 import type { FieldType } from "../schema";
 import type {
-  FieldVisibilityMetadata,
+  FieldVisibilityConfig,
   StateClass,
   VisibilityMode,
 } from "./metadata";
@@ -49,21 +49,21 @@ function projectStateNode(
     throw new Error(`compiled_state_not_found:${target.name || "anonymous"}`);
   }
 
-  const customProjection = projectStateNodeWithCustomHook(
-    compiled,
-    target,
-    backing,
-    viewer,
-  );
-
-  if (customProjection !== undefined) {
-    return customProjection;
-  }
-
-  const nextOwnerPlayerId = definition.ownedByPlayer
-    ? readOwnerPlayerId(target, backing)
+  const nextOwnerPlayerId = definition.ownedByField
+    ? readOwnerPlayerId(target, backing, definition.ownedByField)
     : ownerPlayerId;
   const projected: Record<string, unknown> = {};
+  let readonlyFacade: object | undefined;
+
+  function getReadonlyFacade(): object {
+    if (!readonlyFacade) {
+      readonlyFacade = hydrateStateNode(compiled, target, backing as object, {
+        readonly: true,
+      });
+    }
+
+    return readonlyFacade;
+  }
 
   for (const [fieldName, fieldType] of Object.entries(definition.fields)) {
     const visibility = definition.fieldVisibility[fieldName]?.mode;
@@ -73,6 +73,7 @@ function projectStateNode(
       projected[fieldName] = createHiddenValue(
         definition.fieldVisibility[fieldName],
         fieldValue,
+        getReadonlyFacade,
       );
       continue;
     }
@@ -87,25 +88,6 @@ function projectStateNode(
   }
 
   return projected;
-}
-
-function projectStateNodeWithCustomHook(
-  compiled: CompiledStateFacadeDefinition,
-  target: StateClass,
-  backing: unknown,
-  viewer: Viewer,
-): unknown {
-  if (typeof target.prototype.projectCustomView !== "function") {
-    return undefined;
-  }
-
-  const facade = hydrateStateNode<{
-    projectCustomView(viewer: Viewer): unknown;
-  }>(compiled, target, backing as object, {
-    readonly: true,
-  });
-
-  return facade.projectCustomView(viewer);
 }
 
 function projectFieldValue(
@@ -211,10 +193,11 @@ function shouldHideField(
 function readOwnerPlayerId(
   target: StateClass,
   backing: unknown,
+  ownedByField: string,
 ): string | undefined {
   const ownerPlayerId =
     backing && typeof backing === "object"
-      ? (backing as Record<string, unknown>).id
+      ? (backing as Record<string, unknown>)[ownedByField]
       : undefined;
 
   if (typeof ownerPlayerId === "string" && ownerPlayerId.length > 0) {
@@ -222,15 +205,18 @@ function readOwnerPlayerId(
   }
 
   throw new Error(
-    `owned_player_requires_non_empty_id_value:${target.name || "anonymous"}`,
+    `owned_by_field_requires_non_empty_string_value:${
+      target.name || "anonymous"
+    }:${ownedByField}`,
   );
 }
 
 function createHiddenValue(
-  visibility: FieldVisibilityMetadata | undefined,
+  visibility: FieldVisibilityConfig | undefined,
   value: unknown,
+  getReadonlyFacade: () => object,
 ): HiddenValue {
-  const summaryValue = visibility?.projectHiddenSummary?.(value);
+  const summaryValue = visibility?.derive?.(value, getReadonlyFacade());
 
   if (summaryValue === undefined) {
     return {
