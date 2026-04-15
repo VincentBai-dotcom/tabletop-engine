@@ -511,7 +511,7 @@ test("rootState infers plain canonical data directly through executor state", ()
     .initialStage(createStageFactory<object>()("gameEnd").automatic().build())
     .build();
   const executor = createGameExecutor(typedRootGame);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
   const updatedState = executor.executeCommand(initialState, {
     type: "missing_command",
     actorId: "p1",
@@ -523,6 +523,54 @@ test("rootState infers plain canonical data directly through executor state", ()
   expect(typedRootGame.initialStage.id).toBe("gameEnd");
   expect(counterValue).toBe(0);
   expect(updatedCounterValue).toBe(0);
+});
+
+test("game definition builder infers setup input through executor initialization", () => {
+  const typedRootGame = new GameDefinitionBuilder("typed-root-game-with-input")
+    .rootState(TypedCounterRootState)
+    .setupInput(
+      t.object({
+        playerIds: t.array(t.string()),
+      }),
+    )
+    .setup(({ input }) => {
+      const typedPlayerIds: string[] = input.playerIds;
+
+      expect(typedPlayerIds).toBeArray();
+    })
+    .initialStage(createStageFactory<object>()("gameEnd").automatic().build())
+    .build();
+  const executor = createGameExecutor(typedRootGame);
+  const initialState = executor.createInitialState(
+    {
+      playerIds: ["p1", "p2"],
+    },
+    "seed-123",
+  );
+
+  function assertInvalidCreateInitialStateCalls() {
+    // @ts-expect-error input is required when setupInput is declared
+    executor.createInitialState("seed-123");
+
+    // @ts-expect-error rngSeed is required
+    executor.createInitialState({
+      playerIds: ["p1", "p2"],
+    });
+  }
+
+  const counterValue: number = initialState.game.counter.value;
+
+  expect(counterValue).toBe(0);
+  expect(assertInvalidCreateInitialStateCalls).toBeFunction();
+});
+
+test("game definition builder rejects non-object setup input schemas", () => {
+  const builder = new GameDefinitionBuilder("invalid-setup-input");
+
+  // @ts-expect-error setupInput only accepts object schemas
+  builder.setupInput(t.string());
+
+  expect(builder).toBeObject();
 });
 
 test("game definition builder preserves facade generic before rootState", () => {

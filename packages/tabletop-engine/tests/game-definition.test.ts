@@ -120,6 +120,21 @@ test("GameDefinitionBuilder preserves the supplied configuration", () => {
   expect(game.commands).toEqual({});
 });
 
+test("GameDefinitionBuilder preserves setup input schema in the built game", () => {
+  const game = new GameDefinitionBuilder("setup-input-game")
+    .rootState(ScoreRootState)
+    .setupInput(
+      t.object({
+        playerIds: t.array(t.string()),
+      }),
+    )
+    .initialStage(defineTestStage("gameEnd").automatic().build())
+    .build();
+
+  expect(game.setupInputSchema?.kind).toBe("object");
+  expect(game.setupInputSchema?.properties.playerIds.kind).toBe("array");
+});
+
 test("GameDefinitionBuilder rejects field defaults that do not match their schema", () => {
   expect(() =>
     new GameDefinitionBuilder("mismatched-default-game")
@@ -505,7 +520,7 @@ test("createGameExecutor creates initial stage-machine runtime state", () => {
     .build();
 
   const gameExecutor = createGameExecutor(game);
-  const state = gameExecutor.createInitialState();
+  const state = gameExecutor.createInitialState("seed-123");
 
   expect(state.runtime.progression.currentStage).toEqual({
     id: "playerTurn",
