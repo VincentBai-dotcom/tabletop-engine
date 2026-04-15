@@ -36,6 +36,7 @@ import { createRNGService } from "../rng/service";
 import { hydrateStateFacade } from "../state-facade/hydrate";
 import { getView as getVisibleStateView } from "../state-facade/project";
 import {
+  assertSchemaValue,
   validateCanonicalGameState,
   validateCanonicalState,
 } from "./validation";
@@ -49,9 +50,7 @@ type CommandDefinitions<
 >;
 
 export interface GameExecutor<GameState extends object> {
-  createInitialState(options?: {
-    playerIds?: readonly string[];
-  }): CanonicalState<GameState>;
+  createInitialState(rngSeed: string | number): CanonicalState<GameState>;
   getView(
     state: CanonicalState<GameState>,
     viewer: Viewer,
@@ -91,6 +90,13 @@ function createCommandGameView<
   });
 }
 
+type CreateInitialStateFn<
+  GameState extends object,
+  SetupInput extends object | undefined,
+> = [SetupInput] extends [undefined]
+  ? (rngSeed: string | number) => CanonicalState<GameState>
+  : (input: SetupInput, rngSeed: string | number) => CanonicalState<GameState>;
+
 function createInitialRuntimeState<
   CanonicalGameState extends object,
   FacadeGameState extends object = CanonicalGameState,
@@ -98,8 +104,10 @@ function createInitialRuntimeState<
   game: GameDefinition<
     CanonicalGameState,
     FacadeGameState,
-    CommandDefinitions<CanonicalGameState, FacadeGameState>
+    CommandDefinitions<CanonicalGameState, FacadeGameState>,
+    object | undefined
   >,
+  rngSeed: string | number,
 ): RuntimeState {
   const runtime: RuntimeState = {
     progression: {
@@ -110,7 +118,7 @@ function createInitialRuntimeState<
       lastActingStage: null,
     },
     rng: {
-      seed: game.rngSeed ?? 0,
+      seed: rngSeed,
       cursor: 0,
     },
     history: {
@@ -293,65 +301,109 @@ export function createGameExecutor<
     string,
     CommandDefinition<FacadeGameState>
   >,
+  SetupInput extends object | undefined = undefined,
 >(
-  game: GameDefinition<CanonicalGameState, FacadeGameState, Commands>,
-): GameExecutor<CanonicalGameState> {
-  return {
-    createInitialState(options) {
-      const gameState = structuredClone(game.defaultCanonicalGameState);
-      const runtime = createInitialRuntimeState(
+  game: GameDefinition<
+    CanonicalGameState,
+    FacadeGameState,
+    Commands,
+    SetupInput
+  >,
+): GameExecutor<CanonicalGameState> & {
+  createInitialState: CreateInitialStateFn<CanonicalGameState, SetupInput>;
+} {
+  const createInitialState = (
+    firstArg: string | number | SetupInput,
+    secondArg?: string | number,
+  ): CanonicalState<CanonicalGameState> => {
+    const hasSetupInput = !!game.setupInputSchema;
+    const input = hasSetupInput ? (firstArg as SetupInput) : undefined;
+    const rngSeed = hasSetupInput ? secondArg : firstArg;
+
+    if (
+      hasSetupInput &&
+      secondArg === undefined &&
+      (typeof firstArg === "string" || typeof firstArg === "number")
+    ) {
+      throw new Error("setup_input_required");
+    }
+
+    if (typeof rngSeed !== "string" && typeof rngSeed !== "number") {
+      throw new Error("rng_seed_required");
+    }
+
+    if (hasSetupInput && input === undefined) {
+      throw new Error("setup_input_required");
+    }
+
+    if (game.setupInputSchema && input !== undefined) {
+      assertSchemaValue(game.setupInputSchema, input);
+    }
+
+    const gameState = structuredClone(game.defaultCanonicalGameState);
+    const runtime = createInitialRuntimeState(
+      game as GameDefinition<
+        CanonicalGameState,
+        FacadeGameState,
+        CommandDefinitions<CanonicalGameState, FacadeGameState>,
+        SetupInput
+      >,
+      rngSeed,
+    );
+    const rng = createRNGService(runtime.rng);
+
+    validateCanonicalGameState(game, gameState);
+
+    game.setup?.({
+      game: createCommandGameView(
         game as GameDefinition<
           CanonicalGameState,
           FacadeGameState,
-          CommandDefinitions<CanonicalGameState, FacadeGameState>
+          CommandDefinitions<CanonicalGameState, FacadeGameState>,
+          SetupInput
         >,
-      );
-      const rng = createRNGService(runtime.rng);
-
-      validateCanonicalGameState(game, gameState);
-
-      game.setup?.({
-        game: createCommandGameView(
-          game as GameDefinition<
-            CanonicalGameState,
-            FacadeGameState,
-            CommandDefinitions<CanonicalGameState, FacadeGameState>
-          >,
-          {
-            game: gameState,
-            runtime,
-          },
-        ),
-        runtime,
-        rng,
-        playerIds: options?.playerIds ?? [],
-      });
-
-      validateCanonicalGameState(game, gameState);
-
-      initializeStageMachine(
         {
           game: gameState,
           runtime,
         },
-        game as GameDefinition<
-          CanonicalGameState,
-          FacadeGameState,
-          CommandDefinitions<CanonicalGameState, FacadeGameState>
-        >,
-        rng,
-      );
+      ),
+      runtime,
+      rng,
+      input: input as SetupInput,
+    });
 
-      validateCanonicalState(game, {
+    validateCanonicalGameState(game, gameState);
+
+    initializeStageMachine(
+      {
         game: gameState,
         runtime,
-      });
+      },
+      game as GameDefinition<
+        CanonicalGameState,
+        FacadeGameState,
+        CommandDefinitions<CanonicalGameState, FacadeGameState>,
+        SetupInput
+      >,
+      rng,
+    );
 
-      return {
-        game: gameState,
-        runtime,
-      };
-    },
+    validateCanonicalState(game, {
+      game: gameState,
+      runtime,
+    });
+
+    return {
+      game: gameState,
+      runtime,
+    };
+  };
+
+  return {
+    createInitialState: createInitialState as CreateInitialStateFn<
+      CanonicalGameState,
+      SetupInput
+    >,
 
     getView(state, viewer) {
       validateCanonicalState(game, state);

@@ -336,7 +336,7 @@ test("createGameExecutor hydrates decorated state facades for execution", () => 
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
   const result = executor.executeCommand(initialState, {
     type: "increment_counter",
     actorId: "player-1",
@@ -366,7 +366,7 @@ test("executeCommand rejects successful commands that produce invalid canonical 
     .initialStage(createSelfLoopingTurnStage([assignInvalidCommand]))
     .build();
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
 
   expect(() =>
     executor.executeCommand(initialState, {
@@ -391,7 +391,7 @@ test("createGameExecutor can project viewer-safe visible state", () => {
     .build();
 
   const executor = createGameExecutor(game) as {
-    createInitialState(): {
+    createInitialState(rngSeed: string | number): {
       game: { counter: { value: number } };
       runtime: {
         progression: unknown;
@@ -404,7 +404,7 @@ test("createGameExecutor can project viewer-safe visible state", () => {
       viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
     ): unknown;
   };
-  const state = executor.createInitialState();
+  const state = executor.createInitialState("seed-123");
   const visibleState = executor.getView(state, {
     kind: "spectator",
   }) as {
@@ -427,7 +427,7 @@ test("createInitialState synthesizes canonical game state from rootState default
     .build();
 
   const executor = createGameExecutor(game);
-  const state = executor.createInitialState();
+  const state = executor.createInitialState("seed-123");
 
   expect(state.game).toEqual({
     names: ["alpha"],
@@ -445,7 +445,7 @@ test("createInitialState respects explicit nested state initializers", () => {
     .build();
 
   const executor = createGameExecutor(game);
-  const state = executor.createInitialState();
+  const state = executor.createInitialState("seed-123");
 
   expect(state.game).toEqual({
     child: {
@@ -461,7 +461,7 @@ test("createInitialState leaves missing optional nested state fields undefined",
     .build();
 
   const executor = createGameExecutor(game);
-  const state = executor.createInitialState();
+  const state = executor.createInitialState("seed-123");
 
   expect(state.game).toEqual({
     child: undefined,
@@ -479,7 +479,9 @@ test("createInitialState rejects invalid canonical game state produced by setup"
 
   const executor = createGameExecutor(game);
 
-  expect(() => executor.createInitialState()).toThrow("invalid_schema_value");
+  expect(() => executor.createInitialState("seed-123")).toThrow(
+    "invalid_schema_value",
+  );
 });
 
 test("createInitialState rejects invalid runtime state produced by stage initialization", () => {
@@ -501,7 +503,62 @@ test("createInitialState rejects invalid runtime state produced by stage initial
 
   const executor = createGameExecutor(game);
 
-  expect(() => executor.createInitialState()).toThrow("invalid_schema_value");
+  expect(() => executor.createInitialState("seed-123")).toThrow(
+    "invalid_schema_value",
+  );
+});
+
+test("createInitialState rejects missing rng seed", () => {
+  const game = new GameDefinitionBuilder("missing-rng-seed-game")
+    .rootState(PlainCounterRootState)
+    .initialStage(createTerminalStage())
+    .build();
+  const executor = createGameExecutor(game);
+
+  expect(() => executor.createInitialState(undefined as never)).toThrow(
+    "rng_seed_required",
+  );
+});
+
+test("createInitialState rejects missing setup input when setupInput is declared", () => {
+  const game = new GameDefinitionBuilder("missing-setup-input-game")
+    .rootState(PlainCounterRootState)
+    .setupInput(
+      t.object({
+        playerIds: t.array(t.string()),
+      }),
+    )
+    .setup(() => {})
+    .initialStage(createTerminalStage())
+    .build();
+  const executor = createGameExecutor(game);
+
+  expect(() => executor.createInitialState("seed-123" as never)).toThrow(
+    "setup_input_required",
+  );
+});
+
+test("createInitialState validates setup input against the declared schema", () => {
+  const game = new GameDefinitionBuilder("invalid-setup-input-game")
+    .rootState(PlainCounterRootState)
+    .setupInput(
+      t.object({
+        playerIds: t.array(t.string()),
+      }),
+    )
+    .setup(() => {})
+    .initialStage(createTerminalStage())
+    .build();
+  const executor = createGameExecutor(game);
+
+  expect(() =>
+    executor.createInitialState(
+      {
+        playerIds: [1, 2],
+      } as never,
+      "seed-123",
+    ),
+  ).toThrow("invalid_schema_value");
 });
 
 test("GameDefinitionBuilder fails when a required non-optional field has no default", () => {
@@ -552,7 +609,7 @@ test("createGameExecutor projects visibleToSelf fields for the owner only", () =
     .build();
 
   const executor = createGameExecutor(game) as {
-    createInitialState(): unknown;
+    createInitialState(rngSeed: string | number): unknown;
     getView(
       state: unknown,
       viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
@@ -570,7 +627,7 @@ test("createGameExecutor projects visibleToSelf fields for the owner only", () =
       progression: unknown;
     };
   };
-  const state = executor.createInitialState();
+  const state = executor.createInitialState("seed-123");
   const visibleForP1 = executor.getView(state, {
     kind: "player",
     playerId: "p1",
@@ -605,7 +662,7 @@ test("createGameExecutor projects hidden fields for every viewer", () => {
     .build();
 
   const executor = createGameExecutor(game) as {
-    createInitialState(): unknown;
+    createInitialState(rngSeed: string | number): unknown;
     getView(
       state: unknown,
       viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
@@ -617,7 +674,7 @@ test("createGameExecutor projects hidden fields for every viewer", () => {
       };
     };
   };
-  const state = executor.createInitialState();
+  const state = executor.createInitialState("seed-123");
   const visibleForPlayer = executor.getView(state, {
     kind: "player",
     playerId: "p1",
@@ -648,7 +705,7 @@ test("createGameExecutor projects hidden schema values for hidden fields", () =>
     .build();
 
   const executor = createGameExecutor(game) as {
-    createInitialState(): unknown;
+    createInitialState(rngSeed: string | number): unknown;
     getView(
       state: unknown,
       viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
@@ -660,7 +717,7 @@ test("createGameExecutor projects hidden schema values for hidden fields", () =>
       };
     };
   };
-  const state = executor.createInitialState();
+  const state = executor.createInitialState("seed-123");
   const visibleForPlayer = executor.getView(state, {
     kind: "player",
     playerId: "p1",
@@ -704,7 +761,7 @@ test("createGameExecutor projects hidden schema values for visibleToSelf fields"
     .build();
 
   const executor = createGameExecutor(game) as {
-    createInitialState(): unknown;
+    createInitialState(rngSeed: string | number): unknown;
     getView(
       state: unknown,
       viewer: { kind: "spectator" } | { kind: "player"; playerId: string },
@@ -724,7 +781,7 @@ test("createGameExecutor projects hidden schema values for visibleToSelf fields"
       progression: unknown;
     };
   };
-  const state = executor.createInitialState();
+  const state = executor.createInitialState("seed-123");
   const visibleForP1 = executor.getView(state, {
     kind: "player",
     playerId: "p1",
@@ -776,7 +833,7 @@ test("createGameExecutor rejects owned player projection when id is empty", () =
     .build();
 
   const executor = createGameExecutor(game);
-  const state = executor.createInitialState();
+  const state = executor.createInitialState("seed-123");
 
   expect(() =>
     executor.getView(state, {
@@ -837,7 +894,7 @@ test("availability and discovery contexts hydrate readonly decorated state facad
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
 
   expect(
     executor.listAvailableCommands(initialState, { actorId: "player-1" }),
@@ -880,7 +937,7 @@ test("readonly decorated facades reject mutation during validation", () => {
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
 
   expect(() =>
     executor.executeCommand(initialState, {
@@ -932,11 +989,10 @@ test("createGameExecutor creates initial state and commits successful commands",
   const game = new GameDefinitionBuilder("counter-game")
     .rootState(PlainCounterRootState)
     .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
-    .rngSeed("test-seed")
     .build();
 
   const gameExecutor = createGameExecutor(game);
-  const initialState = gameExecutor.createInitialState();
+  const initialState = gameExecutor.createInitialState("test-seed");
   const success = gameExecutor.executeCommand(initialState, {
     type: "increment_counter",
     actorId: "player-1",
@@ -978,7 +1034,7 @@ test("createGameExecutor returns unchanged state for validation failures", () =>
     .build();
 
   const gameExecutor = createGameExecutor(game);
-  const initialState = gameExecutor.createInitialState();
+  const initialState = gameExecutor.createInitialState("seed-123");
   const failure = gameExecutor.executeCommand(initialState, {
     type: "decrement_counter",
     actorId: "player-1",
@@ -1017,7 +1073,7 @@ test("createGameExecutor rejects commands missing actorId at runtime", () => {
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
   const result = executor.executeCommand(initialState, {
     type: "increment_counter",
     input: {},
@@ -1051,7 +1107,7 @@ test("createGameExecutor rejects commands missing input at runtime", () => {
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
   const result = executor.executeCommand(initialState, {
     type: "increment_counter",
     actorId: "player-1",
@@ -1091,7 +1147,7 @@ test("createGameExecutor rejects discovery missing input at runtime", () => {
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
   const result = executor.discoverCommand(initialState, {
     type: "play_card",
     actorId: "player-1",
@@ -1120,7 +1176,7 @@ test("initial automatic stages run before the initial state is returned", () => 
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
 
   expect(initialState.game.counter.value).toBe(2);
   expect(initialState.runtime.progression.currentStage).toEqual({
@@ -1160,7 +1216,7 @@ test("single-active stages reject commands from inactive players", () => {
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
   const result = executor.executeCommand(initialState, {
     type: "take_action",
     actorId: "player-2",
@@ -1232,7 +1288,7 @@ test("multi-active stages stay active until completion and recompute active play
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
 
   expect(initialState.runtime.progression.currentStage).toEqual({
     id: "coordinatedStage",
@@ -1371,7 +1427,7 @@ test("successful stage-machine commands transition through automatic stages and 
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
   const result = executor.executeCommand(initialState, {
     type: "take_action",
     actorId: "player-1",
@@ -1443,7 +1499,7 @@ test("automatic stages hydrate decorated state facades during run", () => {
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
 
   expect(initialState.game.counter.value).toBe(3);
   expect(initialState.runtime.progression.currentStage).toEqual({
@@ -1493,7 +1549,7 @@ test("game executor can list available commands through per-command availability
     .build();
 
   const gameExecutor = createGameExecutor(game);
-  const initialState = gameExecutor.createInitialState();
+  const initialState = gameExecutor.createInitialState("seed-123");
 
   expect(
     gameExecutor.listAvailableCommands(initialState, { actorId: "player-1" }),
@@ -1562,7 +1618,7 @@ test("game executor can discover the next semantic options for a command", () =>
     .build();
 
   const gameExecutor = createGameExecutor(game);
-  const initialState = gameExecutor.createInitialState();
+  const initialState = gameExecutor.createInitialState("seed-123");
   const firstStep = gameExecutor.discoverCommand(initialState, {
     type: "play_card",
     actorId: "player-1",
@@ -1625,7 +1681,7 @@ test("executor APIs reject invalid incoming canonical state", () => {
     .build();
 
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState();
+  const initialState = executor.createInitialState("seed-123");
   const invalidGameState = {
     game: {
       counter: "bad",
