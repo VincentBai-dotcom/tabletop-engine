@@ -15,7 +15,7 @@ export async function runValidateCommand(
 ): Promise<RunResult> {
   const [firstArg] = args;
 
-  if (!firstArg || isHelpFlag(firstArg)) {
+  if (isHelpFlag(firstArg)) {
     return success(createValidateHelpText());
   }
 

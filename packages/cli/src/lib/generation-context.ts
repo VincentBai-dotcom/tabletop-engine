@@ -1,11 +1,11 @@
-import type { GameDefinition } from "tabletop-engine";
 import { resolve } from "node:path";
-import { loadGame } from "./load-game.ts";
+import type { GameDefinition } from "tabletop-engine";
+import { loadConfig } from "./load-config.ts";
 import type { ParsedCommandArguments } from "./parse-args.ts";
 
 export interface GenerationContext {
   game: GameDefinition;
-  gameModulePath: string;
+  configFilePath: string;
   outputDirectory: string;
 }
 
@@ -17,15 +17,18 @@ export async function createGenerationContext(
   args: ParsedCommandArguments,
   options: CreateGenerationContextOptions,
 ): Promise<GenerationContext> {
+  const config = await loadConfig({
+    cwd: options.cwd,
+    configPath: args.configPath,
+  });
+
   return {
-    game: await loadGame({
-      gamePath: args.gamePath,
-      exportName: args.exportName,
-      cwd: options.cwd,
-    }),
-    gameModulePath: resolve(options.cwd, args.gamePath),
+    game: config.game,
+    configFilePath: config.configFilePath,
     outputDirectory: args.outDir
       ? resolve(options.cwd, args.outDir)
-      : resolve(options.cwd, "generated"),
+      : config.outDir
+        ? resolve(config.configDirectory, config.outDir)
+        : resolve(config.configDirectory, "generated"),
   };
 }

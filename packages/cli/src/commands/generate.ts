@@ -20,20 +20,26 @@ export async function runGenerateCommand(
     return success(createGenerateHelpText());
   }
 
-  if (target === "schemas") {
-    return runGenerateSchemasCommand(args.slice(1), options);
-  }
+  try {
+    if (target === "schemas") {
+      return await runGenerateSchemasCommand(args.slice(1), options);
+    }
 
-  if (target === "protocol") {
-    return runGenerateProtocolCommand(args.slice(1), options);
-  }
+    if (target === "protocol") {
+      return await runGenerateProtocolCommand(args.slice(1), options);
+    }
 
-  if (target === "types") {
-    return runGenerateTypesCommand(args.slice(1), options);
-  }
+    if (target === "types") {
+      return await runGenerateTypesCommand(args.slice(1), options);
+    }
 
-  if (target === "client-sdk") {
-    return runGenerateClientSdkCommand(args.slice(1), options);
+    if (target === "client-sdk") {
+      return await runGenerateClientSdkCommand(args.slice(1), options);
+    }
+  } catch (error) {
+    return failure(
+      error instanceof Error ? error.message : "generate_command_failed",
+    );
   }
 
   return failure(`unknown_generate_target:${target}`);

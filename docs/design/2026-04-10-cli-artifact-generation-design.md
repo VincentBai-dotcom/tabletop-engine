@@ -89,7 +89,7 @@ Suggested command files:
 Suggested shared helpers:
 
 - `packages/cli/src/lib/parse-args.ts`
-- `packages/cli/src/lib/load-game.ts`
+- `packages/cli/src/lib/load-config.ts`
 - `packages/cli/src/lib/write-output.ts`
 - `packages/cli/src/lib/generation-context.ts`
 
@@ -98,8 +98,8 @@ external CLI framework.
 
 ## Core Model
 
-The CLI loads a game entry module, builds the game definition, and materializes
-artifacts from engine-owned runtime metadata.
+The CLI loads a config file, reads one explicit built game definition, and
+materializes artifacts from engine-owned runtime metadata.
 
 The runtime metadata already exists today in forms such as:
 
@@ -177,26 +177,36 @@ invent a second validation model.
 
 ## Inputs
 
-The CLI should take a game entry module path and enough information to resolve
-the built game definition.
+The CLI should take a config file that provides one explicit built
+`GameDefinition`.
 
-High-level examples:
+High-level example:
+
+```ts
+// tabletop.config.ts
+import { defineConfig } from "tabletop-engine/config";
+import { createSplendorGame } from "./examples/splendor/src/game";
+
+export default defineConfig({
+  game: createSplendorGame(),
+  outDir: "./examples/splendor/generated",
+});
+```
+
+Then:
 
 ```bash
-tabletop-cli generate types --game examples/splendor/src/game.ts
-tabletop-cli generate schemas --game examples/splendor/src/game.ts
-tabletop-cli generate client-sdk --game examples/splendor/src/game.ts
-tabletop-cli validate --game examples/splendor/src/game.ts
+tabletop-cli generate types
+tabletop-cli generate schemas
+tabletop-cli generate client-sdk
+tabletop-cli validate
 ```
 
 If needed later, the CLI can support:
 
-- an explicit exported symbol name
-- a workspace package name
-- a config file for output paths and generation presets
-
-The first version should stay simple and assume one default exported game
-factory or one conventional exported game creator if possible.
+- `--config <path>`
+- generation presets
+- validation-specific inputs
 
 ## Outputs
 
@@ -225,8 +235,8 @@ The exact filenames can change, but generated outputs should be:
 
 High-level pipeline:
 
-1. load the target game module
-2. build the game definition
+1. load the CLI config file
+2. read the built game definition from config
 3. read engine-owned compiled artifacts from the built game
 4. transform those artifacts into the requested generated output
 5. write generated files into the target output folder

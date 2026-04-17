@@ -13,6 +13,10 @@ export function createGenerateHelpText(): string {
     "  schemas",
     "  protocol",
     "  client-sdk",
+    "",
+    "Optional flags:",
+    "  --config <path>",
+    "  --outDir <path>",
   ].join("\n");
 }
 
@@ -20,7 +24,8 @@ export function createValidateHelpText(): string {
   return [
     "tabletop-cli validate",
     "",
-    "Required flags:",
-    "  --game <path>",
+    "Optional flags:",
+    "  --config <path>",
+    "  --snapshot <path>",
   ].join("\n");
 }

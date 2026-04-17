@@ -5,25 +5,14 @@ import { join } from "node:path";
 import { run } from "../src/main.ts";
 
 const repoRoot = join(import.meta.dir, "..", "..", "..");
+const splendorRoot = join(repoRoot, "examples", "splendor");
 
 describe("generate types", () => {
   it("writes canonical and visible type declarations for a game", async () => {
     const outDir = await mkdtemp(join(tmpdir(), "tabletop-cli-types-"));
-    const result = await run(
-      [
-        "generate",
-        "types",
-        "--game",
-        "examples/splendor/src/game.ts",
-        "--export",
-        "createSplendorGame",
-        "--outDir",
-        outDir,
-      ],
-      {
-        cwd: repoRoot,
-      },
-    );
+    const result = await run(["generate", "types", "--outDir", outDir], {
+      cwd: splendorRoot,
+    });
 
     expect(result.exitCode).toBe(0);
 

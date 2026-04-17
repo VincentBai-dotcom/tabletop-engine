@@ -12,7 +12,7 @@ Recommended shape:
 
 ```ts
 // tabletop.config.ts
-import { defineConfig } from "tabletop-cli/config";
+import { defineConfig } from "tabletop-engine/config";
 import { createSplendorGame } from "./examples/splendor/src/game";
 
 export default defineConfig({
@@ -74,7 +74,7 @@ The config file should provide:
 Recommended API:
 
 ```ts
-import { defineConfig } from "tabletop-cli/config";
+import { defineConfig } from "tabletop-engine/config";
 import { createMyGame } from "./src/game";
 
 export default defineConfig({
@@ -253,11 +253,11 @@ longer be the primary product surface.
 
 This design implies a new helper package entrypoint, for example:
 
-- `packages/cli/src/config.ts`
+- `packages/tabletop-engine/src/config.ts`
 
 or a published subpath equivalent:
 
-- `tabletop-cli/config`
+- `tabletop-engine/config`
 
 The CLI runtime should:
 
