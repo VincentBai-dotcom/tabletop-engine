@@ -9,21 +9,9 @@ const repoRoot = join(import.meta.dir, "..", "..", "..");
 describe("generate schemas", () => {
   it("writes schema artifacts for a game", async () => {
     const outDir = await mkdtemp(join(tmpdir(), "tabletop-cli-schemas-"));
-    const result = await run(
-      [
-        "generate",
-        "schemas",
-        "--game",
-        "examples/splendor/src/game.ts",
-        "--export",
-        "createSplendorGame",
-        "--outDir",
-        outDir,
-      ],
-      {
-        cwd: repoRoot,
-      },
-    );
+    const result = await run(["generate", "schemas", "--outDir", outDir], {
+      cwd: repoRoot,
+    });
 
     expect(result.exitCode).toBe(0);
 

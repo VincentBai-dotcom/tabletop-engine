@@ -18,23 +18,16 @@ product surfaces.
 
 ## Gap 1: Runtime Setup Input Is Still Not CLI-Addressable
 
-Current implementation in [load-game.ts](/home/vincent-bai/Documents/github/tabletop-kernel/packages/cli/src/lib/load-game.ts#L61):
-
-```ts
-function buildGameFromFactory(factory: GameFactory): unknown {
-  if (factory.length === 0) {
-    return factory();
-  }
-
-  throw new Error("game_factory_with_runtime_parameters_not_supported");
-}
-```
+Current implementation is config-driven through
+[load-config.ts](/home/vincent-bai/Documents/github/tabletop-kernel/packages/cli/src/lib/load-config.ts),
+and command execution reads a built game definition from `tabletop.config.ts`
+rather than guessing a game export from a module path.
 
 Problem:
 
 - the engine now correctly models session setup through
   `setupInput(t.object(...))` and `createInitialState(input, rngSeed)`
-- the CLI can load zero-arg game-definition factories cleanly
+- the CLI can generate static artifacts directly from a built game definition
 - but the CLI still has no way to supply runtime setup input for:
   - snapshot creation
   - scenario validation
@@ -213,14 +206,13 @@ Likely direction:
 - extend argument parsing and validation contexts
 - keep snapshot validation as one mode of a broader `validate` command
 
-## Gap 5: Argument Model Is Minimal
+## Gap 5: Argument Model Is Still Minimal
 
 Current parser in [parse-args.ts](/home/vincent-bai/Documents/github/tabletop-kernel/packages/cli/src/lib/parse-args.ts#L5):
 
 ```ts
 export interface ParsedCommandArguments {
-  gamePath: string;
-  exportName?: string;
+  configPath?: string;
   outDir?: string;
   snapshotPath?: string;
 }
@@ -237,20 +229,22 @@ Problem:
 
 Why this matters:
 
-- this keeps the CLI simple, but it also pushes complexity into hidden
-  assumptions
-- most notably, it is the reason `loadGame()` has to guess game setup inputs
+- this keeps the CLI simple, but it still leaves session-oriented input flows
+  underspecified
+- the config-file shift fixed the old `--game` / `--export` inference problem,
+  but it did not yet add a structured model for richer validation or generation
+  inputs
 
 What is missing:
 
 - richer generation/validation inputs
-- likely a config-file path or more explicit flags
+- session-input options
+- output/package presets if client generation grows
 
 Likely direction:
 
 - keep core flags stable:
-  - `--game`
-  - `--export`
+  - `--config`
   - `--outDir`
 - add explicit build/validation inputs rather than hidden defaults
 

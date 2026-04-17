@@ -13,6 +13,10 @@ export function createGenerateHelpText(): string {
     "  schemas",
     "  protocol",
     "  client-sdk",
+    "",
+    "Optional flags:",
+    "  --config <path>",
+    "  --outDir <path>",
   ].join("\n");
 }
 

@@ -9,21 +9,9 @@ const repoRoot = join(import.meta.dir, "..", "..", "..");
 describe("generate client-sdk", () => {
   it("writes a typed client sdk surface for a game", async () => {
     const outDir = await mkdtemp(join(tmpdir(), "tabletop-cli-sdk-"));
-    const result = await run(
-      [
-        "generate",
-        "client-sdk",
-        "--game",
-        "examples/splendor/src/game.ts",
-        "--export",
-        "createSplendorGame",
-        "--outDir",
-        outDir,
-      ],
-      {
-        cwd: repoRoot,
-      },
-    );
+    const result = await run(["generate", "client-sdk", "--outDir", outDir], {
+      cwd: repoRoot,
+    });
 
     expect(result.exitCode).toBe(0);
 

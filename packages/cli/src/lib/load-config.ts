@@ -1,14 +1,19 @@
 import type { GameDefinition } from "tabletop-engine";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { TabletopCliConfig } from "../config.ts";
-
 interface LoadConfigOptions {
   cwd: string;
   configPath?: string;
 }
 
-export interface LoadedCliConfig extends TabletopCliConfig {
+interface RuntimeCliConfig {
+  game: GameDefinition;
+  outDir?: string;
+}
+
+export interface LoadedCliConfig {
+  game: GameDefinition;
+  outDir?: string;
   configFilePath: string;
   configDirectory: string;
 }
@@ -35,7 +40,7 @@ export async function loadConfig(
   };
 }
 
-function isCliConfig(value: unknown): value is TabletopCliConfig {
+function isCliConfig(value: unknown): value is RuntimeCliConfig {
   if (!value || typeof value !== "object") {
     return false;
   }

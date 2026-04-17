@@ -9,21 +9,9 @@ const repoRoot = join(import.meta.dir, "..", "..", "..");
 describe("generate protocol", () => {
   it("writes a protocol descriptor for a game", async () => {
     const outDir = await mkdtemp(join(tmpdir(), "tabletop-cli-protocol-"));
-    const result = await run(
-      [
-        "generate",
-        "protocol",
-        "--game",
-        "examples/splendor/src/game.ts",
-        "--export",
-        "createSplendorGame",
-        "--outDir",
-        outDir,
-      ],
-      {
-        cwd: repoRoot,
-      },
-    );
+    const result = await run(["generate", "protocol", "--outDir", outDir], {
+      cwd: repoRoot,
+    });
 
     expect(result.exitCode).toBe(0);
 
