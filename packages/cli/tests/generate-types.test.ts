@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { run } from "../src/main.ts";
 
 const repoRoot = join(import.meta.dir, "..", "..", "..");
-const splendorRoot = join(repoRoot, "examples", "splendor");
+const splendorRoot = join(repoRoot, "examples", "splendor", "engine");
 
 describe("generate types", () => {
   it("writes canonical and visible type declarations for a game", async () => {

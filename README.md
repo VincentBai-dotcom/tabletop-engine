@@ -26,9 +26,9 @@ implements:
 
 - [`packages/tabletop-engine`](./packages/tabletop-engine)
   reusable runtime package
-- [`examples/splendor`](./examples/splendor)
-  reference game built on the engine
-- [`examples/splendor-terminal`](./examples/splendor-terminal)
+- [`examples/splendor/engine`](./examples/splendor/engine)
+  reference Splendor game built on the engine
+- [`examples/splendor/terminal`](./examples/splendor/terminal)
   terminal client for exercising gameplay and discovery loops
 - [`docs/design`](./docs/design)
   architectural decisions
@@ -57,6 +57,6 @@ bun run test
 Additional useful checks:
 
 ```bash
-bun test --cwd examples/splendor
-bun test --cwd examples/splendor-terminal
+bun test --cwd examples/splendor/engine
+bun test --cwd examples/splendor/terminal
 ```

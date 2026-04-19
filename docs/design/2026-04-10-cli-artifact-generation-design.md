@@ -128,7 +128,7 @@ Expected outputs include:
 - command input and discovery payload types when useful
 
 This command exists primarily to remove manual types like
-`examples/splendor-terminal/src/types.ts`.
+`examples/splendor/terminal/src/types.ts`.
 
 ### 2. `generate schemas`
 
@@ -185,11 +185,11 @@ High-level example:
 ```ts
 // tabletop.config.ts
 import { defineConfig } from "tabletop-engine/config";
-import { createSplendorGame } from "./examples/splendor/src/game";
+import { createSplendorGame } from "./examples/splendor/engine/src/game";
 
 export default defineConfig({
   game: createSplendorGame(),
-  outDir: "./examples/splendor/generated",
+  outDir: "./examples/splendor/engine/generated",
 });
 ```
 
@@ -215,7 +215,7 @@ engine package.
 
 Suggested structure:
 
-- `examples/splendor/generated/`
+- `examples/splendor/engine/generated/`
 
 Possible outputs:
 

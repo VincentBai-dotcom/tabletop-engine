@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { run } from "../src/main.ts";
 
 const repoRoot = join(import.meta.dir, "..", "..", "..");
-const splendorRoot = join(repoRoot, "examples", "splendor");
+const splendorRoot = join(repoRoot, "examples", "splendor", "engine");
 
 describe("generate schemas", () => {
   it("writes schema artifacts for a game", async () => {

@@ -33,9 +33,9 @@ Important workspace areas:
 
 - `packages/tabletop-engine`
   the reusable engine package
-- `examples/splendor`
+- `examples/splendor/engine`
   reference game built on the engine
-- `examples/splendor-terminal`
+- `examples/splendor/terminal`
   terminal client for exercising the hosted-style interaction loop locally
 - `docs/design`
   current design decisions
@@ -106,6 +106,6 @@ Common verification commands:
 bun run lint
 bunx tsc -b
 bun test --cwd packages/tabletop-engine
-bun test --cwd examples/splendor
-bun test --cwd examples/splendor-terminal
+bun test --cwd examples/splendor/engine
+bun test --cwd examples/splendor/terminal
 ```

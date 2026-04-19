@@ -257,9 +257,9 @@ Likely affected:
 
 Likely affected:
 
-- `examples/splendor/src/commands/*`
-- `examples/splendor-terminal/src/types.ts`
-- `examples/splendor-terminal/src/session.ts`
+- `examples/splendor/engine/src/commands/*`
+- `examples/splendor/terminal/src/types.ts`
+- `examples/splendor/terminal/src/session.ts`
 
 Expected payoff:
 

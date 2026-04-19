@@ -24,7 +24,7 @@ Current command authoring makes consumers define too much type plumbing.
 In Splendor today, the consumer has to:
 
 - define local context aliases in
-  [`examples/splendor/src/commands/shared.ts`](/home/vincent-bai/Documents/github/tabletop-kernel/examples/splendor/src/commands/shared.ts)
+  [`examples/splendor/engine/src/commands/shared.ts`](/home/vincent-bai/Documents/github/tabletop-kernel/examples/splendor/engine/src/commands/shared.ts)
 - manually annotate the parameter type of `isAvailable`, `discover`,
   `validate`, and `execute`
 - repeat the game-state type in each command class generic
@@ -245,7 +245,7 @@ Conclusion:
 
 Files:
 
-- [`examples/splendor/src/commands`](/home/vincent-bai/Documents/github/tabletop-kernel/examples/splendor/src/commands)
+- [`examples/splendor/engine/src/commands`](/home/vincent-bai/Documents/github/tabletop-kernel/examples/splendor/engine/src/commands)
 
 Current behavior:
 
@@ -256,7 +256,7 @@ Required changes:
 
 - replace classes with `defineSplendorCommand(...)`
 - remove most or all of the command-context aliases from
-  [`examples/splendor/src/commands/shared.ts`](/home/vincent-bai/Documents/github/tabletop-kernel/examples/splendor/src/commands/shared.ts)
+  [`examples/splendor/engine/src/commands/shared.ts`](/home/vincent-bai/Documents/github/tabletop-kernel/examples/splendor/engine/src/commands/shared.ts)
 - keep helper functions like `assertAvailableActor`, `readPayload`, and
   `readDraft`
 
@@ -265,7 +265,7 @@ Required changes:
 Files:
 
 - [`packages/tabletop-engine/tests`](/home/vincent-bai/Documents/github/tabletop-kernel/packages/tabletop-engine/tests)
-- [`examples/splendor/tests`](/home/vincent-bai/Documents/github/tabletop-kernel/examples/splendor/tests)
+- [`examples/splendor/engine/tests`](/home/vincent-bai/Documents/github/tabletop-kernel/examples/splendor/engine/tests)
 
 Required changes:
 

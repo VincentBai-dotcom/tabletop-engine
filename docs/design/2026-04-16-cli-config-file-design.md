@@ -13,11 +13,11 @@ Recommended shape:
 ```ts
 // tabletop.config.ts
 import { defineConfig } from "tabletop-engine/config";
-import { createSplendorGame } from "./examples/splendor/src/game";
+import { createSplendorGame } from "./examples/splendor/engine/src/game";
 
 export default defineConfig({
   game: createSplendorGame(),
-  outDir: "./examples/splendor/generated",
+  outDir: "./examples/splendor/engine/generated",
 });
 ```
 
@@ -221,7 +221,7 @@ But the main user-facing model should be config-driven, not path-driven.
 Current model:
 
 ```bash
-tabletop-cli generate types --game examples/splendor/src/game.ts
+tabletop-cli generate types --game examples/splendor/engine/src/game.ts
 ```
 
 Target model:
@@ -236,7 +236,7 @@ with:
 // tabletop.config.ts
 export default defineConfig({
   game: createSplendorGame(),
-  outDir: "./examples/splendor/generated",
+  outDir: "./examples/splendor/engine/generated",
 });
 ```
 

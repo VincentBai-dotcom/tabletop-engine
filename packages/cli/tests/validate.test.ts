@@ -7,7 +7,7 @@ import { createSplendorGame } from "splendor-example";
 import { run } from "../src/main.ts";
 
 const repoRoot = join(import.meta.dir, "..", "..", "..");
-const splendorRoot = join(repoRoot, "examples", "splendor");
+const splendorRoot = join(repoRoot, "examples", "splendor", "engine");
 
 describe("validate", () => {
   it("validates a game definition when given only the game module", async () => {

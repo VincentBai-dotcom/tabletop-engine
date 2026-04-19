@@ -23,7 +23,7 @@ The target model is:
 
 ### Setup Input Is Captured Outside The Engine
 
-Current Splendor authoring in [game.ts](/home/vincent-bai/Documents/github/tabletop-kernel/examples/splendor/src/game.ts#L10):
+Current Splendor authoring in [game.ts](/home/vincent-bai/Documents/github/tabletop-kernel/examples/splendor/engine/src/game.ts#L10):
 
 ```ts
 export function createSplendorGame(options: CreateSplendorGameOptions) {

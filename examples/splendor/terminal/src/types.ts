@@ -6,7 +6,7 @@ import type {
   VisibleState,
 } from "tabletop-engine";
 import type { SplendorDiscoveryOption } from "splendor-example";
-import type { VisibleState as GeneratedSplendorVisibleState } from "../../splendor/generated/visible-state.generated";
+import type { VisibleState as GeneratedSplendorVisibleState } from "../../engine/generated/visible-state.generated";
 
 export type SplendorVisibleGame = GeneratedSplendorVisibleState["game"];
 export type SplendorVisibleState = VisibleState<SplendorVisibleGame>;

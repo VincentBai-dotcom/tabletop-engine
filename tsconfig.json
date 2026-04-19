@@ -8,10 +8,10 @@
       "path": "./packages/tabletop-engine"
     },
     {
-      "path": "./examples/splendor"
+      "path": "./examples/splendor/engine"
     },
     {
-      "path": "./examples/splendor-terminal"
+      "path": "./examples/splendor/terminal"
     }
   ],
   "compilerOptions": {

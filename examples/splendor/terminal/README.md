@@ -5,7 +5,7 @@ Playable terminal client for the Splendor example game.
 Run it with:
 
 ```bash
-bun run --cwd examples/splendor-terminal start
+bun run --cwd examples/splendor/terminal start
 ```
 
 The client runs one local in-memory match with:

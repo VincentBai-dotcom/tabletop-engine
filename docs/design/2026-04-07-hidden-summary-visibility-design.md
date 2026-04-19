@@ -225,7 +225,7 @@ With this API, Splendor can stay in the field-level visibility model:
 - `board.deckByLevel` marked with `@hidden(...)`
   - all viewers see `{ __hidden: true, value: { 1: number, 2: number, 3: number } }`
 
-That lets `examples/splendor-terminal` render only `executor.getView(...)`
+That lets `examples/splendor/terminal` render only `executor.getView(...)`
 output while still showing the information a real player client needs.
 
 ## Non-Goals
@@ -249,5 +249,5 @@ Not part of this change:
    - `@hidden(...)` with summary
    - `@visibleToSelf()` without summary
    - `@visibleToSelf(...)` with summary
-6. Update `examples/splendor` to use field-level visibility decorators
-7. Update `examples/splendor-terminal` to render only `getView(...)`
+6. Update `examples/splendor/engine` to use field-level visibility decorators
+7. Update `examples/splendor/terminal` to render only `getView(...)`
