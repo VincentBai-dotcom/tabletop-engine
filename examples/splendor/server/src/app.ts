@@ -11,11 +11,11 @@ import {
 
 export interface AppDeps {
   roomService: RoomService;
-  websocket?: WebSocketRoutesDeps;
+  websocket: WebSocketRoutesDeps;
 }
 
 export function createApp({ roomService, websocket }: AppDeps) {
-  const app = new Elysia()
+  return new Elysia()
     .use(
       openapi({
         documentation: {
@@ -29,7 +29,6 @@ export function createApp({ roomService, websocket }: AppDeps) {
     .use(requestId)
     .use(errorHandler)
     .get("/health", () => ({ status: "ok" }))
-    .use(createRoomRoutes({ roomService }));
-
-  return websocket ? app.use(createWebSocketRoutes(websocket)) : app;
+    .use(createRoomRoutes({ roomService }))
+    .use(createWebSocketRoutes(websocket));
 }

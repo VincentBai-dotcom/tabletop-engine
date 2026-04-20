@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { createApp } from "../../../app";
+import { createApp, type AppDeps } from "../../../app";
 import { AppError } from "../../errors";
+import { createLiveConnectionRegistry } from "../../websocket";
 import type {
   CreateRoomInput,
   JoinRoomInput,
@@ -65,6 +66,25 @@ function createFakeRoomService(overrides: Partial<RoomService> = {}) {
   return { calls, service };
 }
 
+function createAppDeps(roomService: RoomService): AppDeps {
+  return {
+    roomService,
+    websocket: {
+      registry: createLiveConnectionRegistry(),
+      roomService,
+      sessionService: {
+        async resolveOrCreatePlayerSession() {
+          return {
+            playerSessionId: "s-1",
+            token: "t-1",
+            tokenWasCreated: true,
+          };
+        },
+      },
+    },
+  };
+}
+
 async function readJson(response: Response) {
   return response.json() as Promise<unknown>;
 }
@@ -72,7 +92,7 @@ async function readJson(response: Response) {
 describe("room routes", () => {
   it("returns health status", async () => {
     const { service } = createFakeRoomService();
-    const app = createApp({ roomService: service });
+    const app = createApp(createAppDeps(service));
 
     const response = await app.handle(new Request("http://localhost/health"));
 
@@ -82,7 +102,7 @@ describe("room routes", () => {
 
   it("creates a room and returns the player session token", async () => {
     const { calls, service } = createFakeRoomService();
-    const app = createApp({ roomService: service });
+    const app = createApp(createAppDeps(service));
 
     const response = await app.handle(
       new Request("http://localhost/rooms", {
@@ -110,7 +130,7 @@ describe("room routes", () => {
 
   it("joins a room and returns the room snapshot", async () => {
     const { calls, service } = createFakeRoomService();
-    const app = createApp({ roomService: service });
+    const app = createApp(createAppDeps(service));
 
     const response = await app.handle(
       new Request("http://localhost/rooms/join", {
@@ -144,7 +164,7 @@ describe("room routes", () => {
         throw new AppError("room_not_found", 404, "Room not found");
       },
     });
-    const app = createApp({ roomService: service });
+    const app = createApp(createAppDeps(service));
 
     const response = await app.handle(
       new Request("http://localhost/rooms/join", {
