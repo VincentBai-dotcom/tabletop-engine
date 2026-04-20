@@ -2,7 +2,7 @@ import { createSplendorExecutor, type SplendorState } from "splendor-example";
 import { systemClock } from "./lib/clock";
 import { createRandomToken } from "./lib/random";
 import { configService } from "./modules/config";
-import { db } from "./modules/db";
+import { createDbClient } from "./modules/db";
 import {
   createGameSessionService,
   createGameSessionStore,
@@ -19,6 +19,7 @@ import {
 import { createApp } from "./app";
 
 const config = configService.get();
+const { db } = createDbClient(config.database.url);
 const sessionService = createSessionService({
   store: createPlayerSessionStore(db),
   clock: systemClock,
