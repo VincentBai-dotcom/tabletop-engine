@@ -66,34 +66,36 @@ export function createRoomStore(db: Db): RoomStore {
     },
 
     async createRoomWithHost(input: CreateRoomWithHostInput) {
-      const [room] = await db
-        .insert(rooms)
-        .values({
-          code: input.code,
-          hostPlayerSessionId: input.hostPlayerSessionId,
-        })
-        .returning();
+      return db.transaction(async (tx) => {
+        const [room] = await tx
+          .insert(rooms)
+          .values({
+            code: input.code,
+            hostPlayerSessionId: input.hostPlayerSessionId,
+          })
+          .returning();
 
-      if (!room) {
-        throw new Error("room_insert_failed");
-      }
+        if (!room) {
+          throw new Error("room_insert_failed");
+        }
 
-      const [player] = await db
-        .insert(roomPlayers)
-        .values({
-          roomId: room.id,
-          playerSessionId: input.hostPlayerSessionId,
-          seatIndex: 0,
-          displayName: input.displayName,
-          displayNameKey: input.displayNameKey,
-        })
-        .returning();
+        const [player] = await tx
+          .insert(roomPlayers)
+          .values({
+            roomId: room.id,
+            playerSessionId: input.hostPlayerSessionId,
+            seatIndex: 0,
+            displayName: input.displayName,
+            displayNameKey: input.displayNameKey,
+          })
+          .returning();
 
-      if (!player) {
-        throw new Error("room_host_insert_failed");
-      }
+        if (!player) {
+          throw new Error("room_host_insert_failed");
+        }
 
-      return mapRoomSnapshot(room, [player]);
+        return mapRoomSnapshot(room, [player]);
+      });
     },
 
     async loadOpenRoomByCode(code) {
