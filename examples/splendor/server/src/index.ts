@@ -9,9 +9,9 @@ import {
 } from "./modules/game-session";
 import { createRoomService, createRoomStore } from "./modules/room";
 import {
+  createPlayerSessionService,
   createPlayerSessionStore,
-  createSessionService,
-} from "./modules/session";
+} from "./modules/player-session";
 import {
   createLiveConnectionRegistry,
   createLiveNotifier,
@@ -20,7 +20,7 @@ import { createApp } from "./app";
 
 const config = configService.get();
 const { db } = createDbClient(config.database.url);
-const sessionService = createSessionService({
+const playerSessionService = createPlayerSessionService({
   store: createPlayerSessionStore(db),
   clock: systemClock,
 });
@@ -35,7 +35,7 @@ const gameSessionService = createGameSessionService<SplendorState>({
 const roomService = createRoomService({
   store: createRoomStore(db),
   resolveOrCreatePlayerSession: (input) =>
-    sessionService.resolveOrCreatePlayerSession(input),
+    playerSessionService.resolveOrCreatePlayerSession(input),
   notifier: liveNotifier,
   startGameFromRoom: (input) =>
     gameSessionService.createGameSessionFromRoom(input),
@@ -47,7 +47,7 @@ const app = createApp({
     registry: liveRegistry,
     gameSessionService,
     roomService,
-    sessionService,
+    playerSessionService,
   },
 }).listen({
   hostname: config.server.host,

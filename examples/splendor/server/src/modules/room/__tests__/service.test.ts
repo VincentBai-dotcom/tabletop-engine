@@ -10,7 +10,7 @@ import type {
 import type {
   ResolvePlayerSessionInput,
   ResolvePlayerSessionResult,
-} from "../../session";
+} from "../../player-session";
 
 class FakeRoomStore implements RoomStore {
   readonly rooms = new Map<string, RoomSnapshot>();

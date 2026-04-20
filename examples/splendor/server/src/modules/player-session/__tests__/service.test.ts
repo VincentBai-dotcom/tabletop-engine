@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { createSessionService, hashPlayerSessionToken } from "../service";
+import { createPlayerSessionService, hashPlayerSessionToken } from "../service";
 import type { PlayerSessionRecord, PlayerSessionStore } from "../model";
 
 function createFakeStore() {
@@ -35,11 +35,11 @@ function createFakeStore() {
   return { records, store, touched };
 }
 
-describe("createSessionService", () => {
+describe("createPlayerSessionService", () => {
   it("creates a new player session when no token is provided", async () => {
     const fake = createFakeStore();
     const now = new Date("2026-04-19T12:00:00.000Z");
-    const service = createSessionService({
+    const service = createPlayerSessionService({
       store: fake.store,
       clock: { now: () => now },
       tokenGenerator: () => "raw-token-1",
@@ -59,7 +59,7 @@ describe("createSessionService", () => {
     const firstNow = new Date("2026-04-19T12:00:00.000Z");
     const secondNow = new Date("2026-04-19T12:05:00.000Z");
     let currentNow = firstNow;
-    const service = createSessionService({
+    const service = createPlayerSessionService({
       store: fake.store,
       clock: { now: () => currentNow },
       tokenGenerator: () => "raw-token-1",
@@ -82,7 +82,7 @@ describe("createSessionService", () => {
 
   it("creates a fresh session when the provided token is unknown", async () => {
     const fake = createFakeStore();
-    const service = createSessionService({
+    const service = createPlayerSessionService({
       store: fake.store,
       clock: { now: () => new Date("2026-04-19T12:00:00.000Z") },
       tokenGenerator: () => "replacement-token",
@@ -101,7 +101,7 @@ describe("createSessionService", () => {
 
   it("stores a token hash instead of the raw token", async () => {
     const fake = createFakeStore();
-    const service = createSessionService({
+    const service = createPlayerSessionService({
       store: fake.store,
       clock: { now: () => new Date("2026-04-19T12:00:00.000Z") },
       tokenGenerator: () => "raw-token-1",

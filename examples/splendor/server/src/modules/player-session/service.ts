@@ -3,10 +3,10 @@ import { createRandomToken } from "../../lib/random";
 import type {
   PlayerSessionStore,
   ResolvePlayerSessionResult,
-  SessionService,
+  PlayerSessionService,
 } from "./model";
 
-interface CreateSessionServiceDeps {
+interface CreatePlayerSessionServiceDeps {
   store: PlayerSessionStore;
   clock: Clock;
   tokenGenerator?: () => string;
@@ -17,12 +17,12 @@ export function hashPlayerSessionToken(token: string): string {
   return new Bun.CryptoHasher("sha256").update(token).digest("hex");
 }
 
-export function createSessionService({
+export function createPlayerSessionService({
   store,
   clock,
   tokenGenerator = createRandomToken,
   tokenHasher = hashPlayerSessionToken,
-}: CreateSessionServiceDeps): SessionService {
+}: CreatePlayerSessionServiceDeps): PlayerSessionService {
   async function createSession(): Promise<ResolvePlayerSessionResult> {
     const token = tokenGenerator();
     const tokenHash = tokenHasher(token);

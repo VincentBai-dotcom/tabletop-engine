@@ -30,10 +30,10 @@ export interface ResolvePlayerSessionResult {
 }
 
 /**
- * Application-level session service.
+ * Application-level player session service.
  * Resolves an existing player session from a client token, or creates a new one.
  */
-export interface SessionService {
+export interface PlayerSessionService {
   /** Find the player session matching the given token, or create a fresh session if the token is missing or invalid. */
   resolveOrCreatePlayerSession(
     input: ResolvePlayerSessionInput,

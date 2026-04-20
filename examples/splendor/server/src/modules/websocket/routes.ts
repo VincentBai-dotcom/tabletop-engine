@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import type { GameSessionService } from "../game-session";
 import type { RoomService } from "../room";
-import type { SessionService } from "../session";
+import type { PlayerSessionService } from "../player-session";
 import { createLiveMessageHandler } from "./actions";
 import type {
   LiveClientMessage,
@@ -14,7 +14,7 @@ export interface WebSocketRoutesDeps {
   registry: LiveConnectionRegistry;
   gameSessionService?: GameSessionService;
   roomService: RoomService;
-  sessionService: SessionService;
+  playerSessionService: PlayerSessionService;
 }
 
 const liveMessageSchema = t.Union([
@@ -59,7 +59,7 @@ export function createWebSocketRoutes({
   registry,
   gameSessionService,
   roomService,
-  sessionService,
+  playerSessionService,
 }: WebSocketRoutesDeps) {
   const handler = createLiveMessageHandler({
     registry,
@@ -73,7 +73,7 @@ export function createWebSocketRoutes({
     }),
     body: liveMessageSchema,
     async open(ws) {
-      const session = await sessionService.resolveOrCreatePlayerSession({
+      const session = await playerSessionService.resolveOrCreatePlayerSession({
         token: ws.data.query.playerSessionToken,
       });
       const connection = toLiveConnection(ws);

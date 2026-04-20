@@ -1,7 +1,7 @@
 import type {
   ResolvePlayerSessionInput,
   ResolvePlayerSessionResult,
-} from "../session";
+} from "../player-session";
 
 export const ROOM_CAPACITY = 4;
 export const MIN_PLAYERS_TO_START = 2;

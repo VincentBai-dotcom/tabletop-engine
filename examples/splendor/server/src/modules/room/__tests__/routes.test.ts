@@ -72,7 +72,7 @@ function createAppDeps(roomService: RoomService): AppDeps {
     websocket: {
       registry: createLiveConnectionRegistry(),
       roomService,
-      sessionService: {
+      playerSessionService: {
         async resolveOrCreatePlayerSession() {
           return {
             playerSessionId: "s-1",
