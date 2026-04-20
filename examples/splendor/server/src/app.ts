@@ -1,4 +1,5 @@
 import { Elysia } from "elysia";
+import { openapi } from "@elysiajs/openapi";
 import { errorHandler } from "./plugins/error-handler";
 import { requestId } from "./plugins/request-id";
 import { createRoomRoutes } from "./modules/room/routes";
@@ -15,6 +16,16 @@ export interface AppDeps {
 
 export function createApp({ roomService, websocket }: AppDeps) {
   const app = new Elysia()
+    .use(
+      openapi({
+        documentation: {
+          info: {
+            title: "Splendor API",
+            version: "1.0.0",
+          },
+        },
+      }),
+    )
     .use(requestId)
     .use(errorHandler)
     .get("/health", () => ({ status: "ok" }))

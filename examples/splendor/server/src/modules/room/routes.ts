@@ -27,6 +27,10 @@ export function createRoomRoutes({ roomService }: RoomRoutesDeps) {
         }),
       {
         body: createRoomBody,
+        detail: {
+          summary: "Create a new room",
+          tags: ["rooms"],
+        },
       },
     )
     .post(
@@ -39,6 +43,10 @@ export function createRoomRoutes({ roomService }: RoomRoutesDeps) {
         }),
       {
         body: joinRoomBody,
+        detail: {
+          summary: "Join an existing room",
+          tags: ["rooms"],
+        },
       },
     );
 }
