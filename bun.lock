@@ -44,6 +44,8 @@
         "drizzle-orm": "^0.45.2",
         "elysia": "latest",
         "pg": "^8.20.0",
+        "splendor-example": "workspace:*",
+        "tabletop-engine": "workspace:*",
       },
       "devDependencies": {
         "@types/pg": "^8.20.0",
