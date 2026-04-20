@@ -6,6 +6,10 @@ import {
   createPlayerSessionStore,
   createSessionService,
 } from "./modules/session";
+import {
+  createLiveConnectionRegistry,
+  createLiveNotifier,
+} from "./modules/websocket";
 import { createApp } from "./app";
 
 const config = configService.get();
@@ -13,17 +17,23 @@ const sessionService = createSessionService({
   store: createPlayerSessionStore(db),
   clock: systemClock,
 });
+const liveRegistry = createLiveConnectionRegistry();
+const liveNotifier = createLiveNotifier(liveRegistry);
 const roomService = createRoomService({
   store: createRoomStore(db),
   resolveOrCreatePlayerSession: (input) =>
     sessionService.resolveOrCreatePlayerSession(input),
-  notifier: {
-    publishRoomUpdated() {},
-    publishGameStarted() {},
-  },
+  notifier: liveNotifier,
 });
 
-const app = createApp({ roomService }).listen({
+const app = createApp({
+  roomService,
+  websocket: {
+    registry: liveRegistry,
+    roomService,
+    sessionService,
+  },
+}).listen({
   hostname: config.server.host,
   port: config.server.port,
 });

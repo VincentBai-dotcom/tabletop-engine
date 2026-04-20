@@ -17,6 +17,9 @@ describe("createLiveConnectionRegistry", () => {
     registry.register("session-1", connection);
 
     expect(registry.getConnection("session-1")).toBe(connection);
+    expect(registry.getPlayerSessionIdByConnectionId("conn-1")).toBe(
+      "session-1",
+    );
   });
 
   it("replaces an existing connection for the same player session", () => {

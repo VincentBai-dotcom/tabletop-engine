@@ -3,15 +3,22 @@ import { errorHandler } from "./plugins/error-handler";
 import { requestId } from "./plugins/request-id";
 import { createRoomRoutes } from "./modules/room/routes";
 import type { RoomService } from "./modules/room";
+import {
+  createWebSocketRoutes,
+  type WebSocketRoutesDeps,
+} from "./modules/websocket";
 
 export interface AppDeps {
   roomService: RoomService;
+  websocket?: WebSocketRoutesDeps;
 }
 
-export function createApp({ roomService }: AppDeps) {
-  return new Elysia()
+export function createApp({ roomService, websocket }: AppDeps) {
+  const app = new Elysia()
     .use(requestId)
     .use(errorHandler)
     .get("/health", () => ({ status: "ok" }))
     .use(createRoomRoutes({ roomService }));
+
+  return websocket ? app.use(createWebSocketRoutes(websocket)) : app;
 }
