@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, type SQL } from "drizzle-orm";
 import type { Db } from "../db";
 import { roomPlayers, rooms } from "../../schema";
 import type {
@@ -35,20 +35,25 @@ export function mapRoomSnapshot(
   };
 }
 
-async function loadRoomSnapshotById(
+async function loadRoomSnapshot(
   db: Db,
-  roomId: string,
+  filter: SQL,
 ): Promise<RoomSnapshot | null> {
-  const [room] = await db.select().from(rooms).where(eq(rooms.id, roomId));
-  if (!room) {
+  const rows = await db
+    .select()
+    .from(rooms)
+    .leftJoin(roomPlayers, eq(rooms.id, roomPlayers.roomId))
+    .where(filter)
+    .orderBy(asc(roomPlayers.seatIndex));
+
+  if (rows.length === 0) {
     return null;
   }
 
-  const players = await db
-    .select()
-    .from(roomPlayers)
-    .where(eq(roomPlayers.roomId, roomId))
-    .orderBy(asc(roomPlayers.seatIndex));
+  const room = rows[0]!.rooms;
+  const players = rows
+    .map((row) => row.room_players)
+    .filter((player): player is RoomPlayerRow => player !== null);
 
   return mapRoomSnapshot(room, players);
 }
@@ -99,16 +104,15 @@ export function createRoomStore(db: Db): RoomStore {
     },
 
     async loadOpenRoomByCode(code) {
-      const [room] = await db.select().from(rooms).where(eq(rooms.code, code));
-      if (!room || room.status !== "open") {
-        return null;
-      }
-
-      return loadRoomSnapshotById(db, room.id);
+      const snapshot = await loadRoomSnapshot(
+        db,
+        and(eq(rooms.code, code), eq(rooms.status, "open"))!,
+      );
+      return snapshot;
     },
 
     async loadRoomSnapshot(roomId) {
-      return loadRoomSnapshotById(db, roomId);
+      return loadRoomSnapshot(db, eq(rooms.id, roomId));
     },
 
     async addRoomPlayer(input) {
@@ -120,7 +124,7 @@ export function createRoomStore(db: Db): RoomStore {
         displayNameKey: input.displayNameKey,
       });
 
-      const room = await loadRoomSnapshotById(db, input.roomId);
+      const room = await loadRoomSnapshot(db, eq(rooms.id, input.roomId));
       if (!room) {
         throw new Error("room_snapshot_missing_after_add_player");
       }
@@ -138,7 +142,7 @@ export function createRoomStore(db: Db): RoomStore {
           ),
         );
 
-      const room = await loadRoomSnapshotById(db, input.roomId);
+      const room = await loadRoomSnapshot(db, eq(rooms.id, input.roomId));
       if (!room) {
         throw new Error("room_snapshot_missing_after_ready");
       }
@@ -155,7 +159,7 @@ export function createRoomStore(db: Db): RoomStore {
           ),
         );
 
-      const room = await loadRoomSnapshotById(db, input.roomId);
+      const room = await loadRoomSnapshot(db, eq(rooms.id, input.roomId));
       if (!room) {
         throw new Error("room_snapshot_missing_after_remove_player");
       }
@@ -172,7 +176,7 @@ export function createRoomStore(db: Db): RoomStore {
         .set({ hostPlayerSessionId: input.playerSessionId })
         .where(eq(rooms.id, input.roomId));
 
-      const room = await loadRoomSnapshotById(db, input.roomId);
+      const room = await loadRoomSnapshot(db, eq(rooms.id, input.roomId));
       if (!room) {
         throw new Error("room_snapshot_missing_after_host_update");
       }
@@ -185,7 +189,7 @@ export function createRoomStore(db: Db): RoomStore {
         .set({ status: "starting" })
         .where(eq(rooms.id, roomId));
 
-      const room = await loadRoomSnapshotById(db, roomId);
+      const room = await loadRoomSnapshot(db, eq(rooms.id, roomId));
       if (!room) {
         throw new Error("room_snapshot_missing_after_starting");
       }
