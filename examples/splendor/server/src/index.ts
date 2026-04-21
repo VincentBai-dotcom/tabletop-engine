@@ -16,6 +16,7 @@ import {
   createLiveConnectionRegistry,
   createLiveNotifier,
 } from "./modules/websocket";
+import { createLivePresenceService } from "./modules/live-presence";
 import { createApp } from "./app";
 
 const config = configService.get();
@@ -40,6 +41,11 @@ const roomService = createRoomService({
   startGameFromRoom: (input) =>
     gameSessionService.createGameSessionFromRoom(input),
 });
+const livePresenceService = createLivePresenceService({
+  clock: systemClock,
+  roomService,
+  gameSessionService,
+});
 
 const app = createApp({
   roomService,
@@ -47,6 +53,7 @@ const app = createApp({
     registry: liveRegistry,
     gameSessionService,
     roomService,
+    livePresenceService,
     playerSessionService,
   },
 }).listen({

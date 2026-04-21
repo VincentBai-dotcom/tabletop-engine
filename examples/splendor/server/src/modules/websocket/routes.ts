@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import type { GameSessionService } from "../game-session";
+import type { LivePresenceService } from "../live-presence";
 import type { RoomService } from "../room";
 import type { PlayerSessionService } from "../player-session";
 import { createLiveMessageHandler } from "./actions";
@@ -14,6 +15,7 @@ export interface WebSocketRoutesDeps {
   registry: LiveConnectionRegistry;
   gameSessionService?: GameSessionService;
   roomService: RoomService;
+  livePresenceService?: LivePresenceService;
   playerSessionService: PlayerSessionService;
 }
 
@@ -55,16 +57,35 @@ function toLiveConnection(ws: { id: string; send(payload: unknown): unknown }) {
   } satisfies LiveConnection;
 }
 
+export async function handleLiveConnectionClosed({
+  registry,
+  livePresenceService,
+  connectionId,
+}: {
+  registry: LiveConnectionRegistry;
+  livePresenceService?: LivePresenceService;
+  connectionId: string;
+}) {
+  const removed = registry.removeConnection(connectionId);
+  if (!removed || !livePresenceService) {
+    return;
+  }
+
+  await livePresenceService.handleClosedSubscription(removed);
+}
+
 export function createWebSocketRoutes({
   registry,
   gameSessionService,
   roomService,
+  livePresenceService,
   playerSessionService,
 }: WebSocketRoutesDeps) {
   const handler = createLiveMessageHandler({
     registry,
     roomService,
     gameSessionService,
+    livePresenceService,
   });
 
   return new Elysia().ws("/live", {
@@ -87,7 +108,13 @@ export function createWebSocketRoutes({
       await handler.handleMessage(toLiveConnection(ws), message);
     },
     close(ws) {
-      registry.removeConnection(ws.id);
+      void handleLiveConnectionClosed({
+        registry,
+        livePresenceService,
+        connectionId: ws.id,
+      }).catch((error: unknown) => {
+        console.error("live_connection_close_cleanup_failed", error);
+      });
     },
   });
 }

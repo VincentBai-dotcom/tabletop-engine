@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { GameSessionService } from "../../game-session";
+import type { LivePresenceService } from "../../live-presence";
 import type { RoomService } from "../../room";
 import { createLiveMessageHandler } from "../actions";
 import type { LiveConnection } from "../model";
@@ -67,6 +68,31 @@ function createFakeGameSessionService(
       return [];
     },
   } satisfies GameSessionService;
+}
+
+function createFakeLivePresenceService() {
+  const calls = {
+    handleGameSubscribed: [] as unknown[],
+  };
+  const livePresenceService = {
+    async handleClosedSubscription() {
+      throw new Error("not used");
+    },
+    async handleRoomSubscribed() {
+      throw new Error("not used");
+    },
+    async handleGameSubscribed(input) {
+      calls.handleGameSubscribed.push(input);
+      return {
+        type: "game_snapshot",
+        stateVersion: 3,
+        view: { game: "snapshot" },
+        events: [],
+      };
+    },
+  } satisfies LivePresenceService;
+
+  return { calls, livePresenceService };
 }
 
 describe("game websocket actions", () => {
@@ -213,9 +239,11 @@ describe("game websocket actions", () => {
     const client = createRecordingConnection("conn-1");
     registry.register("session-1", client.connection);
     registry.subscribeToRoom("session-1", "room-1");
+    const { calls, livePresenceService } = createFakeLivePresenceService();
     const handler = createLiveMessageHandler({
       registry,
       roomService: createUnusedRoomService(),
+      livePresenceService,
       gameSessionService: createFakeGameSessionService(async () => ({
         accepted: false,
         stateVersion: 0,
@@ -231,5 +259,16 @@ describe("game websocket actions", () => {
 
     expect(registry.getRoomConnections("room-1")).toEqual([]);
     expect(registry.getGameConnections("game-1")).toEqual([client.connection]);
+    expect(calls.handleGameSubscribed).toEqual([
+      { gameSessionId: "game-1", playerSessionId: "session-1" },
+    ]);
+    expect(client.sent).toEqual([
+      {
+        type: "game_snapshot",
+        stateVersion: 3,
+        view: { game: "snapshot" },
+        events: [],
+      },
+    ]);
   });
 });

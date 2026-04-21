@@ -75,10 +75,19 @@ export interface LiveNotifier extends RoomNotifier, GameSessionNotifier {}
 /** Messages sent from the server to the client over WebSocket. */
 export type LiveServerMessage =
   | { type: "session_resolved"; playerSessionToken: string }
+  | { type: "room_snapshot"; room: RoomSnapshot }
   | { type: "room_updated"; room: RoomSnapshot }
   | { type: "game_started"; gameSessionId: string }
+  | { type: "game_snapshot"; stateVersion: number; view: unknown; events: [] }
   | ({ type: "game_updated" } & GameUpdatePayload)
   | { type: "game_ended"; result: GameEndedPayload }
+  | {
+      type: "player_disconnected";
+      playerSessionId: string;
+      graceExpiresAt: string;
+    }
+  | { type: "player_reconnected"; playerSessionId: string }
+  | { type: "server_restarting"; reconnectAfterMs: number }
   | { type: "error"; code: string; message?: string };
 
 /** Messages sent from the client to the server over WebSocket. */
