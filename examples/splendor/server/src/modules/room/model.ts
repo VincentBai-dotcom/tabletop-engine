@@ -16,6 +16,7 @@ export interface RoomPlayerSnapshot {
   displayNameKey: string;
   isReady: boolean;
   isHost: boolean;
+  disconnectedAt: Date | null;
 }
 
 /** Point-in-time view of a room and its seated players. */
@@ -105,6 +106,21 @@ export interface RoomStore {
     playerSessionId: string;
     ready: boolean;
   }): Promise<RoomSnapshot>;
+  /** Mark a seated player as temporarily disconnected. */
+  markRoomPlayerDisconnected(input: {
+    roomId: string;
+    playerSessionId: string;
+    disconnectedAt: Date;
+  }): Promise<RoomSnapshot>;
+  /** Clear a seated player's temporary disconnect marker. */
+  clearRoomPlayerDisconnected(input: {
+    roomId: string;
+    playerSessionId: string;
+  }): Promise<RoomSnapshot>;
+  /** Find disconnected room players whose grace window has expired. */
+  loadExpiredDisconnectedRoomPlayers(input: {
+    olderThan: Date;
+  }): Promise<Array<{ roomId: string; playerSessionId: string }>>;
   /** Remove a player from the room. */
   removeRoomPlayer(input: {
     roomId: string;
@@ -157,6 +173,19 @@ export interface RoomService {
   joinRoom(input: JoinRoomInput): Promise<JoinRoomResult>;
   /** Toggle a seated player's ready flag and broadcast the update. */
   setReady(input: SetReadyInput): Promise<RoomActionResult>;
+  /** Mark a seated player temporarily disconnected without freeing their seat. */
+  markDisconnected(input: {
+    roomId: string;
+    playerSessionId: string;
+    disconnectedAt: Date;
+  }): Promise<RoomActionResult>;
+  /** Clear a temporary disconnect marker after the player reconnects. */
+  markReconnected(input: {
+    roomId: string;
+    playerSessionId: string;
+  }): Promise<RoomActionResult>;
+  /** Remove disconnected room players whose grace window has expired. */
+  cleanupExpiredDisconnects(input: { olderThan: Date }): Promise<number>;
   /** Remove a player from the room. Deletes the room if it becomes empty, or transfers host. */
   leaveRoom(input: LeaveRoomInput): Promise<RoomActionResult>;
   /** Start the game if the requesting player is the host and all players are ready. */

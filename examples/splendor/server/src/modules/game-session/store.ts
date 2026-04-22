@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull, lt } from "drizzle-orm";
 import type { CanonicalState } from "tabletop-engine";
 import type { Db } from "../db";
 import {
@@ -162,6 +162,37 @@ export function createGameSessionStore<TState extends CanonicalState<object>>(
         );
 
       return loadGameSessionSnapshot<TState>(db, input.gameSessionId);
+    },
+
+    async clearPlayerDisconnected(input) {
+      await db
+        .update(gameSessionPlayers)
+        .set({ disconnectedAt: null })
+        .where(
+          and(
+            eq(gameSessionPlayers.gameSessionId, input.gameSessionId),
+            eq(gameSessionPlayers.playerSessionId, input.playerSessionId),
+          ),
+        );
+
+      return loadGameSessionSnapshot<TState>(db, input.gameSessionId);
+    },
+
+    async loadExpiredDisconnectedGamePlayers(input) {
+      const rows = await db
+        .select({
+          gameSessionId: gameSessionPlayers.gameSessionId,
+          playerSessionId: gameSessionPlayers.playerSessionId,
+        })
+        .from(gameSessionPlayers)
+        .where(
+          and(
+            isNotNull(gameSessionPlayers.disconnectedAt),
+            lt(gameSessionPlayers.disconnectedAt, input.olderThan),
+          ),
+        );
+
+      return rows;
     },
   };
 }

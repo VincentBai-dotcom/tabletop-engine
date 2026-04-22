@@ -1,11 +1,13 @@
 import type { CanonicalState, Command } from "tabletop-engine";
 import { AppError } from "../errors";
+import { timestampBefore } from "../../lib/time";
 import type {
   CreateGameSessionServiceDeps,
   GameCommandResult,
-  GameEndedResult,
+  GamePlayerSnapshot,
   GamePlayerView,
   GameSessionPlayerSnapshot,
+  GameSessionSnapshot,
   GameSessionService,
   GameStartedResult,
 } from "./model";
@@ -63,6 +65,55 @@ export function createGameSessionService<
         playerId: player.playerId,
       }),
     }));
+  }
+
+  function findPlayer(
+    gameSession: GameSessionSnapshot<TState>,
+    playerSessionId: string,
+  ) {
+    return gameSession.players.find(
+      (candidate) => candidate.playerSessionId === playerSessionId,
+    );
+  }
+
+  function createPlayerSnapshot(
+    gameSession: GameSessionSnapshot<TState>,
+    player: GameSessionPlayerSnapshot,
+  ): GamePlayerSnapshot {
+    return {
+      gameSessionId: gameSession.id,
+      stateVersion: gameSession.stateVersion,
+      playerSessionId: player.playerSessionId,
+      playerId: player.playerId,
+      view: gameExecutor.getView(gameSession.canonicalState, {
+        kind: "player",
+        playerId: player.playerId,
+      }),
+    };
+  }
+
+  async function loadPlayerSnapshot({
+    gameSessionId,
+    playerSessionId,
+  }: {
+    gameSessionId: string;
+    playerSessionId: string;
+  }): Promise<GamePlayerSnapshot> {
+    const gameSession = await store.loadGameSession(gameSessionId);
+    if (!gameSession) {
+      throw new AppError("game_not_found", 404, "Game session not found");
+    }
+
+    const player = findPlayer(gameSession, playerSessionId);
+    if (!player) {
+      throw new AppError(
+        "game_player_not_found",
+        403,
+        "Player is not seated in this game",
+      );
+    }
+
+    return createPlayerSnapshot(gameSession, player);
   }
 
   return {
@@ -168,25 +219,67 @@ export function createGameSessionService<
     async markDisconnected({
       gameSessionId,
       playerSessionId,
-    }): Promise<GameEndedResult | null> {
-      const gameSession = await store.markPlayerDisconnected({
+    }): Promise<GameSessionSnapshot<TState> | null> {
+      return store.markPlayerDisconnected({
         gameSessionId,
         playerSessionId,
         disconnectedAt: clock.now(),
+      });
+    },
+
+    async markReconnected({ gameSessionId, playerSessionId }) {
+      const gameSession = await store.clearPlayerDisconnected({
+        gameSessionId,
+        playerSessionId,
       });
       if (!gameSession) {
         return null;
       }
 
-      await store.deleteGameSession(gameSessionId);
+      const player = findPlayer(gameSession, playerSessionId);
+      return player ? createPlayerSnapshot(gameSession, player) : null;
+    },
 
-      return {
-        gameSessionId,
-        result: {
-          reason: "invalidated",
-          message: "A seated player disconnected",
-        },
-      };
+    async getPlayerSnapshot(input) {
+      return loadPlayerSnapshot(input);
+    },
+
+    async cleanupExpiredDisconnects({ olderThan }) {
+      const expiredPlayers = await store.loadExpiredDisconnectedGamePlayers({
+        olderThan,
+      });
+      const endedGames = [];
+      const processedGameIds = new Set<string>();
+
+      for (const expiredPlayer of expiredPlayers) {
+        if (processedGameIds.has(expiredPlayer.gameSessionId)) {
+          continue;
+        }
+
+        const gameSession = await store.loadGameSession(
+          expiredPlayer.gameSessionId,
+        );
+        if (!gameSession) {
+          continue;
+        }
+
+        const player = findPlayer(gameSession, expiredPlayer.playerSessionId);
+        if (!player || !timestampBefore(player.disconnectedAt, olderThan)) {
+          continue;
+        }
+
+        await store.deleteGameSession(expiredPlayer.gameSessionId);
+        processedGameIds.add(expiredPlayer.gameSessionId);
+        endedGames.push({
+          gameSessionId: expiredPlayer.gameSessionId,
+          result: {
+            reason: "invalidated" as const,
+            message: "A seated player disconnected",
+          },
+        });
+      }
+
+      return endedGames;
     },
   };
 }

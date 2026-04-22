@@ -1,5 +1,6 @@
 import { AppError, toErrorResponse } from "../errors";
 import type { GameSessionService } from "../game-session";
+import type { LivePresenceService } from "../live-presence";
 import type { RoomService } from "../room";
 import type {
   LiveClientMessage,
@@ -19,6 +20,7 @@ export interface LiveMessageHandlerDeps {
   registry: LiveConnectionRegistry;
   roomService: RoomService;
   gameSessionService?: GameSessionService;
+  livePresenceService?: LivePresenceService;
 }
 
 function sendError(connection: LiveConnection, error: unknown) {
@@ -34,6 +36,7 @@ export function createLiveMessageHandler({
   registry,
   roomService,
   gameSessionService,
+  livePresenceService,
 }: LiveMessageHandlerDeps): LiveMessageHandler {
   function requirePlayerSessionId(connection: LiveConnection) {
     const playerSessionId = registry.getPlayerSessionIdByConnectionId(
@@ -57,6 +60,14 @@ export function createLiveMessageHandler({
         switch (message.type) {
           case "subscribe_room":
             registry.subscribeToRoom(playerSessionId, message.roomId);
+            if (livePresenceService) {
+              connection.send(
+                await livePresenceService.handleRoomSubscribed({
+                  playerSessionId,
+                  roomId: message.roomId,
+                }),
+              );
+            }
             return;
 
           case "room_set_ready":
@@ -83,6 +94,14 @@ export function createLiveMessageHandler({
 
           case "subscribe_game":
             registry.subscribeToGame(playerSessionId, message.gameSessionId);
+            if (livePresenceService) {
+              connection.send(
+                await livePresenceService.handleGameSubscribed({
+                  playerSessionId,
+                  gameSessionId: message.gameSessionId,
+                }),
+              );
+            }
             return;
 
           case "game_command": {

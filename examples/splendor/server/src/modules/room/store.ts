@@ -1,4 +1,4 @@
-import { and, asc, eq, type SQL } from "drizzle-orm";
+import { and, asc, eq, isNotNull, lt, type SQL } from "drizzle-orm";
 import type { Db } from "../db";
 import { roomPlayers, rooms } from "../../schema";
 import type {
@@ -30,6 +30,7 @@ export function mapRoomSnapshot(
         displayNameKey: player.displayNameKey,
         isReady: player.isReady,
         isHost,
+        disconnectedAt: player.disconnectedAt,
       };
     }),
   };
@@ -147,6 +148,59 @@ export function createRoomStore(db: Db): RoomStore {
         throw new Error("room_snapshot_missing_after_ready");
       }
       return room;
+    },
+
+    async markRoomPlayerDisconnected(input) {
+      await db
+        .update(roomPlayers)
+        .set({ disconnectedAt: input.disconnectedAt })
+        .where(
+          and(
+            eq(roomPlayers.roomId, input.roomId),
+            eq(roomPlayers.playerSessionId, input.playerSessionId),
+          ),
+        );
+
+      const room = await loadRoomSnapshot(db, eq(rooms.id, input.roomId));
+      if (!room) {
+        throw new Error("room_snapshot_missing_after_disconnect");
+      }
+      return room;
+    },
+
+    async clearRoomPlayerDisconnected(input) {
+      await db
+        .update(roomPlayers)
+        .set({ disconnectedAt: null })
+        .where(
+          and(
+            eq(roomPlayers.roomId, input.roomId),
+            eq(roomPlayers.playerSessionId, input.playerSessionId),
+          ),
+        );
+
+      const room = await loadRoomSnapshot(db, eq(rooms.id, input.roomId));
+      if (!room) {
+        throw new Error("room_snapshot_missing_after_reconnect");
+      }
+      return room;
+    },
+
+    async loadExpiredDisconnectedRoomPlayers(input) {
+      const rows = await db
+        .select({
+          roomId: roomPlayers.roomId,
+          playerSessionId: roomPlayers.playerSessionId,
+        })
+        .from(roomPlayers)
+        .where(
+          and(
+            isNotNull(roomPlayers.disconnectedAt),
+            lt(roomPlayers.disconnectedAt, input.olderThan),
+          ),
+        );
+
+      return rows;
     },
 
     async removeRoomPlayer(input) {

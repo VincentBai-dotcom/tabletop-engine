@@ -16,4 +16,8 @@ describe("database schema", () => {
     expect(getTableName(gameSessions)).toBe("game_sessions");
     expect(getTableName(gameSessionPlayers)).toBe("game_session_players");
   });
+
+  it("tracks temporary room disconnects", () => {
+    expect(roomPlayers.disconnectedAt).toBeDefined();
+  });
 });

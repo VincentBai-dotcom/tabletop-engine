@@ -23,6 +23,7 @@ function createRoomSnapshot(): RoomSnapshot {
         displayNameKey: "host",
         isReady: false,
         isHost: true,
+        disconnectedAt: null,
       },
     ],
   };
@@ -52,6 +53,15 @@ function createFakeRoomService(overrides: Partial<RoomService> = {}) {
       };
     },
     async setReady() {
+      throw new Error("not used");
+    },
+    async markDisconnected() {
+      throw new Error("not used");
+    },
+    async markReconnected() {
+      throw new Error("not used");
+    },
+    async cleanupExpiredDisconnects() {
       throw new Error("not used");
     },
     async leaveRoom() {

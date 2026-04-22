@@ -1,0 +1,2 @@
+ALTER TABLE "room_players" ADD COLUMN "disconnected_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "idx_room_players_disconnected_at" ON "room_players" USING btree ("disconnected_at");

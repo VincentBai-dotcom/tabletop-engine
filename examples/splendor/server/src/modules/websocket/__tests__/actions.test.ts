@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { AppError } from "../../errors";
+import type { LivePresenceService } from "../../live-presence";
 import type { RoomService } from "../../room";
 import type { RoomSnapshot } from "../../room";
 import { createLiveConnectionRegistry } from "../registry";
@@ -42,6 +43,15 @@ function createFakeRoomService() {
       calls.setReady.push(input);
       return { room: null, roomDeleted: false };
     },
+    async markDisconnected() {
+      throw new Error("not used");
+    },
+    async markReconnected() {
+      throw new Error("not used");
+    },
+    async cleanupExpiredDisconnects() {
+      return 0;
+    },
     async leaveRoom(input) {
       calls.leaveRoom.push(input);
       return { room: null, roomDeleted: true };
@@ -55,13 +65,52 @@ function createFakeRoomService() {
   return { calls, roomService };
 }
 
+function createFakeLivePresenceService(room: RoomSnapshot) {
+  const calls = {
+    handleRoomSubscribed: [] as unknown[],
+    handleGameSubscribed: [] as unknown[],
+  };
+  const livePresenceService = {
+    async handleClosedSubscription() {
+      throw new Error("not used");
+    },
+    async handleRoomSubscribed(input) {
+      calls.handleRoomSubscribed.push(input);
+      return { type: "room_snapshot", room };
+    },
+    async handleGameSubscribed(input) {
+      calls.handleGameSubscribed.push(input);
+      return {
+        type: "game_snapshot",
+        stateVersion: 0,
+        view: { game: "view" },
+        events: [],
+      };
+    },
+  } satisfies LivePresenceService;
+
+  return { calls, livePresenceService };
+}
+
 describe("createLiveMessageHandler", () => {
   it("subscribes the connection to a room", async () => {
     const registry = createLiveConnectionRegistry();
     const client = createRecordingConnection("conn-1");
     const { roomService } = createFakeRoomService();
+    const room: RoomSnapshot = {
+      id: "room-1",
+      code: "ABC123",
+      status: "open",
+      hostPlayerSessionId: "session-1",
+      players: [],
+    };
+    const { calls, livePresenceService } = createFakeLivePresenceService(room);
     registry.register("session-1", client.connection);
-    const handler = createLiveMessageHandler({ registry, roomService });
+    const handler = createLiveMessageHandler({
+      registry,
+      roomService,
+      livePresenceService,
+    });
 
     await handler.handleMessage(client.connection, {
       type: "subscribe_room",
@@ -69,6 +118,10 @@ describe("createLiveMessageHandler", () => {
     });
 
     expect(registry.getRoomConnections("room-1")).toEqual([client.connection]);
+    expect(calls.handleRoomSubscribed).toEqual([
+      { playerSessionId: "session-1", roomId: "room-1" },
+    ]);
+    expect(client.sent).toEqual([{ type: "room_snapshot", room }]);
   });
 
   it("routes room ready messages to the room service", async () => {
@@ -89,6 +142,27 @@ describe("createLiveMessageHandler", () => {
         playerSessionId: "session-1",
         roomId: "room-1",
         ready: true,
+      },
+    ]);
+  });
+
+  it("rejects messages from unregistered live connections", async () => {
+    const registry = createLiveConnectionRegistry();
+    const client = createRecordingConnection("conn-1");
+    const { roomService } = createFakeRoomService();
+    const handler = createLiveMessageHandler({ registry, roomService });
+
+    await handler.handleMessage(client.connection, {
+      type: "room_set_ready",
+      roomId: "room-1",
+      ready: true,
+    });
+
+    expect(client.sent).toEqual([
+      {
+        type: "error",
+        code: "live_connection_not_registered",
+        message: "Live connection is not registered",
       },
     ]);
   });

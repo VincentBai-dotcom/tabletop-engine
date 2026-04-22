@@ -68,6 +68,15 @@ export interface GameSessionStore<
     playerSessionId: string;
     disconnectedAt: Date;
   }): Promise<GameSessionSnapshot<TState> | null>;
+  /** Clear a player disconnect timestamp. Returns null if session not found. */
+  clearPlayerDisconnected(input: {
+    gameSessionId: string;
+    playerSessionId: string;
+  }): Promise<GameSessionSnapshot<TState> | null>;
+  /** Find disconnected game players whose grace window has expired. */
+  loadExpiredDisconnectedGamePlayers(input: {
+    olderThan: Date;
+  }): Promise<Array<{ gameSessionId: string; playerSessionId: string }>>;
 }
 
 /**
@@ -123,6 +132,12 @@ export interface GamePlayerView {
   view: unknown;
 }
 
+/** Player-specific game snapshot sent when a client reconnects or subscribes. */
+export interface GamePlayerSnapshot extends GamePlayerView {
+  gameSessionId: string;
+  stateVersion: number;
+}
+
 export type GameCommandResult =
   | {
       accepted: true;
@@ -159,8 +174,18 @@ export interface GameSessionService {
   ): Promise<GameStartedResult>;
   /** Validate and execute a player's command against the current game state. */
   submitCommand(input: SubmitGameCommandInput): Promise<GameCommandResult>;
-  /** Record a player disconnect and invalidate the game session if applicable. */
+  /** Record a player disconnect without invalidating during the grace window. */
   markDisconnected(
     input: MarkDisconnectedInput,
-  ): Promise<GameEndedResult | null>;
+  ): Promise<GameSessionSnapshot | null>;
+  /** Clear a disconnect marker and return the latest player-specific snapshot. */
+  markReconnected(
+    input: MarkDisconnectedInput,
+  ): Promise<GamePlayerSnapshot | null>;
+  /** Return the latest player-specific snapshot for reconnect subscription recovery. */
+  getPlayerSnapshot(input: MarkDisconnectedInput): Promise<GamePlayerSnapshot>;
+  /** Invalidate games whose disconnected player grace window has expired. */
+  cleanupExpiredDisconnects(input: {
+    olderThan: Date;
+  }): Promise<GameEndedResult[]>;
 }

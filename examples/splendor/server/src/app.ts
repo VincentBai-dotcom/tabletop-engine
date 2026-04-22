@@ -8,14 +8,26 @@ import {
   createWebSocketRoutes,
   type WebSocketRoutesDeps,
 } from "./modules/websocket";
+import {
+  createDisconnectCleanupCron,
+  type DisconnectCleanupService,
+} from "./modules/disconnect-cleanup";
 
 export interface AppDeps {
   roomService: RoomService;
   websocket: WebSocketRoutesDeps;
+  disconnectCleanup?: {
+    cleanupService: DisconnectCleanupService;
+    pattern: string;
+  };
 }
 
-export function createApp({ roomService, websocket }: AppDeps) {
-  return new Elysia()
+export function createApp({
+  roomService,
+  websocket,
+  disconnectCleanup,
+}: AppDeps) {
+  const app = new Elysia()
     .use(
       openapi({
         documentation: {
@@ -31,4 +43,8 @@ export function createApp({ roomService, websocket }: AppDeps) {
     .get("/health", () => ({ status: "ok" }))
     .use(createRoomRoutes({ roomService }))
     .use(createWebSocketRoutes(websocket));
+
+  return disconnectCleanup
+    ? app.use(createDisconnectCleanupCron(disconnectCleanup))
+    : app;
 }

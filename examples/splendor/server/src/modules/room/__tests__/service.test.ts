@@ -15,6 +15,7 @@ import type {
 class FakeRoomStore implements RoomStore {
   readonly rooms = new Map<string, RoomSnapshot>();
   readonly markedStartingRoomIds: string[] = [];
+  beforeNextLoadRoomSnapshot: (() => void) | null = null;
   private nextRoomId = 1;
   private nextPlayerSessionId = 1;
 
@@ -32,6 +33,7 @@ class FakeRoomStore implements RoomStore {
           displayNameKey: input.displayNameKey,
           isReady: false,
           isHost: true,
+          disconnectedAt: null,
         },
       ],
     };
@@ -52,6 +54,8 @@ class FakeRoomStore implements RoomStore {
   }
 
   async loadRoomSnapshot(roomId: string) {
+    this.beforeNextLoadRoomSnapshot?.();
+    this.beforeNextLoadRoomSnapshot = null;
     return this.rooms.get(roomId) ?? null;
   }
 
@@ -70,6 +74,7 @@ class FakeRoomStore implements RoomStore {
       displayNameKey: input.displayNameKey,
       isReady: false,
       isHost: false,
+      disconnectedAt: null,
     });
     room.players.sort((left, right) => left.seatIndex - right.seatIndex);
     return room;
@@ -83,6 +88,46 @@ class FakeRoomStore implements RoomStore {
     const player = this.requirePlayer(input.roomId, input.playerSessionId);
     player.isReady = input.ready;
     return this.requireRoom(input.roomId);
+  }
+
+  async markRoomPlayerDisconnected(input: {
+    roomId: string;
+    playerSessionId: string;
+    disconnectedAt: Date;
+  }) {
+    const player = this.requirePlayer(input.roomId, input.playerSessionId);
+    player.disconnectedAt = input.disconnectedAt;
+    return this.requireRoom(input.roomId);
+  }
+
+  async clearRoomPlayerDisconnected(input: {
+    roomId: string;
+    playerSessionId: string;
+  }) {
+    const player = this.requirePlayer(input.roomId, input.playerSessionId);
+    player.disconnectedAt = null;
+    return this.requireRoom(input.roomId);
+  }
+
+  async loadExpiredDisconnectedRoomPlayers(input: { olderThan: Date }) {
+    const expiredPlayers: Array<{ roomId: string; playerSessionId: string }> =
+      [];
+
+    for (const room of this.rooms.values()) {
+      for (const player of room.players) {
+        if (
+          player.disconnectedAt &&
+          player.disconnectedAt.getTime() < input.olderThan.getTime()
+        ) {
+          expiredPlayers.push({
+            roomId: room.id,
+            playerSessionId: player.playerSessionId,
+          });
+        }
+      }
+    }
+
+    return expiredPlayers;
   }
 
   async removeRoomPlayer(input: { roomId: string; playerSessionId: string }) {
@@ -188,6 +233,7 @@ function createRoom(playerIds: string[]): RoomSnapshot {
       displayNameKey: `player ${index + 1}`,
       isReady: false,
       isHost: index === 0,
+      disconnectedAt: null,
     }),
   );
 
@@ -246,6 +292,7 @@ describe("createRoomService", () => {
         displayNameKey: "vincent",
         isReady: false,
         isHost: true,
+        disconnectedAt: null,
       },
     ]);
   });
@@ -357,6 +404,20 @@ describe("createRoomService", () => {
     ).rejects.toMatchObject({ code: "room_players_not_ready" });
   });
 
+  it("requires all seated players to be connected before start", async () => {
+    const { service, store } = createTestService();
+    const room = createRoom(["host", "p2"]);
+    room.players.forEach((player) => {
+      player.isReady = true;
+    });
+    room.players[1]!.disconnectedAt = new Date("2026-04-20T12:00:00.000Z");
+    store.addExistingRoom(room);
+
+    await expect(
+      service.startGame({ roomId: room.id, playerSessionId: "host" }),
+    ).rejects.toMatchObject({ code: "room_players_disconnected" });
+  });
+
   it("marks the room starting and publishes game started when start succeeds", async () => {
     const { notifier, service, store } = createTestService();
     const room = createRoom(["host", "p2"]);
@@ -404,6 +465,118 @@ describe("createRoomService", () => {
 
     expect(result.room).toBeNull();
     expect(result.roomDeleted).toBe(true);
+    expect(await store.loadRoomSnapshot("room-1")).toBeNull();
+  });
+
+  it("marks a seated player temporarily disconnected", async () => {
+    const { notifier, service, store } = createTestService();
+    const disconnectedAt = new Date("2026-04-20T12:00:00.000Z");
+    store.addExistingRoom(createRoom(["host", "p2"]));
+
+    const result = await service.markDisconnected({
+      roomId: "room-1",
+      playerSessionId: "p2",
+      disconnectedAt,
+    });
+
+    expect(result.roomDeleted).toBe(false);
+    expect(result.room).not.toBeNull();
+    if (!result.room) {
+      throw new Error("expected room update");
+    }
+    expect(
+      result.room?.players.find((player) => player.playerSessionId === "p2"),
+    ).toMatchObject({ disconnectedAt });
+    expect(result.room?.players).toHaveLength(2);
+    expect(notifier.updates[notifier.updates.length - 1]).toBe(result.room);
+  });
+
+  it("clears temporary room disconnects on reconnect", async () => {
+    const { notifier, service, store } = createTestService();
+    const room = createRoom(["host", "p2"]);
+    room.players[1]!.disconnectedAt = new Date("2026-04-20T12:00:00.000Z");
+    store.addExistingRoom(room);
+
+    const result = await service.markReconnected({
+      roomId: "room-1",
+      playerSessionId: "p2",
+    });
+
+    expect(result.room).not.toBeNull();
+    if (!result.room) {
+      throw new Error("expected room update");
+    }
+    expect(
+      result.room?.players.find((player) => player.playerSessionId === "p2")
+        ?.disconnectedAt,
+    ).toBeNull();
+    expect(notifier.updates[notifier.updates.length - 1]).toBe(result.room);
+  });
+
+  it("removes expired disconnected non-host room players", async () => {
+    const { service, store } = createTestService();
+    const room = createRoom(["host", "p2", "p3"]);
+    room.players[1]!.disconnectedAt = new Date("2026-04-20T12:00:00.000Z");
+    store.addExistingRoom(room);
+
+    await service.cleanupExpiredDisconnects({
+      olderThan: new Date("2026-04-20T12:00:45.000Z"),
+    });
+
+    expect(
+      store.rooms
+        .get("room-1")
+        ?.players.map((player) => player.playerSessionId),
+    ).toEqual(["host", "p3"]);
+  });
+
+  it("keeps room players who reconnect before cleanup removes them", async () => {
+    const { service, store } = createTestService();
+    const room = createRoom(["host", "p2", "p3"]);
+    room.players[1]!.disconnectedAt = new Date("2026-04-20T12:00:00.000Z");
+    store.addExistingRoom(room);
+    store.beforeNextLoadRoomSnapshot = () => {
+      room.players[1]!.disconnectedAt = null;
+    };
+
+    const processedCount = await service.cleanupExpiredDisconnects({
+      olderThan: new Date("2026-04-20T12:00:45.000Z"),
+    });
+
+    expect(processedCount).toBe(0);
+    expect(
+      store.rooms
+        .get("room-1")
+        ?.players.map((player) => player.playerSessionId),
+    ).toEqual(["host", "p2", "p3"]);
+  });
+
+  it("transfers host when an expired disconnected host is removed", async () => {
+    const { service, store } = createTestService();
+    const room = createRoom(["host", "p2", "p3"]);
+    room.players[0]!.disconnectedAt = new Date("2026-04-20T12:00:00.000Z");
+    store.addExistingRoom(room);
+
+    await service.cleanupExpiredDisconnects({
+      olderThan: new Date("2026-04-20T12:00:45.000Z"),
+    });
+
+    expect(store.rooms.get("room-1")?.hostPlayerSessionId).toBe("p2");
+    expect(
+      store.rooms.get("room-1")?.players.map((player) => player.isHost),
+    ).toEqual([true, false]);
+  });
+
+  it("deletes the room when the last disconnected player expires", async () => {
+    const { service, store } = createTestService();
+    const room = createRoom(["host"]);
+    room.players[0]!.disconnectedAt = new Date("2026-04-20T12:00:00.000Z");
+    store.addExistingRoom(room);
+
+    await service.cleanupExpiredDisconnects({
+      olderThan: new Date("2026-04-20T12:00:45.000Z"),
+    });
+
     expect(await store.loadRoomSnapshot("room-1")).toBeNull();
   });
 });

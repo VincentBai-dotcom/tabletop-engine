@@ -22,6 +22,7 @@ function createRoom(): RoomSnapshot {
         displayNameKey: "host",
         isReady: true,
         isHost: true,
+        disconnectedAt: null,
       },
       {
         playerSessionId: "session-2",
@@ -30,6 +31,7 @@ function createRoom(): RoomSnapshot {
         displayNameKey: "second",
         isReady: true,
         isHost: false,
+        disconnectedAt: null,
       },
     ],
   };
@@ -41,6 +43,7 @@ class FakeGameSessionStore implements GameSessionStore {
   readonly deletedRoomIds: string[] = [];
   readonly deletedGameSessionIds: string[] = [];
   readonly persistedVersions: number[] = [];
+  beforeNextLoadGameSession: (() => void) | null = null;
   private nextGameSessionId = 1;
 
   async loadRoomForGameStart(roomId: string) {
@@ -62,6 +65,8 @@ class FakeGameSessionStore implements GameSessionStore {
   }
 
   async loadGameSession(gameSessionId: string) {
+    this.beforeNextLoadGameSession?.();
+    this.beforeNextLoadGameSession = null;
     return this.sessions.get(gameSessionId) ?? null;
   }
 
@@ -108,6 +113,47 @@ class FakeGameSessionStore implements GameSessionStore {
     player.disconnectedAt = input.disconnectedAt;
     return snapshot;
   }
+
+  async clearPlayerDisconnected(input: {
+    gameSessionId: string;
+    playerSessionId: string;
+  }) {
+    const snapshot = this.sessions.get(input.gameSessionId);
+    if (!snapshot) {
+      return null;
+    }
+    const player = snapshot.players.find(
+      (candidate) => candidate.playerSessionId === input.playerSessionId,
+    );
+    if (!player) {
+      return null;
+    }
+    player.disconnectedAt = null;
+    return snapshot;
+  }
+
+  async loadExpiredDisconnectedGamePlayers(input: { olderThan: Date }) {
+    const expiredPlayers: Array<{
+      gameSessionId: string;
+      playerSessionId: string;
+    }> = [];
+
+    for (const snapshot of this.sessions.values()) {
+      for (const player of snapshot.players) {
+        if (
+          player.disconnectedAt &&
+          player.disconnectedAt.getTime() < input.olderThan.getTime()
+        ) {
+          expiredPlayers.push({
+            gameSessionId: snapshot.id,
+            playerSessionId: player.playerSessionId,
+          });
+        }
+      }
+    }
+
+    return expiredPlayers;
+  }
 }
 
 function createTestService(store: FakeGameSessionStore) {
@@ -120,6 +166,18 @@ function createTestService(store: FakeGameSessionStore) {
 }
 
 describe("createGameSessionService", () => {
+  async function createStartedGame() {
+    const store = new FakeGameSessionStore();
+    store.rooms.set("room-1", createRoom());
+    const service = createTestService(store);
+    await service.createGameSessionFromRoom({
+      roomId: "room-1",
+      requestingPlayerSessionId: "session-host",
+    });
+
+    return { service, store };
+  }
+
   it("creates a game from room seats in seat order", async () => {
     const store = new FakeGameSessionStore();
     store.rooms.set("room-1", createRoom());
@@ -230,27 +288,106 @@ describe("createGameSessionService", () => {
     expect(store.persistedVersions).toEqual([]);
   });
 
-  it("invalidates and deletes the game when a player disconnects", async () => {
-    const store = new FakeGameSessionStore();
-    store.rooms.set("room-1", createRoom());
-    const service = createTestService(store);
-    await service.createGameSessionFromRoom({
-      roomId: "room-1",
-      requestingPlayerSessionId: "session-host",
-    });
+  it("marks a player disconnected without deleting the game immediately", async () => {
+    const { service, store } = await createStartedGame();
 
     const result = await service.markDisconnected({
       gameSessionId: "game-1",
       playerSessionId: "session-2",
     });
 
+    expect(result?.players[1]?.disconnectedAt).toEqual(
+      new Date("2026-04-19T12:00:00.000Z"),
+    );
+    expect(store.deletedGameSessionIds).toEqual([]);
+    expect(await store.loadGameSession("game-1")).not.toBeNull();
+  });
+
+  it("clears a player disconnect and returns the latest player snapshot", async () => {
+    const { service, store } = await createStartedGame();
+    await store.markPlayerDisconnected({
+      gameSessionId: "game-1",
+      playerSessionId: "session-2",
+      disconnectedAt: new Date("2026-04-19T12:00:00.000Z"),
+    });
+
+    const result = await service.markReconnected({
+      gameSessionId: "game-1",
+      playerSessionId: "session-2",
+    });
+
     expect(result).toEqual({
       gameSessionId: "game-1",
-      result: {
-        reason: "invalidated",
-        message: "A seated player disconnected",
-      },
+      stateVersion: 0,
+      playerSessionId: "session-2",
+      playerId: "player-2",
+      view: expect.any(Object),
     });
+    expect(
+      (await store.loadGameSession("game-1"))?.players[1]?.disconnectedAt,
+    ).toBeNull();
+  });
+
+  it("returns a player snapshot for reconnect subscription recovery", async () => {
+    const { service } = await createStartedGame();
+
+    const result = await service.getPlayerSnapshot({
+      gameSessionId: "game-1",
+      playerSessionId: "session-host",
+    });
+
+    expect(result).toEqual({
+      gameSessionId: "game-1",
+      stateVersion: 0,
+      playerSessionId: "session-host",
+      playerId: "player-1",
+      view: expect.any(Object),
+    });
+  });
+
+  it("invalidates and deletes games when a disconnected player expires", async () => {
+    const { service, store } = await createStartedGame();
+    await store.markPlayerDisconnected({
+      gameSessionId: "game-1",
+      playerSessionId: "session-2",
+      disconnectedAt: new Date("2026-04-19T12:00:00.000Z"),
+    });
+
+    const result = await service.cleanupExpiredDisconnects({
+      olderThan: new Date("2026-04-19T12:00:45.000Z"),
+    });
+
+    expect(result).toEqual([
+      {
+        gameSessionId: "game-1",
+        result: {
+          reason: "invalidated",
+          message: "A seated player disconnected",
+        },
+      },
+    ]);
     expect(store.deletedGameSessionIds).toEqual(["game-1"]);
+  });
+
+  it("keeps games when the expired player reconnects before cleanup deletes", async () => {
+    const { service, store } = await createStartedGame();
+    const gameSession = store.sessions.get("game-1");
+    if (!gameSession) {
+      throw new Error("expected game session");
+    }
+    gameSession.players[1]!.disconnectedAt = new Date(
+      "2026-04-19T12:00:00.000Z",
+    );
+    store.beforeNextLoadGameSession = () => {
+      gameSession.players[1]!.disconnectedAt = null;
+    };
+
+    const result = await service.cleanupExpiredDisconnects({
+      olderThan: new Date("2026-04-19T12:00:45.000Z"),
+    });
+
+    expect(result).toEqual([]);
+    expect(store.deletedGameSessionIds).toEqual([]);
+    expect(await store.loadGameSession("game-1")).not.toBeNull();
   });
 });

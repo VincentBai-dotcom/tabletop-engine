@@ -101,6 +101,10 @@ export function createLiveConnectionRegistry(): LiveConnectionRegistry {
         .map((record) => record.connection);
     },
 
+    getConnections() {
+      return [...byPlayerSessionId.values()].map((record) => record.connection);
+    },
+
     removeConnection(connectionId) {
       const playerSessionId =
         playerSessionIdByConnectionId.get(connectionId) ?? null;

@@ -50,6 +50,7 @@ export const roomPlayers = pgTable(
     displayName: text("display_name").notNull(),
     displayNameKey: text("display_name_key").notNull(),
     isReady: boolean("is_ready").notNull().default(false),
+    disconnectedAt: timestamp("disconnected_at", { withTimezone: true }),
     joinedAt: timestamp("joined_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -66,5 +67,6 @@ export const roomPlayers = pgTable(
     ),
     index("idx_room_players_room_id").on(table.roomId),
     index("idx_room_players_player_session_id").on(table.playerSessionId),
+    index("idx_room_players_disconnected_at").on(table.disconnectedAt),
   ],
 );

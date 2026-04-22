@@ -5,6 +5,12 @@ export interface LiveConnection {
   id: string;
   /** Send a JSON-serializable payload to the client. */
   send(payload: unknown): void;
+  /** Send a protocol-level websocket ping when the runtime supports it. */
+  ping?(): void;
+  /** Force-close a stale connection when the runtime supports it. */
+  terminate?(): void;
+  /** Gracefully close a connection with an optional code and reason. */
+  close?(code?: number, reason?: string): void;
 }
 
 /** What a connection is currently subscribed to. */
@@ -43,6 +49,8 @@ export interface LiveConnectionRegistry {
   getRoomConnections(roomId: string): LiveConnection[];
   /** Get all connections currently subscribed to a game session. */
   getGameConnections(gameSessionId: string): LiveConnection[];
+  /** Get every registered live connection. */
+  getConnections(): LiveConnection[];
   /** Unregister a connection on close. Returns the player session and last subscription for cleanup. */
   removeConnection(connectionId: string): RemovedLiveConnection | null;
 }
@@ -75,10 +83,19 @@ export interface LiveNotifier extends RoomNotifier, GameSessionNotifier {}
 /** Messages sent from the server to the client over WebSocket. */
 export type LiveServerMessage =
   | { type: "session_resolved"; playerSessionToken: string }
+  | { type: "room_snapshot"; room: RoomSnapshot }
   | { type: "room_updated"; room: RoomSnapshot }
   | { type: "game_started"; gameSessionId: string }
+  | { type: "game_snapshot"; stateVersion: number; view: unknown; events: [] }
   | ({ type: "game_updated" } & GameUpdatePayload)
   | { type: "game_ended"; result: GameEndedPayload }
+  | {
+      type: "player_disconnected";
+      playerSessionId: string;
+      graceExpiresAt: string;
+    }
+  | { type: "player_reconnected"; playerSessionId: string }
+  | { type: "server_restarting"; reconnectAfterMs: number }
   | { type: "error"; code: string; message?: string };
 
 /** Messages sent from the client to the server over WebSocket. */
