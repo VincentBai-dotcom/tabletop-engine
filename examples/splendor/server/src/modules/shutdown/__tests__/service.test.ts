@@ -45,6 +45,9 @@ describe("createShutdownService", () => {
           calls.push("server.stop");
         },
       },
+      exitProcess(code) {
+        calls.push(`process.exit:${code}`);
+      },
       reconnectAfterMs: 1_000,
       closeCode: 1012,
     });
@@ -55,6 +58,7 @@ describe("createShutdownService", () => {
       "heartbeat.stop",
       "cleanupCron.stop",
       "server.stop",
+      "process.exit:0",
     ]);
     expect(first.sent).toEqual([
       { type: "server_restarting", reconnectAfterMs: 1_000 },

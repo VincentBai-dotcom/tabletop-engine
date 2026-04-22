@@ -110,6 +110,7 @@ const shutdownService = createShutdownService({
   heartbeat,
   cleanupCron: getDisconnectCleanupCron(app),
   server: app,
+  exitProcess: (code) => process.exit(code),
   reconnectAfterMs: SERVER_RESTART_RECONNECT_AFTER_MS,
   closeCode: SERVER_RESTART_CLOSE_CODE,
 });

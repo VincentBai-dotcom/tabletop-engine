@@ -5,6 +5,7 @@ export function createShutdownService({
   heartbeat,
   cleanupCron,
   server,
+  exitProcess,
   reconnectAfterMs,
   closeCode,
 }: CreateShutdownServiceDeps): ShutdownService {
@@ -22,6 +23,7 @@ export function createShutdownService({
       }
 
       await server.stop();
+      exitProcess(0);
     },
   };
 }

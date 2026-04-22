@@ -8,6 +8,8 @@ export interface ServerStopper {
   stop(): void | Promise<unknown>;
 }
 
+export type ExitProcess = (code: number) => void;
+
 export interface ShutdownService {
   handleSigterm(): Promise<void>;
 }
@@ -17,6 +19,7 @@ export interface CreateShutdownServiceDeps {
   heartbeat: Stoppable;
   cleanupCron?: Stoppable;
   server: ServerStopper;
+  exitProcess: ExitProcess;
   reconnectAfterMs: number;
   closeCode: number;
 }
