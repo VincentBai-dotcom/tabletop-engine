@@ -71,4 +71,38 @@ describe("createShutdownService", () => {
       { code: 1012, reason: "server_restarting" },
     ]);
   });
+
+  it("runs shutdown only once when called repeatedly", async () => {
+    const registry = createLiveConnectionRegistry();
+    const client = createClosableConnection("conn-1");
+    const calls: string[] = [];
+    registry.register("session-1", client.connection);
+
+    const service = createShutdownService({
+      registry,
+      heartbeat: {
+        stop() {
+          calls.push("heartbeat.stop");
+        },
+      },
+      server: {
+        async stop() {
+          calls.push("server.stop");
+        },
+      },
+      exitProcess(code) {
+        calls.push(`process.exit:${code}`);
+      },
+      reconnectAfterMs: 1_000,
+      closeCode: 1012,
+    });
+
+    await service.handleSigterm();
+    await service.handleSigterm();
+
+    expect(calls).toEqual(["heartbeat.stop", "server.stop", "process.exit:0"]);
+    expect(client.closes).toEqual([
+      { code: 1012, reason: "server_restarting" },
+    ]);
+  });
 });

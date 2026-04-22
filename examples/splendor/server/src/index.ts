@@ -115,14 +115,7 @@ const shutdownService = createShutdownService({
   closeCode: SERVER_RESTART_CLOSE_CODE,
 });
 
-let shutdownStarted = false;
-
 function handleShutdownSignal() {
-  if (shutdownStarted) {
-    return;
-  }
-  shutdownStarted = true;
-
   void shutdownService.handleSigterm().catch((error: unknown) => {
     console.error("server_shutdown_failed", error);
     process.exit(1);

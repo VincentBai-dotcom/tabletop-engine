@@ -9,8 +9,15 @@ export function createShutdownService({
   reconnectAfterMs,
   closeCode,
 }: CreateShutdownServiceDeps): ShutdownService {
+  let shutdownStarted = false;
+
   return {
     async handleSigterm() {
+      if (shutdownStarted) {
+        return;
+      }
+      shutdownStarted = true;
+
       heartbeat.stop();
       cleanupCron?.stop();
 
