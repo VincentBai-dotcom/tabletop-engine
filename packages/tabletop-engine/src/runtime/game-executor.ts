@@ -15,6 +15,7 @@ import type {
   Command,
   Discovery,
   InternalCommandDefinition,
+  DiscoveryStepResolvedOption,
 } from "../types/command";
 import type { CommandDiscoveryResult } from "../types/command";
 import type { GameEvent } from "../types/event";
@@ -510,10 +511,7 @@ export function createGameExecutor<
       }
 
       const definition = game.commands[discovery.type];
-
-      if (!definition?.discover) {
-        return null;
-      }
+      const discoveryDefinition = definition?.discovery;
 
       if (
         typeof discovery.actorId !== "string" ||
@@ -552,21 +550,89 @@ export function createGameExecutor<
         return null;
       }
 
-      return definition.discover(
-        createDiscoveryContext(
-          state,
-          createCommandGameView(
-            game as GameExecutorDefinition<
-              CanonicalGameState,
-              FacadeGameState,
-              SetupInput
-            >,
-            state,
-            { readonly: true },
-          ),
-          discovery,
-        ),
+      if (!discoveryDefinition) {
+        return null;
+      }
+
+      const step = discoveryDefinition.steps.find(
+        (candidate) => candidate.stepId === discovery.step,
       );
+
+      if (!step) {
+        return null;
+      }
+
+      try {
+        assertSchemaValue(step.inputSchema, discovery.input);
+      } catch {
+        return null;
+      }
+
+      const discoveryContext = createDiscoveryContext(
+        state,
+        createCommandGameView(
+          game as GameExecutorDefinition<
+            CanonicalGameState,
+            FacadeGameState,
+            SetupInput
+          >,
+          state,
+          { readonly: true },
+        ),
+        discovery,
+      );
+
+      const result = step.resolve(discoveryContext);
+
+      if (!result) {
+        return null;
+      }
+
+      if (!Array.isArray(result)) {
+        try {
+          assertSchemaValue(definition.commandSchema, result.input);
+        } catch {
+          return null;
+        }
+
+        return {
+          complete: true,
+          input: result.input,
+        };
+      }
+
+      const discoveryOptions: Array<DiscoveryStepResolvedOption> = [];
+
+      for (const option of result) {
+        try {
+          assertSchemaValue(step.outputSchema, option.output);
+        } catch {
+          return null;
+        }
+
+        const nextStep = option.nextStep ?? step.defaultNextStep;
+
+        if (
+          typeof nextStep !== "string" ||
+          nextStep.length === 0 ||
+          !discoveryDefinition.steps.some(
+            (candidate) => candidate.stepId === nextStep,
+          )
+        ) {
+          return null;
+        }
+
+        discoveryOptions.push({
+          ...option,
+          nextStep,
+        });
+      }
+
+      return {
+        complete: false,
+        step: discovery.step,
+        options: discoveryOptions,
+      };
     },
 
     executeCommand(state, command) {

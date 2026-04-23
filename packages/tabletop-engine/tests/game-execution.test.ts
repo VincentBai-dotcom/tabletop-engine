@@ -22,6 +22,21 @@ const amountCommandSchema = t.object({
 const playCardCommandSchema = t.object({
   cardId: t.optional(t.number()),
 });
+const selectAmountInputSchema = t.object({});
+const selectAmountOutputSchema = t.object({
+  amount: t.number(),
+  label: t.string(),
+});
+const confirmAmountInputSchema = t.object({
+  amount: t.number(),
+});
+const confirmAmountOutputSchema = t.object({});
+const selectCardInputSchema = t.object({
+  cardId: t.number(),
+});
+const selectCardOutputSchema = t.object({
+  cardId: t.number(),
+});
 
 @State()
 class CounterStateFacade {
@@ -853,24 +868,64 @@ test("availability and discovery contexts hydrate readonly decorated state facad
       commandId: "increment_counter",
       commandSchema: amountCommandSchema,
     })
-      .discoverable({
-        discoverySchema: amountCommandSchema,
-        discover: ({ game }) => {
-          if ((game as RootCounterStateFacade).hasCounterValueAtLeast(2)) {
-            return {
-              complete: false as const,
-              step: "select_amount",
-              options: [{ id: "two", nextInput: { amount: 2 } }],
-            };
-          }
+      .discoverable((flow) =>
+        flow
+          .step("select_amount", (step) =>
+            step
+              .input(selectAmountInputSchema)
+              .output(selectAmountOutputSchema)
+              .resolve(({ discovery, game, input }) => {
+                expect(discovery.step).toBe("select_amount");
+                expect(discovery.input).toEqual(input);
 
-          return {
-            complete: false as const,
-            step: "select_amount",
-            options: [{ id: "one", nextInput: { amount: 1 } }],
-          };
-        },
-      })
+                if (
+                  (game as RootCounterStateFacade).hasCounterValueAtLeast(2)
+                ) {
+                  return [
+                    {
+                      id: "two",
+                      output: {
+                        amount: 2,
+                        label: "Two",
+                      },
+                      nextInput: {
+                        amount: 2,
+                      },
+                    },
+                  ];
+                }
+
+                return [
+                  {
+                    id: "one",
+                    output: {
+                      amount: 1,
+                      label: "One",
+                    },
+                    nextInput: {
+                      amount: 1,
+                    },
+                  },
+                ];
+              }),
+          )
+          .step("confirm_amount", (step) =>
+            step
+              .input(confirmAmountInputSchema)
+              .output(confirmAmountOutputSchema)
+              .resolve(({ discovery, input }) => {
+                expect(discovery.step).toBe("confirm_amount");
+                expect(input).toEqual({
+                  amount: 2,
+                });
+
+                return {
+                  complete: true as const,
+                  input,
+                };
+              }),
+          ),
+      )
       .isAvailable(({ game }) =>
         (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
       )
@@ -905,12 +960,40 @@ test("availability and discovery contexts hydrate readonly decorated state facad
     executor.discoverCommand(initialState, {
       type: "increment_counter",
       actorId: "player-1",
+      step: "select_amount",
       input: {},
     }),
   ).toMatchObject({
     complete: false,
     step: "select_amount",
-    options: [{ id: "two", nextInput: { amount: 2 } }],
+    options: [
+      {
+        id: "two",
+        output: {
+          amount: 2,
+          label: "Two",
+        },
+        nextInput: {
+          amount: 2,
+        },
+        nextStep: "confirm_amount",
+      },
+    ],
+  });
+  expect(
+    executor.discoverCommand(initialState, {
+      type: "increment_counter",
+      actorId: "player-1",
+      step: "confirm_amount",
+      input: {
+        amount: 2,
+      },
+    }),
+  ).toEqual({
+    complete: true,
+    input: {
+      amount: 2,
+    },
   });
   expect(initialState.game.counter.value).toBe(2);
 });
@@ -1131,14 +1214,24 @@ test("createGameExecutor rejects discovery missing input at runtime", () => {
       commandId: "play_card",
       commandSchema: playCardCommandSchema,
     })
-      .discoverable({
-        discoverySchema: t.object({
-          cardId: t.optional(t.number()),
-        }),
-        discover() {
-          return null;
-        },
-      })
+      .discoverable((flow) =>
+        flow.step("select_card", (step) =>
+          step
+            .input(selectCardInputSchema)
+            .output(selectCardOutputSchema)
+            .resolve(() => [
+              {
+                id: "card-1",
+                output: {
+                  cardId: 1,
+                },
+                nextInput: {
+                  cardId: 1,
+                },
+              },
+            ]),
+        ),
+      )
       .validate(() => ({ ok: true as const }))
       .execute(() => {})
       .build(),
@@ -1153,6 +1246,8 @@ test("createGameExecutor rejects discovery missing input at runtime", () => {
   const result = executor.discoverCommand(initialState, {
     type: "play_card",
     actorId: "player-1",
+    step: "select_card",
+    input: {},
   } as never);
 
   expect(result).toBeNull();
@@ -1583,32 +1678,65 @@ test("game executor can discover the next semantic options for a command", () =>
       commandId: "play_card",
       commandSchema: playCardCommandSchema,
     })
-      .discoverable({
-        discoverySchema: t.object({
-          cardId: t.optional(t.number()),
-          targetId: t.optional(t.number()),
-        }),
-        discover: ({ discovery }) => {
-          const cardId = discovery.input.cardId;
+      .discoverable((flow) =>
+        flow
+          .step("select_card", (step) =>
+            step
+              .input(selectAmountInputSchema)
+              .output(selectCardOutputSchema)
+              .resolve(({ discovery }) => {
+                if (typeof discovery.input.cardId !== "number") {
+                  return [
+                    {
+                      id: "card-1",
+                      output: {
+                        cardId: 1,
+                      },
+                      nextInput: {
+                        cardId: 1,
+                      },
+                    },
+                    {
+                      id: "card-2",
+                      output: {
+                        cardId: 2,
+                      },
+                      nextInput: {
+                        cardId: 2,
+                      },
+                    },
+                  ];
+                }
 
-          if (typeof cardId !== "number") {
-            return {
-              complete: false as const,
-              step: "select_card",
-              options: [
-                { id: "card-1", nextInput: { cardId: 1 } },
-                { id: "card-2", nextInput: { cardId: 2 } },
-              ],
-            };
-          }
-
-          return {
-            complete: false as const,
-            step: "select_target",
-            options: [{ id: "target-1", nextInput: { cardId, targetId: 101 } }],
-          };
-        },
-      })
+                return [
+                  {
+                    id: "card-1",
+                    output: {
+                      cardId: discovery.input.cardId,
+                    },
+                    nextInput: {
+                      cardId: discovery.input.cardId,
+                    },
+                  },
+                ];
+              }),
+          )
+          .step("select_target", (step) =>
+            step
+              .input(selectCardInputSchema)
+              .output(
+                t.object({
+                  targetId: t.number(),
+                }),
+              )
+              .resolve(({ discovery }) => ({
+                complete: true as const,
+                input: {
+                  cardId: discovery.input.cardId,
+                },
+              })),
+          ),
+      )
       .isAvailable(({ game }) => game.canPlay)
       .validate(() => ({ ok: true as const }))
       .execute(() => {})
@@ -1624,11 +1752,13 @@ test("game executor can discover the next semantic options for a command", () =>
   const firstStep = gameExecutor.discoverCommand(initialState, {
     type: "play_card",
     actorId: "player-1",
+    step: "select_card",
     input: {},
   });
   const secondStep = gameExecutor.discoverCommand(initialState, {
     type: "play_card",
     actorId: "player-1",
+    step: "select_target",
     input: {
       cardId: 2,
     },
@@ -1643,16 +1773,181 @@ test("game executor can discover the next semantic options for a command", () =>
   }
   expect(firstStep.options).toHaveLength(2);
   expect(secondStep).toMatchObject({
-    complete: false,
-    step: "select_target",
+    complete: true,
+    input: {
+      cardId: 2,
+    },
   });
-  if (!secondStep || secondStep.complete) {
+  expect(firstStep?.complete).toBe(false);
+  if (!firstStep || firstStep.complete) {
     throw new Error("expected_incomplete_discovery");
   }
-  expect(secondStep.options[0]).toEqual({
-    id: "target-1",
-    nextInput: { cardId: 2, targetId: 101 },
-  });
+  expect(firstStep.options).toEqual([
+    {
+      id: "card-1",
+      output: {
+        cardId: 1,
+      },
+      nextInput: {
+        cardId: 1,
+      },
+      nextStep: "select_target",
+    },
+    {
+      id: "card-2",
+      output: {
+        cardId: 2,
+      },
+      nextInput: {
+        cardId: 2,
+      },
+      nextStep: "select_target",
+    },
+  ]);
+});
+
+test("createGameExecutor rejects invalid discovery results for step-authored commands", () => {
+  const defineCommand = createCommandFactory<CanPlayRootState>();
+  const commands = {
+    invalid_output: defineCommand({
+      commandId: "invalid_output",
+      commandSchema: playCardCommandSchema,
+    })
+      .discoverable((flow) =>
+        flow.step("select_card", (step) =>
+          step
+            .input(selectAmountInputSchema)
+            .output(selectCardOutputSchema)
+            .resolve(() => [
+              {
+                id: "card-1",
+                output: {
+                  cardId: "bad",
+                } as never,
+                nextInput: {
+                  cardId: 1,
+                },
+              },
+            ]),
+        ),
+      )
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+    invalid_completion: defineCommand({
+      commandId: "invalid_completion",
+      commandSchema: playCardCommandSchema,
+    })
+      .discoverable((flow) =>
+        flow.step("select_target", (step) =>
+          step
+            .input(selectCardInputSchema)
+            .output(t.object({ targetId: t.number() }))
+            .resolve(() => ({
+              complete: true as const,
+              input: {
+                cardId: "bad",
+              } as never,
+            })),
+        ),
+      )
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+    missing_next_step: defineCommand({
+      commandId: "missing_next_step",
+      commandSchema: playCardCommandSchema,
+    })
+      .discoverable((flow) =>
+        flow.step("select_card", (step) =>
+          step
+            .input(selectAmountInputSchema)
+            .output(selectCardOutputSchema)
+            .resolve(() => [
+              {
+                id: "card-1",
+                output: {
+                  cardId: 1,
+                },
+                nextInput: {
+                  cardId: 1,
+                },
+              },
+            ]),
+        ),
+      )
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+    undeclared_next_step: defineCommand({
+      commandId: "undeclared_next_step",
+      commandSchema: playCardCommandSchema,
+    })
+      .discoverable((flow) =>
+        flow.step("select_card", (step) =>
+          step
+            .input(selectAmountInputSchema)
+            .output(selectCardOutputSchema)
+            .resolve(() => [
+              {
+                id: "card-1",
+                output: {
+                  cardId: 1,
+                },
+                nextInput: {
+                  cardId: 1,
+                },
+                nextStep: "missing_step",
+              },
+            ]),
+        ),
+      )
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+  };
+  const game = new GameDefinitionBuilder("invalid-step-discovery-game")
+    .rootState(CanPlayRootState)
+    .initialStage(createSelfLoopingTurnStage(Object.values(commands)))
+    .build();
+
+  const executor = createGameExecutor(game);
+  const initialState = executor.createInitialState("seed-123");
+
+  expect(
+    executor.discoverCommand(initialState, {
+      type: "invalid_output",
+      actorId: "player-1",
+      step: "select_card",
+      input: {},
+    }),
+  ).toBeNull();
+  expect(
+    executor.discoverCommand(initialState, {
+      type: "invalid_completion",
+      actorId: "player-1",
+      step: "select_target",
+      input: {
+        cardId: 2,
+      },
+    }),
+  ).toBeNull();
+  expect(
+    executor.discoverCommand(initialState, {
+      type: "missing_next_step",
+      actorId: "player-1",
+      step: "select_card",
+      input: {},
+    }),
+  ).toBeNull();
+  expect(
+    executor.discoverCommand(initialState, {
+      type: "undeclared_next_step",
+      actorId: "player-1",
+      step: "select_card",
+      input: {},
+    }),
+  ).toBeNull();
 });
 
 test("executor APIs reject invalid incoming canonical state", () => {
@@ -1661,14 +1956,28 @@ test("executor APIs reject invalid incoming canonical state", () => {
     commandId: "increment_counter",
     commandSchema: amountCommandSchema,
   })
-    .discoverable({
-      discoverySchema: amountCommandSchema,
-      discover: () => ({
-        complete: false as const,
-        step: "pick_amount",
-        options: [{ id: "one", nextInput: { amount: 1 } }],
-      }),
-    })
+    .discoverable((flow) =>
+      flow.step("pick_amount", (step) =>
+        step
+          .input(amountCommandSchema)
+          .output(
+            t.object({
+              amount: t.number(),
+            }),
+          )
+          .resolve(() => [
+            {
+              id: "one",
+              output: {
+                amount: 1,
+              },
+              nextInput: {
+                amount: 1,
+              },
+            },
+          ]),
+      ),
+    )
     .validate(() => ({ ok: true as const }))
     .execute(({ game, command }) => {
       const amount =
@@ -1730,6 +2039,7 @@ test("executor APIs reject invalid incoming canonical state", () => {
     executor.discoverCommand(invalidRuntimeState, {
       type: "increment_counter",
       actorId: "player-1",
+      step: "pick_amount",
       input: {},
     }),
   ).toThrow("invalid_schema_value");

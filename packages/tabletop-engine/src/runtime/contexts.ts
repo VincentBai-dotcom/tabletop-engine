@@ -79,6 +79,7 @@ export function createDiscoveryContext<
       discovery.actorId,
     ),
     discovery,
+    input: discovery.input,
   };
 }
 
