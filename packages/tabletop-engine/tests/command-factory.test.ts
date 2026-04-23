@@ -30,47 +30,42 @@ test("chained builder supports non-discoverable commands", () => {
   expect("discover" in command).toBeFalse();
 });
 
-test("chained builder supports discoverable commands with typed discovery and command input", () => {
+test("chained builder supports step-authored discovery", () => {
   const defineCommand = createCommandFactory<{
     score: number;
   }>();
   const commandSchema = t.object({
     amount: t.number(),
   });
-  const discoverySchema = t.object({
-    selectedAmount: t.optional(t.number()),
+  const selectAmountInputSchema = t.object({});
+  const selectAmountOutputSchema = t.object({
+    label: t.string(),
+    amount: t.number(),
   });
 
   const command = defineCommand({
     commandId: "gain_score",
     commandSchema,
   })
-    .discoverable({
-      discoverySchema,
-      discover({ discovery }) {
-        if (typeof discovery.input?.selectedAmount !== "number") {
-          return {
-            complete: false as const,
-            step: "select_amount",
-            options: [
-              {
-                id: "one",
-                nextInput: {
-                  selectedAmount: 1,
-                },
+    .discoverable((flow) =>
+      flow.step("select_amount", (step) =>
+        step
+          .input(selectAmountInputSchema)
+          .output(selectAmountOutputSchema)
+          .resolve(() => [
+            {
+              id: "one",
+              output: {
+                label: "One",
+                amount: 1,
               },
-            ],
-          };
-        }
-
-        return {
-          complete: true as const,
-          input: {
-            amount: discovery.input.selectedAmount,
-          },
-        };
-      },
-    })
+              nextInput: {
+                amount: 1,
+              },
+            },
+          ]),
+      ),
+    )
     .isAvailable(({ game, runtime, actorId, commandType }) => {
       expect(typeof game.score).toBe("number");
       void runtime;
@@ -89,14 +84,22 @@ test("chained builder supports discoverable commands with typed discovery and co
 
   expect(command.commandId).toBe("gain_score");
   expect(command.commandSchema).toBe(commandSchema);
-  if (!("discoverySchema" in command)) {
-    throw new Error("expected_discovery_schema");
-  }
-  expect(command.discoverySchema).toBe(discoverySchema);
-  expect(command.discover).toBeFunction();
+  expect(command.discovery).toBeDefined();
+  expect(command.discovery?.startStep).toBe("select_amount");
+  expect(command.discovery?.steps).toHaveLength(1);
+  expect(command.discovery?.steps[0]?.stepId).toBe("select_amount");
+  expect(command.discovery?.steps[0]?.inputSchema).toBe(
+    selectAmountInputSchema,
+  );
+  expect(command.discovery?.steps[0]?.outputSchema).toBe(
+    selectAmountOutputSchema,
+  );
+  expect(command.discovery?.steps[0]?.resolve).toBeFunction();
+  expect("discoverySchema" in command).toBeFalse();
+  expect("discover" in command).toBeFalse();
 });
 
-test("chained builder allows optional steps in flexible order", () => {
+test("chained builder supports ordered discovery steps and completion", () => {
   const defineCommand = createCommandFactory<{
     counter: number;
   }>();
@@ -104,53 +107,51 @@ test("chained builder allows optional steps in flexible order", () => {
   const incrementSchema = t.object({
     amount: t.number(),
   });
-  const incrementDiscoverySchema = t.object({
-    selectedAmount: t.optional(t.number()),
+  const selectAmountInputSchema = t.object({});
+  const selectAmountOutputSchema = t.object({
+    amount: t.number(),
   });
-
-  const plainCommand = defineCommand({
-    commandId: "increment",
-    commandSchema: incrementSchema,
-  })
-    .validate(({ command }) => {
-      void command.input?.amount;
-      return { ok: true as const };
-    })
-    .execute(({ game, command }) => {
-      game.counter += command.input?.amount ?? 0;
-    })
-    .build();
+  const selectTargetInputSchema = t.object({
+    amount: t.number(),
+  });
+  const selectTargetOutputSchema = t.object({
+    targetId: t.string(),
+  });
 
   const discoverableCommand = defineCommand({
     commandId: "increment_with_discovery",
     commandSchema: incrementSchema,
   })
-    .discoverable({
-      discoverySchema: incrementDiscoverySchema,
-      discover({ discovery }) {
-        if (typeof discovery.input?.selectedAmount !== "number") {
-          return {
-            complete: false as const,
-            step: "select_amount",
-            options: [
+    .discoverable((flow) =>
+      flow
+        .step("select_amount", (step) =>
+          step
+            .input(selectAmountInputSchema)
+            .output(selectAmountOutputSchema)
+            .resolve(() => [
               {
                 id: "one",
+                output: {
+                  amount: 1,
+                },
                 nextInput: {
-                  selectedAmount: 1,
+                  amount: 1,
                 },
               },
-            ],
-          };
-        }
-
-        return {
-          complete: true as const,
-          input: {
-            amount: discovery.input.selectedAmount,
-          },
-        };
-      },
-    })
+            ]),
+        )
+        .step("select_target", (step) =>
+          step
+            .input(selectTargetInputSchema)
+            .output(selectTargetOutputSchema)
+            .resolve(() => ({
+              complete: true as const,
+              input: {
+                amount: 1,
+              },
+            })),
+        ),
+    )
     .validate(({ command }) => {
       void command.input?.amount;
       return { ok: true as const };
@@ -165,32 +166,19 @@ test("chained builder allows optional steps in flexible order", () => {
     commandSchema: incrementSchema,
   })
     .isAvailable(() => true)
-    .discoverable({
-      discoverySchema: incrementDiscoverySchema,
-      discover({ discovery }) {
-        if (typeof discovery.input?.selectedAmount !== "number") {
-          return {
-            complete: false as const,
-            step: "select_amount",
-            options: [
-              {
-                id: "one",
-                nextInput: {
-                  selectedAmount: 1,
-                },
-              },
-            ],
-          };
-        }
-
-        return {
-          complete: true as const,
-          input: {
-            amount: discovery.input.selectedAmount,
-          },
-        };
-      },
-    })
+    .discoverable((flow) =>
+      flow.step("select_amount", (step) =>
+        step
+          .input(selectAmountInputSchema)
+          .output(selectAmountOutputSchema)
+          .resolve(() => ({
+            complete: true as const,
+            input: {
+              amount: 1,
+            },
+          })),
+      ),
+    )
     .validate(({ command }) => {
       void command.input?.amount;
       return { ok: true as const };
@@ -200,7 +188,12 @@ test("chained builder allows optional steps in flexible order", () => {
     })
     .build();
 
-  expect(plainCommand.commandId).toBe("increment");
   expect(discoverableCommand.commandId).toBe("increment_with_discovery");
   expect(mixedOrderCommand.commandId).toBe("increment_mixed_order");
+  expect(discoverableCommand.discovery?.steps[0]?.defaultNextStep).toBe(
+    "select_target",
+  );
+  expect(discoverableCommand.discovery?.steps[1]?.defaultNextStep).toBe(
+    undefined,
+  );
 });

@@ -354,7 +354,7 @@ test("stage machine types support multi-active stage authoring", () => {
   expect(gameEndStage.id).toBe("gameEnd");
 });
 
-test("discovery types compose for draft-based next-step options and completion", () => {
+test("discovery types compose for step-authored options and completion", () => {
   type PlayCardDiscoveryInput = {
     step: string;
     cardId?: number;
@@ -393,6 +393,7 @@ test("discovery types compose for draft-based next-step options and completion",
   const discoveryRequest: Discovery<PlayCardDiscoveryInput> = {
     type: "play_card",
     actorId: "p1",
+    step: "select_target",
     input: {
       step: "select_target",
       cardId: 12,
@@ -408,7 +409,12 @@ test("discovery types compose for draft-based next-step options and completion",
   };
 
   const discoveryResult: CommandDiscoveryResult<
+    "select_target",
     PlayCardDiscoveryInput,
+    {
+      label: string;
+      targetId: number;
+    },
     PlayCardInput
   > = {
     complete: false,
@@ -416,17 +422,27 @@ test("discovery types compose for draft-based next-step options and completion",
     options: [
       {
         id: "target-1",
+        output: {
+          label: "Target 1",
+          targetId: 101,
+        },
         nextInput: {
           step: "complete",
           cardId: 12,
           targets: [101],
         },
+        nextStep: "complete",
       },
     ],
   };
 
   const completion: CommandDiscoveryResult<
+    "complete",
     PlayCardDiscoveryInput,
+    {
+      label: string;
+      targetId: number;
+    },
     PlayCardInput
   > = {
     complete: true,
@@ -437,6 +453,7 @@ test("discovery types compose for draft-based next-step options and completion",
   };
 
   expect(availabilityContext.actorId).toBe("p1");
+  expect(discoveryContext.discovery.step).toBe("select_target");
   expect(discoveryContext.discovery.input).toEqual({
     step: "select_target",
     cardId: 12,
@@ -468,6 +485,7 @@ test("strict command and discovery requests require actorId and input", () => {
   const discovery: Discovery<{ selectedAmount: number }> = {
     type: "gain_score",
     actorId: "p1",
+    step: "select_amount",
     input: { selectedAmount: 2 },
   };
 
@@ -486,6 +504,7 @@ test("strict command and discovery requests require actorId and input", () => {
   // @ts-expect-error discovery actorId is required
   const missingDiscoveryActorId: Discovery<{ selectedAmount: number }> = {
     type: "gain_score",
+    step: "select_amount",
     input: { selectedAmount: 2 },
   };
 
@@ -493,6 +512,7 @@ test("strict command and discovery requests require actorId and input", () => {
   const missingDiscoveryInput: Discovery<{ selectedAmount: number }> = {
     type: "gain_score",
     actorId: "p1",
+    step: "select_amount",
   };
 
   expect(command.actorId).toBe("p1");
@@ -613,7 +633,7 @@ test("game definition builder only exposes stage-based progression authoring", (
   expect(stageBuilder).toBeObject();
 });
 
-test("consumer command definitions only expose game state and command input generics", () => {
+test("consumer command definitions infer step-authored discovery and reject legacy config", () => {
   const defineCommand = createCommandFactory<{
     increment(): void;
   }>();
@@ -621,37 +641,50 @@ test("consumer command definitions only expose game state and command input gene
   const gainScoreCommandSchema = t.object({
     amount: t.number(),
   });
+  const draftSchema = t.object({
+    amount: t.optional(t.number()),
+  });
+  const outputSchema = t.object({
+    label: t.string(),
+    amount: t.number(),
+  });
 
   const definition = defineCommand({
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
   })
-    .discoverable({
-      discoverySchema: t.object({
-        amount: t.optional(t.number()),
-      }),
-      discover: ({ discovery }) => {
-        if (typeof discovery.input?.amount !== "number") {
-          return {
-            complete: false as const,
-            step: "select_amount",
-            options: [
-              {
-                id: "amount-1",
-                nextInput: { amount: 1 },
-              },
-            ],
-          };
-        }
+    .discoverable((flow) =>
+      flow.step("select_amount", (step) =>
+        step
+          .input(draftSchema)
+          .output(outputSchema)
+          .resolve(({ discovery }) => {
+            const amount: number | undefined = discovery.input.amount;
 
-        return {
-          complete: true as const,
-          input: {
-            amount: discovery.input.amount,
-          },
-        };
-      },
-    })
+            if (typeof amount !== "number") {
+              return [
+                {
+                  id: "amount-1",
+                  output: {
+                    label: "One",
+                    amount: 1,
+                  },
+                  nextInput: {
+                    amount: 1,
+                  },
+                },
+              ];
+            }
+
+            return {
+              complete: true as const,
+              input: {
+                amount,
+              },
+            };
+          }),
+      ),
+    )
     .validate(({ command }) => {
       const amount: number = command.input.amount;
 
@@ -668,6 +701,24 @@ test("consumer command definitions only expose game state and command input gene
     .build();
 
   expect(definition.commandId).toBe("gain_score");
+  expect(definition.discovery?.startStep).toBe("select_amount");
+  expect(definition.discovery?.steps[0]?.inputSchema).toBe(draftSchema);
+  expect(definition.discovery?.steps[0]?.outputSchema).toBe(outputSchema);
+
+  function assertLegacyDiscoverableConfigRejected() {
+    // @ts-expect-error legacy discoverable config should be rejected
+    const invalidDefinition = defineCommand({
+      commandId: "legacy_gain_score",
+      commandSchema: gainScoreCommandSchema,
+    }).discoverable({
+      discoverySchema: draftSchema,
+      discover: () => null,
+    });
+
+    return invalidDefinition;
+  }
+
+  expect(assertLegacyDiscoverableConfigRejected).toBeFunction();
 });
 
 test("command factory contextually types command lifecycle methods", () => {
@@ -695,34 +746,37 @@ test("command factory contextually types command lifecycle methods", () => {
       expect(commandType).toBe("gain_score");
       return true;
     })
-    .discoverable({
-      discoverySchema: draftSchema,
-      discover({ discovery }) {
-        const selectedAmount = discovery.input.selectedAmount;
+    .discoverable((flow) =>
+      flow.step("select_amount", (step) =>
+        step
+          .input(draftSchema)
+          .output(t.object({ amount: t.number() }))
+          .resolve(({ discovery }) => {
+            const selectedAmount = discovery.input.selectedAmount;
 
-        if (typeof selectedAmount !== "number") {
-          return {
-            complete: false as const,
-            step: "select_amount",
-            options: [
-              {
-                id: "one",
-                nextInput: {
-                  selectedAmount: 1,
+            if (typeof selectedAmount !== "number") {
+              return [
+                {
+                  id: "one",
+                  output: {
+                    amount: 1,
+                  },
+                  nextInput: {
+                    selectedAmount: 1,
+                  },
                 },
-              },
-            ],
-          };
-        }
+              ];
+            }
 
-        return {
-          complete: true as const,
-          input: {
-            amount: selectedAmount,
-          },
-        };
-      },
-    })
+            return {
+              complete: true as const,
+              input: {
+                amount: selectedAmount,
+              },
+            };
+          }),
+      ),
+    )
     .validate(({ command }) => {
       expect(command.input.amount).toBeNumber();
       return { ok: true as const };
@@ -735,10 +789,7 @@ test("command factory contextually types command lifecycle methods", () => {
 
   expect(command.commandId).toBe("gain_score");
   expect(command.commandSchema).toBe(commandSchema);
-  if (!("discoverySchema" in command)) {
-    throw new Error("expected_discovery_schema");
-  }
-  expect(command.discoverySchema).toBe(draftSchema);
+  expect(command.discovery?.steps[0]?.defaultNextStep).toBeUndefined();
 });
 
 test("command builder hides invalid chained methods at each stage", () => {
@@ -776,32 +827,35 @@ test("command builder hides invalid chained methods at each stage", () => {
   // @ts-expect-error build should not exist before validate is set
   void executedBuilder.build;
 
-  const discoverableBuilder = baseBuilder.discoverable({
-    discoverySchema,
-    discover({ discovery }) {
-      if (typeof discovery.input?.selectedAmount !== "number") {
-        return {
-          complete: false as const,
-          step: "select_amount",
-          options: [
-            {
-              id: "one",
-              nextInput: {
-                selectedAmount: 1,
+  const discoverableBuilder = baseBuilder.discoverable((flow) =>
+    flow.step("select_amount", (step) =>
+      step
+        .input(discoverySchema)
+        .output(t.object({ amount: t.number() }))
+        .resolve(({ discovery }) => {
+          if (typeof discovery.input.selectedAmount !== "number") {
+            return [
+              {
+                id: "one",
+                output: {
+                  amount: 1,
+                },
+                nextInput: {
+                  selectedAmount: 1,
+                },
               },
-            },
-          ],
-        };
-      }
+            ];
+          }
 
-      return {
-        complete: true as const,
-        input: {
-          amount: discovery.input.selectedAmount,
-        },
-      };
-    },
-  });
+          return {
+            complete: true as const,
+            input: {
+              amount: discovery.input.selectedAmount,
+            },
+          };
+        }),
+    ),
+  );
 
   // @ts-expect-error discovery should only be configurable once
   void discoverableBuilder.discoverable;
