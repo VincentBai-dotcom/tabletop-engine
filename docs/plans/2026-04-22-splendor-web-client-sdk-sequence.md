@@ -76,7 +76,7 @@ server transport, not the hosted transport itself.
 Expected generated usage shape:
 
 ```ts
-import type { SplendorCommandRequest } from "./generated/client-sdk.generated";
+import type { SplendorCommandRequest } from "splendor-example";
 
 live.send({
   type: "game_command",
@@ -92,6 +92,17 @@ live.send({
 
 The hosted envelope owns `gameSessionId`. The generated game SDK owns the
 command payload shape.
+
+The generated SDK file should be emitted into the `outDir` configured by the
+game package's `tabletop.config.ts`. For Splendor, that means:
+
+```txt
+examples/splendor/engine/generated/client-sdk.generated.ts
+```
+
+The Splendor engine package should re-export the generated types, and the web
+client should import them from the engine package instead of importing generated
+files by relative path.
 
 ## Why This Split
 
@@ -127,6 +138,10 @@ export type App = typeof app;
 
 If the current entrypoint starts listening at import time, split app creation
 from process startup so Eden can import only the type safely.
+
+For now, the web package should import the server app type directly from the
+server workspace package. Avoid adding a separate type-only package or generated
+server API artifact until the direct import becomes painful.
 
 ### Step 2: Add Eden To The Web Package
 
@@ -171,19 +186,19 @@ Do not generate:
 - WebSocket connection code
 - server-specific lifecycle envelopes
 
-### Step 4: Generate SDK Into The Web Package
+### Step 4: Generate SDK Into The Engine Package
 
-Configure the Splendor web package to generate game protocol types from the
-Splendor engine package.
+Use the Splendor engine package's existing `tabletop.config.ts` output
+directory for client SDK generation.
 
 Expected output:
 
 ```txt
-examples/splendor/web/src/generated/client-sdk.generated.ts
+examples/splendor/engine/generated/client-sdk.generated.ts
 ```
 
-The generated file should be imported by web UI code and should be easy to
-regenerate during development.
+The generated file should be re-exported by the Splendor engine package, so web
+UI code imports game protocol types from `splendor-example`.
 
 ### Step 5: Build The First Web Vertical Slice
 
@@ -219,9 +234,9 @@ build scripts.
 
 ## Open Questions
 
-1. Whether `generate client-sdk` should keep the current file name or be renamed
-   later to better reflect that it is a game protocol SDK.
-2. Whether generated discovery result types need engine descriptor changes before
-   they can be made precise.
-3. Whether the web package should import the server app type directly from the
-   server workspace package or through a small exported type-only module.
+1. Discovery result typing still needs a concrete implementation decision. The
+   current generated SDK should at least type discovery requests. The open part
+   is whether discovery results can be rendered precisely from the current
+   protocol descriptor, or whether the engine descriptor needs additional
+   metadata to distinguish intermediate discovery steps from completed command
+   input.
