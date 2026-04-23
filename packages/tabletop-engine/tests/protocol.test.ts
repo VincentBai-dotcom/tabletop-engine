@@ -365,4 +365,60 @@ test("describeGameProtocol rejects malformed discovery step entries", () => {
   expect(() => describeGameProtocol(emptyStepsGame)).toThrow(
     "command_discovery_step_missing_step_id:malformed_discovery_step:0",
   );
+
+  malformedStepsCommand.discovery.steps[0] = {
+    stepId: "select_amount",
+    outputSchema: selectAmountOutputSchema,
+    resolve: () => ({
+      complete: true as const,
+      input: {
+        amount: 1,
+      },
+    }),
+  };
+  const missingInputSchemaGame = new GameDefinitionBuilder(
+    "missing-input-schema-game",
+  )
+    .rootState(PlainProtocolRootState)
+    .initialStage(createSelfLoopingTurnStage([malformedStepCommand]))
+    .build();
+
+  expect(() => describeGameProtocol(missingInputSchemaGame)).toThrow(
+    "command_discovery_step_missing_input_schema:malformed_discovery_step:0",
+  );
+
+  malformedStepsCommand.discovery.steps[0] = {
+    stepId: "select_amount",
+    inputSchema: selectAmountInputSchema,
+    resolve: () => ({
+      complete: true as const,
+      input: {
+        amount: 1,
+      },
+    }),
+  };
+  const missingOutputSchemaGame = new GameDefinitionBuilder(
+    "missing-output-schema-game",
+  )
+    .rootState(PlainProtocolRootState)
+    .initialStage(createSelfLoopingTurnStage([malformedStepCommand]))
+    .build();
+
+  expect(() => describeGameProtocol(missingOutputSchemaGame)).toThrow(
+    "command_discovery_step_missing_output_schema:malformed_discovery_step:0",
+  );
+
+  malformedStepsCommand.discovery.steps[0] = {
+    stepId: "select_amount",
+    inputSchema: selectAmountInputSchema,
+    outputSchema: selectAmountOutputSchema,
+  };
+  const missingResolveGame = new GameDefinitionBuilder("missing-resolve-game")
+    .rootState(PlainProtocolRootState)
+    .initialStage(createSelfLoopingTurnStage([malformedStepCommand]))
+    .build();
+
+  expect(() => describeGameProtocol(missingResolveGame)).toThrow(
+    "command_discovery_step_missing_resolve:malformed_discovery_step:0",
+  );
 });
