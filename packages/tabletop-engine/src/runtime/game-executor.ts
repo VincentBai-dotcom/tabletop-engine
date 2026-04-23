@@ -589,6 +589,14 @@ export function createGameExecutor<
       }
 
       if (!Array.isArray(result)) {
+        if (
+          typeof result !== "object" ||
+          result === null ||
+          (result as { complete?: unknown }).complete !== true
+        ) {
+          return null;
+        }
+
         try {
           assertSchemaValue(definition.commandSchema, result.input);
         } catch {

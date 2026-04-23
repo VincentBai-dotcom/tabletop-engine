@@ -1854,6 +1854,26 @@ test("createGameExecutor rejects invalid discovery results for step-authored com
       .validate(() => ({ ok: true as const }))
       .execute(() => {})
       .build(),
+    malformed_completion: defineCommand({
+      commandId: "malformed_completion",
+      commandSchema: playCardCommandSchema,
+    })
+      .discoverable((flow) =>
+        flow.step("select_target", (step) =>
+          step
+            .input(selectCardInputSchema)
+            .output(t.object({ targetId: t.number() }))
+            .resolve(() => ({
+              complete: false as const,
+              input: {
+                cardId: 2,
+              },
+            })),
+        ),
+      )
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
     missing_next_step: defineCommand({
       commandId: "missing_next_step",
       commandSchema: playCardCommandSchema,
@@ -1925,6 +1945,16 @@ test("createGameExecutor rejects invalid discovery results for step-authored com
   expect(
     executor.discoverCommand(initialState, {
       type: "invalid_completion",
+      actorId: "player-1",
+      step: "select_target",
+      input: {
+        cardId: 2,
+      },
+    }),
+  ).toBeNull();
+  expect(
+    executor.discoverCommand(initialState, {
+      type: "malformed_completion",
       actorId: "player-1",
       step: "select_target",
       input: {
