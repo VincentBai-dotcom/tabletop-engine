@@ -16,8 +16,18 @@ import { createSelfLoopingTurnStage } from "./helpers/stages";
 const gainScoreCommandSchema = t.object({
   amount: t.number(),
 });
-const gainScoreDiscoverySchema = t.object({
+const selectAmountInputSchema = t.object({
   selectedAmount: t.optional(t.number()),
+});
+const selectAmountOutputSchema = t.object({
+  amount: t.number(),
+  label: t.string(),
+});
+const confirmSelectionInputSchema = t.object({
+  amount: t.number(),
+});
+const confirmSelectionOutputSchema = t.object({
+  confirmed: t.boolean(),
 });
 
 @State()
@@ -60,22 +70,42 @@ configureVisibility(AsyncApiDeckState, ({ field }) => ({
 
 const defineAsyncApiCommand = createCommandFactory<AsyncApiRootState>();
 
-test("generateAsyncApi emits the default hosted channels and schemas", () => {
+test("generateAsyncApi emits step-authored discovery channels and schemas", () => {
   const gainScoreCommand = defineAsyncApiCommand({
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
   })
-    .discoverable({
-      discoverySchema: gainScoreDiscoverySchema,
-      discover() {
-        return {
-          complete: true as const,
-          input: {
-            amount: 1,
-          },
-        };
-      },
-    })
+    .discoverable((flow) =>
+      flow
+        .step("select_amount", (step) =>
+          step
+            .input(selectAmountInputSchema)
+            .output(selectAmountOutputSchema)
+            .resolve(() => [
+              {
+                id: "preset_one",
+                output: {
+                  amount: 1,
+                  label: "One",
+                },
+                nextInput: {
+                  selectedAmount: 1,
+                },
+              },
+            ]),
+        )
+        .step("confirm_selection", (step) =>
+          step
+            .input(confirmSelectionInputSchema)
+            .output(confirmSelectionOutputSchema)
+            .resolve(() => ({
+              complete: true as const,
+              input: {
+                amount: 1,
+              },
+            })),
+        ),
+    )
     .validate(() => {
       return { ok: true as const };
     })
@@ -122,38 +152,89 @@ test("generateAsyncApi emits the default hosted channels and schemas", () => {
   expect(submitVariants[0]!.properties.input).toEqual(
     gainScoreCommandSchema.schema,
   );
+
   const discoverPayload = document.components.messages.DiscoverCommand!.payload;
   const discoverVariants = discoverPayload.anyOf ?? [discoverPayload];
 
-  expect(discoverVariants).toHaveLength(1);
+  expect(discoverVariants).toHaveLength(2);
   expect(discoverVariants[0]!.properties.type.const).toBe("gain_score");
-  expect(discoverVariants[0]!.required).toEqual(["type", "actorId", "input"]);
+  expect(discoverVariants[0]!.properties.step.const).toBe("select_amount");
+  expect(discoverVariants[0]!.required).toEqual([
+    "type",
+    "actorId",
+    "step",
+    "input",
+  ]);
   expect(discoverVariants[0]!.properties.actorId.type).toBe("string");
   expect(discoverVariants[0]!.properties.requestId.type).toBe("string");
-  expect(discoverVariants[0]!.properties.input.type).toBe("object");
-  expect(
-    discoverVariants[0]!.properties.input.properties.selectedAmount.type,
-  ).toBe("number");
+  expect(discoverVariants[0]!.properties.input).toEqual(
+    selectAmountInputSchema.schema,
+  );
+  expect(discoverVariants[1]!.properties.step.const).toBe("confirm_selection");
+  expect(discoverVariants[1]!.properties.input).toEqual(
+    confirmSelectionInputSchema.schema,
+  );
+
   const discoveryResultPayload =
     document.components.messages.DiscoveryResult!.payload;
   const discoveryResultVariants = discoveryResultPayload.anyOf ?? [
     discoveryResultPayload,
   ];
+
   expect(discoveryResultVariants).toHaveLength(1);
   expect(discoveryResultVariants[0]!.properties.type.const).toBe("gain_score");
-  expect(discoveryResultVariants[0]!.required).toEqual([
-    "type",
-    "actorId",
-    "result",
-  ]);
-  expect(discoveryResultVariants[0]!.properties.actorId.type).toBe("string");
-  expect(discoveryResultVariants[0]!.properties.requestId.type).toBe("string");
-  expect(discoveryResultVariants[0]!.properties.result.anyOf).toHaveLength(2);
+  expect(discoveryResultVariants[0]!.properties.result.anyOf).toHaveLength(3);
+  expect(
+    discoveryResultVariants[0]!.properties.result.anyOf[0]!.properties.step
+      .const,
+  ).toBe("select_amount");
+  expect(
+    discoveryResultVariants[0]!.properties.result.anyOf[0]!.properties.options
+      .items.properties,
+  ).toMatchObject({
+    id: {
+      type: "string",
+    },
+    output: selectAmountOutputSchema.schema,
+    nextStep: {
+      type: "string",
+    },
+    nextInput: selectAmountInputSchema.schema,
+  });
+  expect(
+    discoveryResultVariants[0]!.properties.result.anyOf[0]!.required,
+  ).toEqual(["complete", "step", "options"]);
+  expect(
+    discoveryResultVariants[0]!.properties.result.anyOf[1]!.required,
+  ).toEqual(["complete", "step", "options"]);
+  expect(
+    discoveryResultVariants[0]!.properties.result.anyOf[2]!.required,
+  ).toEqual(["complete", "input"]);
+  expect(
+    discoveryResultVariants[0]!.properties.result.anyOf[2]!.properties.input,
+  ).toEqual(gainScoreCommandSchema.schema);
+
   expect(document.components.schemas.DiscoveryResult).toBeDefined();
   expect(document.components.schemas.DiscoveryRejected).toBeDefined();
-  expect(document.components.schemas.GainScoreDiscovery).toBeDefined();
-  expect(document.components.schemas.GainScoreDiscoveryResult).toBeDefined();
   expect(document.components.schemas.GainScoreDiscoveryRejected).toBeDefined();
+  expect(
+    document.components.schemas.GainScoreSelectAmountDiscoveryInput,
+  ).toBeDefined();
+  expect(
+    document.components.schemas.GainScoreSelectAmountDiscoveryOutput,
+  ).toBeDefined();
+  expect(
+    document.components.schemas.GainScoreSelectAmountDiscoveryResult,
+  ).toBeDefined();
+  expect(
+    document.components.schemas.GainScoreConfirmSelectionDiscoveryInput,
+  ).toBeDefined();
+  expect(
+    document.components.schemas.GainScoreConfirmSelectionDiscoveryOutput,
+  ).toBeDefined();
+  expect(
+    document.components.schemas.GainScoreConfirmSelectionDiscoveryResult,
+  ).toBeDefined();
   expect(document.components.schemas.VisibleState).toEqual(protocol.viewSchema);
   expect(document.components.schemas.MatchView!.properties.view).toEqual(
     protocol.viewSchema,

@@ -8,10 +8,22 @@ import type {
 } from "../state-facade/metadata";
 import type { CompiledStateFacadeDefinition } from "../state-facade/compile";
 
+export interface ProtocolDiscoveryStepDescriptor {
+  stepId: string;
+  inputSchema: CommandSchema<Record<string, unknown>>;
+  outputSchema: CommandSchema<Record<string, unknown>>;
+  defaultNextStep?: string;
+}
+
+export interface ProtocolDiscoveryDescriptor {
+  startStep: string;
+  steps: ProtocolDiscoveryStepDescriptor[];
+}
+
 export interface ProtocolCommandDescriptor {
   commandId: string;
   commandSchema: CommandSchema<Record<string, unknown>>;
-  discoverySchema?: CommandSchema<Record<string, unknown>>;
+  discovery?: ProtocolDiscoveryDescriptor;
 }
 
 export interface GameProtocolDescriptor {
@@ -40,18 +52,14 @@ export function describeGameProtocol<
       throw new Error(`command_payload_schema_required:${commandId}`);
     }
 
-    if (typeof command.discover === "function" && !command.discoverySchema) {
-      throw new Error(`command_discovery_draft_schema_required:${commandId}`);
-    }
-
-    if (command.discoverySchema && typeof command.discover !== "function") {
-      throw new Error(`command_discovery_handler_required:${commandId}`);
-    }
+    const discovery = command.discovery
+      ? normalizeDiscoveryDescriptor(commandId, command.discovery)
+      : undefined;
 
     commands[commandId] = {
       commandId,
       commandSchema: command.commandSchema,
-      discoverySchema: command.discoverySchema,
+      discovery,
     };
   }
 
@@ -59,6 +67,66 @@ export function describeGameProtocol<
     name: game.name,
     commands,
     viewSchema: createVisibleStateSchema(game.stateFacade),
+  };
+}
+
+function normalizeDiscoveryDescriptor(
+  commandId: string,
+  discovery: ProtocolDiscoveryDescriptor,
+): ProtocolDiscoveryDescriptor {
+  if (!Array.isArray(discovery.steps) || discovery.steps.length === 0) {
+    throw new Error(`command_discovery_steps_required:${commandId}`);
+  }
+
+  const normalizedSteps: ProtocolDiscoveryStepDescriptor[] = [];
+  const knownStepIds = new Set<string>();
+
+  for (const step of discovery.steps) {
+    if (knownStepIds.has(step.stepId)) {
+      throw new Error(
+        `command_discovery_duplicate_step_id:${commandId}:${step.stepId}`,
+      );
+    }
+    knownStepIds.add(step.stepId);
+
+    if (!step.inputSchema) {
+      throw new Error(
+        `command_discovery_input_schema_required:${commandId}:${step.stepId}`,
+      );
+    }
+
+    if (!step.outputSchema) {
+      throw new Error(
+        `command_discovery_output_schema_required:${commandId}:${step.stepId}`,
+      );
+    }
+
+    normalizedSteps.push({
+      stepId: step.stepId,
+      inputSchema: step.inputSchema,
+      outputSchema: step.outputSchema,
+      defaultNextStep: step.defaultNextStep,
+    });
+  }
+
+  if (discovery.startStep !== normalizedSteps[0]!.stepId) {
+    throw new Error(`command_discovery_start_step_mismatch:${commandId}`);
+  }
+
+  for (const step of normalizedSteps) {
+    if (
+      step.defaultNextStep !== undefined &&
+      !knownStepIds.has(step.defaultNextStep)
+    ) {
+      throw new Error(
+        `command_discovery_unknown_next_step:${commandId}:${step.stepId}:${step.defaultNextStep}`,
+      );
+    }
+  }
+
+  return {
+    startStep: discovery.startStep,
+    steps: normalizedSteps,
   };
 }
 

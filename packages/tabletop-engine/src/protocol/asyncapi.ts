@@ -85,34 +85,70 @@ export function generateAsyncApi<
       createCommandSchema(commandId, command.commandSchema.schema!),
     ]),
   );
-  const discoverySchemas = Object.fromEntries(
-    Object.entries(protocol.commands)
-      .filter(([, command]) => command.discoverySchema?.schema)
-      .map(([commandId, command]) => [
+  const discoveryCommandSchemas: TSchema[] = [];
+  const discoveryResultSchemas: TSchema[] = [];
+  const discoveryRejectedSchemas: TSchema[] = [];
+  const schemaComponents: Record<string, TSchema> = {};
+
+  for (const [commandId, command] of Object.entries(protocol.commands)) {
+    if (!command.discovery) {
+      continue;
+    }
+
+    const commandPascalCase = toPascalCase(commandId);
+    const commandInputSchema = command.commandSchema.schema!;
+    const stepRequestSchemas: TSchema[] = [];
+    const stepResultSchemas: TSchema[] = [];
+
+    for (const step of command.discovery.steps) {
+      const stepPascalCase = toPascalCase(step.stepId);
+      const inputSchema = step.inputSchema.schema!;
+      const outputSchema = step.outputSchema.schema!;
+
+      const discoveryInputSchema = createDiscoveryInputSchema(
         commandId,
-        createDiscoverySchema(commandId, command.discoverySchema!.schema!),
-      ]),
-  );
-  const discoveryResultSchemas = Object.fromEntries(
-    Object.entries(protocol.commands)
-      .filter(([, command]) => command.discoverySchema?.schema)
-      .map(([commandId, command]) => [
-        commandId,
-        createDiscoveryEnvelopeSchema(
-          commandId,
-          command.discoverySchema!.schema!,
-          command.commandSchema.schema!,
-        ),
-      ]),
-  );
-  const discoveryRejectedSchemas = Object.fromEntries(
-    Object.entries(protocol.commands)
-      .filter(([, command]) => command.discoverySchema?.schema)
-      .map(([commandId]) => [
-        commandId,
-        createDiscoveryRejectedSchema(commandId),
-      ]),
-  );
+        step.stepId,
+        inputSchema,
+      );
+      const discoveryResultSchema = createDiscoveryStepResultSchema(
+        step.stepId,
+        inputSchema,
+        outputSchema,
+      );
+
+      schemaComponents[`${commandPascalCase}${stepPascalCase}DiscoveryInput`] =
+        inputSchema;
+      schemaComponents[`${commandPascalCase}${stepPascalCase}DiscoveryOutput`] =
+        outputSchema;
+      schemaComponents[
+        `${commandPascalCase}${stepPascalCase}DiscoveryCommand`
+      ] = discoveryInputSchema;
+      schemaComponents[`${commandPascalCase}${stepPascalCase}DiscoveryResult`] =
+        discoveryResultSchema;
+
+      stepRequestSchemas.push(discoveryInputSchema);
+      stepResultSchemas.push(discoveryResultSchema);
+      discoveryCommandSchemas.push(discoveryInputSchema);
+    }
+
+    const commandDiscoveryResultSchema = createDiscoveryEnvelopeSchema(
+      commandId,
+      stepResultSchemas,
+      commandInputSchema,
+    );
+
+    schemaComponents[`${commandPascalCase}DiscoverCommand`] =
+      stepRequestSchemas.length === 1
+        ? stepRequestSchemas[0]!
+        : Type.Union(stepRequestSchemas);
+    schemaComponents[`${commandPascalCase}DiscoveryResult`] =
+      commandDiscoveryResultSchema;
+
+    discoveryResultSchemas.push(commandDiscoveryResultSchema);
+    discoveryRejectedSchemas.push(createDiscoveryRejectedSchema(commandId));
+    schemaComponents[`${commandPascalCase}DiscoveryRejected`] =
+      discoveryRejectedSchemas[discoveryRejectedSchemas.length - 1]!;
+  }
   const commandSchemaList = Object.values(commandSchemas);
   const commandSchema =
     commandSchemaList.length === 0
@@ -120,21 +156,21 @@ export function generateAsyncApi<
       : commandSchemaList.length === 1
         ? commandSchemaList[0]!
         : Type.Union(commandSchemaList);
-  const discoverySchemaList = Object.values(discoverySchemas);
+  const discoverySchemaList = discoveryCommandSchemas;
   const discoverySchema =
     discoverySchemaList.length === 0
       ? Type.Never()
       : discoverySchemaList.length === 1
         ? discoverySchemaList[0]!
         : Type.Union(discoverySchemaList);
-  const discoveryResultSchemaList = Object.values(discoveryResultSchemas);
+  const discoveryResultSchemaList = discoveryResultSchemas;
   const discoveryResultSchema =
     discoveryResultSchemaList.length === 0
       ? Type.Never()
       : discoveryResultSchemaList.length === 1
         ? discoveryResultSchemaList[0]!
         : Type.Union(discoveryResultSchemaList);
-  const discoveryRejectedSchemaList = Object.values(discoveryRejectedSchemas);
+  const discoveryRejectedSchemaList = discoveryRejectedSchemas;
   const discoveryRejectedSchema =
     discoveryRejectedSchemaList.length === 0
       ? Type.Never()
@@ -240,26 +276,7 @@ export function generateAsyncApi<
             schema,
           ]),
         ),
-        ...Object.fromEntries(
-          Object.entries(discoverySchemas).map(([commandId, schema]) => [
-            `${toPascalCase(commandId)}Discovery`,
-            schema,
-          ]),
-        ),
-        ...Object.fromEntries(
-          Object.entries(discoveryResultSchemas).map(([commandId, schema]) => [
-            `${toPascalCase(commandId)}DiscoveryResult`,
-            schema,
-          ]),
-        ),
-        ...Object.fromEntries(
-          Object.entries(discoveryRejectedSchemas).map(
-            ([commandId, schema]) => [
-              `${toPascalCase(commandId)}DiscoveryRejected`,
-              schema,
-            ],
-          ),
-        ),
+        ...schemaComponents,
       },
     },
   };
@@ -273,50 +290,62 @@ function createCommandSchema(commandId: string, commandSchema: TSchema) {
   });
 }
 
-function createDiscoverySchema(commandId: string, discoverySchema: TSchema) {
+function createDiscoveryInputSchema(
+  commandId: string,
+  stepId: string,
+  discoverySchema: TSchema,
+) {
   return Type.Object({
     type: Type.Literal(commandId),
     actorId: Type.String(),
     requestId: Type.Optional(Type.String()),
+    step: Type.Literal(stepId),
     input: discoverySchema,
   });
 }
 
-function createRawDiscoveryResultSchema(
-  discoverySchema: TSchema,
+function createDiscoveryStepResultSchema(
+  stepId: string,
+  discoveryInputSchema: TSchema,
+  discoveryOutputSchema: TSchema,
+) {
+  return Type.Object({
+    complete: Type.Literal(false),
+    step: Type.Literal(stepId),
+    options: Type.Array(
+      Type.Object({
+        id: Type.String(),
+        output: discoveryOutputSchema,
+        nextStep: Type.String(),
+        nextInput: discoveryInputSchema,
+      }),
+    ),
+  });
+}
+
+function createCommandDiscoveryResultSchema(
+  resultSchemas: TSchema[],
   commandSchema: TSchema,
 ) {
   return Type.Union([
-    Type.Object({
-      complete: Type.Literal(false),
-      step: Type.String(),
-      options: Type.Array(
-        Type.Object({
-          id: Type.String(),
-          nextInput: discoverySchema,
-          metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-        }),
-      ),
-      metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-    }),
+    ...resultSchemas,
     Type.Object({
       complete: Type.Literal(true),
       input: commandSchema,
-      metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
     }),
   ]);
 }
 
 function createDiscoveryEnvelopeSchema(
   commandId: string,
-  discoverySchema: TSchema,
+  resultSchemas: TSchema[],
   commandSchema: TSchema,
 ) {
   return Type.Object({
     type: Type.Literal(commandId),
     actorId: Type.String(),
     requestId: Type.Optional(Type.String()),
-    result: createRawDiscoveryResultSchema(discoverySchema, commandSchema),
+    result: createCommandDiscoveryResultSchema(resultSchemas, commandSchema),
   });
 }
 
