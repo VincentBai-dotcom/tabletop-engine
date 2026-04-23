@@ -26,12 +26,7 @@ type DiscoveryStepAccumulator = {
   stepId: string;
   inputSchema?: CommandSchema<Record<string, unknown>>;
   outputSchema?: CommandSchema<Record<string, unknown>>;
-  resolve?: DiscoveryStepDefinition<
-    object,
-    Record<string, unknown>,
-    Record<string, unknown>,
-    Record<string, unknown>
-  >["resolve"];
+  resolve?: (...args: unknown[]) => unknown;
 };
 
 export function createCommandFactory<FacadeGameState extends object>() {
@@ -47,7 +42,7 @@ export function createCommandFactory<FacadeGameState extends object>() {
       enumerable: false,
       configurable: false,
       writable: false,
-    });
+    }) as DefinedCommand<FacadeGameState, TCommandInput>;
   }
 
   function finalizeDiscoveryDefinition<
@@ -91,75 +86,105 @@ export function createCommandFactory<FacadeGameState extends object>() {
         outputSchema: stepState.outputSchema,
         defaultNextStep: stepStates[index + 1]?.stepId,
         resolve: stepState.resolve,
-      } satisfies DiscoveryStepDefinition<
+      } as DiscoveryStepDefinition<
         FacadeGameState,
         Record<string, unknown>,
         Record<string, unknown>,
         TCommandInput
       >;
-    });
+    }) as DiscoveryStepDefinition<
+      FacadeGameState,
+      Record<string, unknown>,
+      Record<string, unknown>,
+      TCommandInput
+    >[];
 
     return {
       startStep: steps[0]!.stepId,
       steps,
-    } satisfies DiscoveryDefinition<FacadeGameState, TCommandInput>;
+    } as DiscoveryDefinition<FacadeGameState, TCommandInput>;
   }
 
   function createDiscoveryStepBuilder<
     TCommandInput extends Record<string, unknown>,
+    TInput extends Record<string, unknown> = Record<string, unknown>,
+    TOutput extends Record<string, unknown> = Record<string, unknown>,
+    THasInput extends boolean = false,
+    THasOutput extends boolean = false,
   >(
     stepState: DiscoveryStepAccumulator,
   ): DiscoveryStepBuilder<
     FacadeGameState,
-    Record<string, unknown>,
-    Record<string, unknown>,
-    TCommandInput
+    TInput,
+    TOutput,
+    TCommandInput,
+    THasInput,
+    THasOutput
   > {
     const builder: Partial<
       DiscoveryStepBuilder<
         FacadeGameState,
-        Record<string, unknown>,
-        Record<string, unknown>,
-        TCommandInput
+        TInput,
+        TOutput,
+        TCommandInput,
+        true,
+        true
       >
     > = {};
 
-    builder.input = (schema) => {
+    const input: DiscoveryStepBuilder<
+      FacadeGameState,
+      TInput,
+      TOutput,
+      TCommandInput
+    >["input"] = <TNextInput extends Record<string, unknown>>(
+      schema: CommandSchema<TNextInput>,
+    ) => {
       assertSerializableSchema(schema);
       stepState.inputSchema = schema;
       return builder as DiscoveryStepBuilder<
         FacadeGameState,
         typeof schema.static,
-        Record<string, unknown>,
-        TCommandInput
+        TOutput,
+        TCommandInput,
+        true,
+        THasOutput
       >;
     };
+    builder.input = input;
 
-    builder.output = (schema) => {
+    const output: DiscoveryStepBuilder<
+      FacadeGameState,
+      TInput,
+      TOutput,
+      TCommandInput
+    >["output"] = <TNextOutput extends Record<string, unknown>>(
+      schema: CommandSchema<TNextOutput>,
+    ) => {
       assertSerializableSchema(schema);
       stepState.outputSchema = schema;
       return builder as DiscoveryStepBuilder<
         FacadeGameState,
-        Record<string, unknown>,
+        TInput,
         typeof schema.static,
-        TCommandInput
+        TCommandInput,
+        THasInput,
+        true
       >;
     };
+    builder.output = output;
 
     builder.resolve = (resolve) => {
-      stepState.resolve = resolve as DiscoveryStepDefinition<
-        FacadeGameState,
-        Record<string, unknown>,
-        Record<string, unknown>,
-        TCommandInput
-      >["resolve"];
+      stepState.resolve = resolve as (...args: unknown[]) => unknown;
     };
 
     return builder as DiscoveryStepBuilder<
       FacadeGameState,
-      Record<string, unknown>,
-      Record<string, unknown>,
-      TCommandInput
+      TInput,
+      TOutput,
+      TCommandInput,
+      THasInput,
+      THasOutput
     >;
   }
 
@@ -176,7 +201,13 @@ export function createCommandFactory<FacadeGameState extends object>() {
         stepId,
       };
       stepStates.push(stepState);
-      configure(createDiscoveryStepBuilder<TCommandInput>(stepState));
+      configure(
+        createDiscoveryStepBuilder<
+          TCommandInput,
+          Record<string, unknown>,
+          Record<string, unknown>
+        >(stepState),
+      );
       return flow as DiscoveryFlowBuilder<FacadeGameState, TCommandInput>;
     };
 
@@ -218,7 +249,7 @@ export function createCommandFactory<FacadeGameState extends object>() {
         const nextAccumulator = {
           ...accumulator,
           discovery,
-        } satisfies DiscoverableCommandAccumulator<
+        } as DiscoverableCommandAccumulator<
           FacadeGameState,
           TCommandInput,
           TDiscoveryInput
@@ -238,7 +269,7 @@ export function createCommandFactory<FacadeGameState extends object>() {
         const nextAccumulator = {
           ...accumulator,
           isAvailable,
-        } satisfies CommandBuilderAccumulator<
+        } as CommandBuilderAccumulator<
           FacadeGameState,
           TCommandInput,
           TDiscoveryInput,
@@ -259,7 +290,7 @@ export function createCommandFactory<FacadeGameState extends object>() {
         const nextAccumulator = {
           ...accumulator,
           validate,
-        } satisfies CommandBuilderAccumulator<
+        } as CommandBuilderAccumulator<
           FacadeGameState,
           TCommandInput,
           TDiscoveryInput,
@@ -280,7 +311,7 @@ export function createCommandFactory<FacadeGameState extends object>() {
         const nextAccumulator = {
           ...accumulator,
           execute,
-        } satisfies CommandBuilderAccumulator<
+        } as CommandBuilderAccumulator<
           FacadeGameState,
           TCommandInput,
           TDiscoveryInput,

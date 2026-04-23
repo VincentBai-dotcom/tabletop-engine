@@ -706,11 +706,11 @@ test("consumer command definitions infer step-authored discovery and reject lega
   expect(definition.discovery?.steps[0]?.outputSchema).toBe(outputSchema);
 
   function assertLegacyDiscoverableConfigRejected() {
-    // @ts-expect-error legacy discoverable config should be rejected
     const invalidDefinition = defineCommand({
       commandId: "legacy_gain_score",
       commandSchema: gainScoreCommandSchema,
     }).discoverable({
+      // @ts-expect-error legacy discoverable config should be rejected
       discoverySchema: draftSchema,
       discover: () => null,
     });
@@ -790,6 +790,44 @@ test("command factory contextually types command lifecycle methods", () => {
   expect(command.commandId).toBe("gain_score");
   expect(command.commandSchema).toBe(commandSchema);
   expect(command.discovery?.steps[0]?.defaultNextStep).toBeUndefined();
+});
+
+test("step builder only exposes resolve after input and output are set", () => {
+  const defineCommand = createCommandFactory<{
+    counter: number;
+  }>();
+
+  const commandSchema = t.object({
+    amount: t.number(),
+  });
+  const stepInputSchema = t.object({});
+  const stepOutputSchema = t.object({
+    amount: t.number(),
+  });
+
+  const command = defineCommand({
+    commandId: "increment",
+    commandSchema,
+  }).discoverable((flow) =>
+    flow.step("select_amount", (step) => {
+      // @ts-expect-error resolve should not exist before input and output are set
+      void step.resolve;
+
+      const withInput = step.input(stepInputSchema);
+
+      // @ts-expect-error resolve should not exist after input alone
+      void withInput.resolve;
+
+      const withOutput = withInput.output(stepOutputSchema);
+
+      withOutput.resolve(({ discovery }) => {
+        void discovery.step;
+        return [];
+      });
+    }),
+  );
+
+  expect(command).toBeObject();
 });
 
 test("command builder hides invalid chained methods at each stage", () => {
