@@ -176,6 +176,28 @@ test("describeDiscoveryOption renders the discovery output metadata", () => {
   );
 });
 
+test("describeDiscoveryOption renders two-same-gem choices by amount", () => {
+  const discovery = {
+    complete: false,
+    step: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
+    options: [],
+  } as SplendorTerminalOpenDiscovery;
+
+  const option: SplendorTerminalDiscoveryOption = {
+    id: "red",
+    output: {
+      color: "red",
+      amount: 2,
+    },
+    nextInput: {
+      selectedColor: "red",
+    },
+    nextStep: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
+  };
+
+  expect(describeDiscoveryOption(discovery, option)).toBe("Take 2 red");
+});
+
 test("buildCommandFromDiscovery fails closed when discovery is unavailable", async () => {
   const session = {
     discoverCommand(): SplendorTerminalDiscoveryResult | null {

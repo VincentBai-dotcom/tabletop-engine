@@ -7,15 +7,21 @@ import type {
   SplendorTerminalOpenDiscovery,
 } from "./types.ts";
 import {
+  buyFaceUpCardDiscoveryStart,
+  buyReservedCardDiscoveryStart,
+  chooseNobleDiscoveryStart,
   developmentCardsById,
   nobleTilesById,
+  reserveDeckCardDiscoveryStart,
+  reserveFaceUpCardDiscoveryStart,
   SPLENDOR_DISCOVERY_STEPS,
+  takeThreeDistinctGemsDiscoveryStart,
+  takeTwoSameGemsDiscoveryStart,
   type BuyReservedCardInput,
   type ChooseNobleInput,
   type ReserveDeckCardInput,
   type TakeThreeDistinctGemsInput,
   type TakeTwoSameGemsInput,
-  type SplendorDiscoveryStep,
 } from "splendor-example";
 
 export const COMMAND_LABELS: Record<string, string> = {
@@ -27,6 +33,19 @@ export const COMMAND_LABELS: Record<string, string> = {
   buy_reserved_card: "Buy a reserved card",
   choose_noble: "Choose a noble",
 };
+
+const DISCOVERY_STARTS = {
+  take_three_distinct_gems: takeThreeDistinctGemsDiscoveryStart,
+  take_two_same_gems: takeTwoSameGemsDiscoveryStart,
+  reserve_face_up_card: reserveFaceUpCardDiscoveryStart,
+  reserve_deck_card: reserveDeckCardDiscoveryStart,
+  buy_face_up_card: buyFaceUpCardDiscoveryStart,
+  buy_reserved_card: buyReservedCardDiscoveryStart,
+  choose_noble: chooseNobleDiscoveryStart,
+} satisfies Record<
+  SplendorTerminalCommand["type"],
+  Omit<SplendorTerminalDiscoveryRequest, "actorId">
+>;
 
 export function createCommandMenuOptions(
   commandTypes: readonly string[],
@@ -45,13 +64,12 @@ export async function buildCommandFromDiscovery(
     discovery: SplendorTerminalOpenDiscovery,
   ) => Promise<SplendorTerminalDiscoveryOption>,
 ): Promise<SplendorTerminalCommand> {
-  const startStep = getCommandDiscoveryStartStep(commandType);
   const normalizedCommandType = commandType as SplendorTerminalCommand["type"];
+  const discoveryStart = DISCOVERY_STARTS[normalizedCommandType];
+
   let nextDiscovery = {
-    type: normalizedCommandType,
+    ...discoveryStart,
     actorId,
-    step: startStep,
-    input: {},
   } as SplendorTerminalDiscoveryRequest;
 
   for (;;) {
@@ -170,9 +188,14 @@ export function describeDiscoveryOption(
     case SPLENDOR_DISCOVERY_STEPS.selectGemColor: {
       const output = option.output as {
         color: string;
-        selectedCount: number;
-        requiredCount: number;
+        amount?: number;
+        selectedCount?: number;
+        requiredCount?: number;
       };
+
+      if (typeof output.amount === "number") {
+        return `Take ${String(output.amount)} ${String(output.color)}`;
+      }
 
       return `Take ${String(output.color)} (${String(
         output.selectedCount,
@@ -238,27 +261,6 @@ export function describeDiscoveryOption(
 function pickRandom<T>(items: readonly T[], random: () => number): T {
   const index = Math.floor(random() * items.length);
   return items[index]!;
-}
-
-function getCommandDiscoveryStartStep(
-  commandType: string,
-): SplendorDiscoveryStep {
-  switch (commandType) {
-    case "take_three_distinct_gems":
-    case "take_two_same_gems":
-      return SPLENDOR_DISCOVERY_STEPS.selectGemColor;
-    case "reserve_face_up_card":
-    case "buy_face_up_card":
-      return SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard;
-    case "reserve_deck_card":
-      return SPLENDOR_DISCOVERY_STEPS.selectDeckLevel;
-    case "buy_reserved_card":
-      return SPLENDOR_DISCOVERY_STEPS.selectReservedCard;
-    case "choose_noble":
-      return SPLENDOR_DISCOVERY_STEPS.selectNoble;
-    default:
-      throw new Error(`unknown_discovery_start_step:${commandType}`);
-  }
 }
 
 function describeFaceUpCard(input: Record<string, unknown>): string {

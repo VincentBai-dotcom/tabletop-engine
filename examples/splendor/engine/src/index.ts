@@ -5,6 +5,7 @@ export * from "./commands/index.ts";
 export * from "./discovery.ts";
 export * from "./game.ts";
 export * from "./state.ts";
+export * from "../generated/client-sdk.generated";
 export type {
   CommandRequest,
   DiscoveryRequest,

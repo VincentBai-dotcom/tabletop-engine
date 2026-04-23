@@ -81,6 +81,18 @@ describe("generate client-sdk", () => {
     );
 
     expect(generated).toContain("export interface VisibleState");
+    expect(generated).toContain(
+      "export type TakeThreeDistinctGemsCommandRequest =",
+    );
+    expect(generated).toContain(
+      "export type TakeThreeDistinctGemsDiscoveryRequest =",
+    );
+    expect(generated).toContain(
+      "export type TakeThreeDistinctGemsDiscoveryResult =",
+    );
+    expect(generated).toContain(
+      "export const takeThreeDistinctGemsDiscoveryStart =",
+    );
     expect(generated).toContain("export type CommandRequest =");
     expect(generated).toContain("export type DiscoveryRequest =");
     expect(generated).toContain("export type DiscoveryResult =");
