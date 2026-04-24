@@ -1,12 +1,7 @@
 import { expect, test } from "bun:test";
 import * as tabletopEngine from "../src";
 
-const { createCommandFactory, t } = tabletopEngine;
-const discoveryStep = (
-  tabletopEngine as {
-    discoveryStep?: (...args: unknown[]) => unknown;
-  }
-).discoveryStep;
+const { createCommandFactory, discoveryStep, t } = tabletopEngine;
 
 test("chained builder supports non-discoverable commands", () => {
   const defineCommand = createCommandFactory<{
@@ -54,24 +49,25 @@ test("chained builder supports step-authored discovery", () => {
     commandId: "gain_score",
     commandSchema,
   })
-    .discoverable((flow) =>
-      flow.step("select_amount", (step) =>
-        step
-          .input(selectAmountInputSchema)
-          .output(selectAmountOutputSchema)
-          .resolve(() => [
-            {
-              id: "one",
-              output: {
-                label: "One",
-                amount: 1,
-              },
-              nextInput: {
-                amount: 1,
-              },
+    .discoverable(
+      discoveryStep("select_amount")
+        .initial()
+        .input(selectAmountInputSchema)
+        .output(selectAmountOutputSchema)
+        .resolve(() => [
+          {
+            id: "one",
+            output: {
+              label: "One",
+              amount: 1,
             },
-          ]),
-      ),
+            nextInput: {
+              amount: 1,
+            },
+            nextStep: "select_amount",
+          },
+        ])
+        .build(),
     )
     .isAvailable(({ game, runtime, actorId, commandType }) => {
       expect(typeof game.score).toBe("number");
@@ -129,35 +125,34 @@ test("chained builder supports ordered discovery steps and completion", () => {
     commandId: "increment_with_discovery",
     commandSchema: incrementSchema,
   })
-    .discoverable((flow) =>
-      flow
-        .step("select_amount", (step) =>
-          step
-            .input(selectAmountInputSchema)
-            .output(selectAmountOutputSchema)
-            .resolve(() => [
-              {
-                id: "one",
-                output: {
-                  amount: 1,
-                },
-                nextInput: {
-                  amount: 1,
-                },
-              },
-            ]),
-        )
-        .step("select_target", (step) =>
-          step
-            .input(selectTargetInputSchema)
-            .output(selectTargetOutputSchema)
-            .resolve(() => ({
-              complete: true as const,
-              input: {
-                amount: 1,
-              },
-            })),
-        ),
+    .discoverable(
+      discoveryStep("select_amount")
+        .initial()
+        .input(selectAmountInputSchema)
+        .output(selectAmountOutputSchema)
+        .resolve(() => [
+          {
+            id: "one",
+            output: {
+              amount: 1,
+            },
+            nextInput: {
+              amount: 1,
+            },
+            nextStep: "select_target",
+          },
+        ])
+        .build(),
+      discoveryStep("select_target")
+        .input(selectTargetInputSchema)
+        .output(selectTargetOutputSchema)
+        .resolve(() => ({
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        }))
+        .build(),
     )
     .validate(({ command }) => {
       void command.input?.amount;
@@ -173,18 +168,18 @@ test("chained builder supports ordered discovery steps and completion", () => {
     commandSchema: incrementSchema,
   })
     .isAvailable(() => true)
-    .discoverable((flow) =>
-      flow.step("select_amount", (step) =>
-        step
-          .input(selectAmountInputSchema)
-          .output(selectAmountOutputSchema)
-          .resolve(() => ({
-            complete: true as const,
-            input: {
-              amount: 1,
-            },
-          })),
-      ),
+    .discoverable(
+      discoveryStep("select_amount")
+        .initial()
+        .input(selectAmountInputSchema)
+        .output(selectAmountOutputSchema)
+        .resolve(() => ({
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        }))
+        .build(),
     )
     .validate(({ command }) => {
       void command.input?.amount;
@@ -197,12 +192,9 @@ test("chained builder supports ordered discovery steps and completion", () => {
 
   expect(discoverableCommand.commandId).toBe("increment_with_discovery");
   expect(mixedOrderCommand.commandId).toBe("increment_mixed_order");
-  expect(discoverableCommand.discovery?.steps[0]?.defaultNextStep).toBe(
-    "select_target",
-  );
-  expect(discoverableCommand.discovery?.steps[1]?.defaultNextStep).toBe(
-    undefined,
-  );
+  expect(discoverableCommand.discovery?.startStep).toBe("select_amount");
+  expect(discoverableCommand.discovery?.steps[0]?.initial).toBeTrue();
+  expect(discoverableCommand.discovery?.steps[1]?.initial).toBeFalse();
 });
 
 test("chained builder supports explicit built discovery steps", () => {
@@ -223,7 +215,7 @@ test("chained builder supports explicit built discovery steps", () => {
     commandSchema,
   })
     .discoverable(
-      discoveryStep!("select_amount")
+      discoveryStep("select_amount")
         .initial()
         .input(selectAmountInputSchema)
         .output(selectAmountOutputSchema)
@@ -269,7 +261,7 @@ test("chained builder rejects explicit discovery steps without an initial step",
       commandSchema,
     })
       .discoverable(
-        discoveryStep!("select_amount")
+        discoveryStep("select_amount")
           .input(t.object({}))
           .output(
             t.object({
@@ -310,7 +302,7 @@ test("chained builder rejects duplicate explicit initial discovery steps", () =>
       commandSchema,
     })
       .discoverable(
-        discoveryStep!("select_amount")
+        discoveryStep("select_amount")
           .initial()
           .input(t.object({}))
           .output(
@@ -331,7 +323,7 @@ test("chained builder rejects duplicate explicit initial discovery steps", () =>
             },
           ])
           .build(),
-        discoveryStep!("select_target")
+        discoveryStep("select_target")
           .initial()
           .input(
             t.object({
@@ -371,7 +363,7 @@ test("chained builder still rejects duplicate explicit discovery step ids", () =
       commandSchema,
     })
       .discoverable(
-        discoveryStep!("select_amount")
+        discoveryStep("select_amount")
           .initial()
           .input(t.object({}))
           .output(
@@ -392,7 +384,7 @@ test("chained builder still rejects duplicate explicit discovery step ids", () =
             },
           ])
           .build(),
-        discoveryStep!("select_amount")
+        discoveryStep("select_amount")
           .input(
             t.object({
               amount: t.number(),

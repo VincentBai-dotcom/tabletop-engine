@@ -1,5 +1,5 @@
 export { GameDefinitionBuilder } from "./game-definition";
-export { createCommandFactory } from "./command-factory";
+export { createCommandFactory, discoveryStep } from "./command-factory";
 export { createStageFactory } from "./stage-factory";
 export { createGameExecutor } from "./runtime/game-executor";
 export { assertSchemaValue } from "./runtime/validation";
