@@ -12,7 +12,6 @@ export interface ProtocolDiscoveryStepDescriptor {
   stepId: string;
   inputSchema: CommandSchema<Record<string, unknown>>;
   outputSchema: CommandSchema<Record<string, unknown>>;
-  defaultNextStep?: string;
 }
 
 export interface ProtocolDiscoveryDescriptor {
@@ -121,23 +120,15 @@ function normalizeDiscoveryDescriptor(
       stepId: step.stepId,
       inputSchema: step.inputSchema,
       outputSchema: step.outputSchema,
-      defaultNextStep: step.defaultNextStep,
     });
   }
 
-  if (discovery.startStep !== normalizedSteps[0]!.stepId) {
-    throw new Error(`command_discovery_start_step_mismatch:${commandId}`);
-  }
-
-  for (const step of normalizedSteps) {
-    if (
-      step.defaultNextStep !== undefined &&
-      !knownStepIds.has(step.defaultNextStep)
-    ) {
-      throw new Error(
-        `command_discovery_unknown_next_step:${commandId}:${step.stepId}:${step.defaultNextStep}`,
-      );
-    }
+  if (
+    typeof discovery.startStep !== "string" ||
+    discovery.startStep.length === 0 ||
+    !knownStepIds.has(discovery.startStep)
+  ) {
+    throw new Error(`command_discovery_unknown_start_step:${commandId}`);
   }
 
   return {

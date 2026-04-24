@@ -4,6 +4,7 @@ import {
   createCommandFactory,
   generateAsyncApi,
   describeGameProtocol,
+  discoveryStep,
 } from "../src/index";
 import {
   configureVisibility,
@@ -75,36 +76,35 @@ test("generateAsyncApi emits step-authored discovery channels and schemas", () =
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
   })
-    .discoverable((flow) =>
-      flow
-        .step("select_amount", (step) =>
-          step
-            .input(selectAmountInputSchema)
-            .output(selectAmountOutputSchema)
-            .resolve(() => [
-              {
-                id: "preset_one",
-                output: {
-                  amount: 1,
-                  label: "One",
-                },
-                nextInput: {
-                  selectedAmount: 1,
-                },
-              },
-            ]),
-        )
-        .step("confirm_selection", (step) =>
-          step
-            .input(confirmSelectionInputSchema)
-            .output(confirmSelectionOutputSchema)
-            .resolve(() => ({
-              complete: true as const,
-              input: {
-                amount: 1,
-              },
-            })),
-        ),
+    .discoverable(
+      discoveryStep("select_amount")
+        .initial()
+        .input(selectAmountInputSchema)
+        .output(selectAmountOutputSchema)
+        .resolve(() => [
+          {
+            id: "preset_one",
+            output: {
+              amount: 1,
+              label: "One",
+            },
+            nextInput: {
+              selectedAmount: 1,
+            },
+            nextStep: "confirm_selection",
+          },
+        ])
+        .build(),
+      discoveryStep("confirm_selection")
+        .input(confirmSelectionInputSchema)
+        .output(confirmSelectionOutputSchema)
+        .resolve(() => ({
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        }))
+        .build(),
     )
     .validate(() => {
       return { ok: true as const };

@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 import { GameDefinitionBuilder } from "../src/game-definition";
-import { createCommandFactory, describeGameProtocol } from "../src/index";
+import {
+  createCommandFactory,
+  describeGameProtocol,
+  discoveryStep,
+} from "../src/index";
 import {
   configureVisibility,
   State,
@@ -105,36 +109,35 @@ test("describeGameProtocol returns step-authored discovery metadata", () => {
     commandId: "gain_score",
     commandSchema: gainScoreCommandSchema,
   })
-    .discoverable((flow) =>
-      flow
-        .step("select_amount", (step) =>
-          step
-            .input(selectAmountInputSchema)
-            .output(selectAmountOutputSchema)
-            .resolve(() => [
-              {
-                id: "preset_one",
-                output: {
-                  amount: 1,
-                  label: "One",
-                },
-                nextInput: {
-                  selectedAmount: 1,
-                },
-              },
-            ]),
-        )
-        .step("confirm_selection", (step) =>
-          step
-            .input(confirmSelectionInputSchema)
-            .output(confirmSelectionOutputSchema)
-            .resolve(() => ({
-              complete: true as const,
-              input: {
-                amount: 1,
-              },
-            })),
-        ),
+    .discoverable(
+      discoveryStep("confirm_selection")
+        .input(confirmSelectionInputSchema)
+        .output(confirmSelectionOutputSchema)
+        .resolve(() => ({
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        }))
+        .build(),
+      discoveryStep("select_amount")
+        .initial()
+        .input(selectAmountInputSchema)
+        .output(selectAmountOutputSchema)
+        .resolve(() => [
+          {
+            id: "preset_one",
+            output: {
+              amount: 1,
+              label: "One",
+            },
+            nextInput: {
+              selectedAmount: 1,
+            },
+            nextStep: "confirm_selection",
+          },
+        ])
+        .build(),
     )
     .validate(() => {
       return { ok: true as const };
@@ -158,29 +161,29 @@ test("describeGameProtocol returns step-authored discovery metadata", () => {
   );
   expect(protocol.commands.gain_score?.discovery?.steps).toHaveLength(2);
   expect(protocol.commands.gain_score?.discovery?.steps[0]?.stepId).toBe(
-    "select_amount",
+    "confirm_selection",
   );
   expect(protocol.commands.gain_score?.discovery?.steps[0]?.inputSchema).toBe(
-    selectAmountInputSchema,
+    confirmSelectionInputSchema,
   );
   expect(protocol.commands.gain_score?.discovery?.steps[0]?.outputSchema).toBe(
+    confirmSelectionOutputSchema,
+  );
+  expect(protocol.commands.gain_score?.discovery?.steps[1]?.stepId).toBe(
+    "select_amount",
+  );
+  expect(protocol.commands.gain_score?.discovery?.steps[1]?.inputSchema).toBe(
+    selectAmountInputSchema,
+  );
+  expect(protocol.commands.gain_score?.discovery?.steps[1]?.outputSchema).toBe(
     selectAmountOutputSchema,
   );
   expect(
-    protocol.commands.gain_score?.discovery?.steps[0]?.defaultNextStep,
-  ).toBe("confirm_selection");
-  expect(protocol.commands.gain_score?.discovery?.steps[1]?.stepId).toBe(
-    "confirm_selection",
-  );
-  expect(protocol.commands.gain_score?.discovery?.steps[1]?.inputSchema).toBe(
-    confirmSelectionInputSchema,
-  );
-  expect(protocol.commands.gain_score?.discovery?.steps[1]?.outputSchema).toBe(
-    confirmSelectionOutputSchema,
-  );
+    "defaultNextStep" in protocol.commands.gain_score!.discovery!.steps[0]!,
+  ).toBe(false);
   expect(
-    protocol.commands.gain_score?.discovery?.steps[1]?.defaultNextStep,
-  ).toBeUndefined();
+    "defaultNextStep" in protocol.commands.gain_score!.discovery!.steps[1]!,
+  ).toBe(false);
   expect(protocol.viewSchema.type).toBe("object");
   expect(protocol.viewSchema.properties.game.type).toBe("object");
   expect(protocol.viewSchema.properties.progression.type).toBe("object");
@@ -251,18 +254,18 @@ test("describeGameProtocol rejects discovery commands without discovery steps", 
     commandId: "missing_discovery_steps",
     commandSchema: gainScoreCommandSchema,
   })
-    .discoverable((flow) =>
-      flow.step("select_amount", (step) =>
-        step
-          .input(selectAmountInputSchema)
-          .output(selectAmountOutputSchema)
-          .resolve(() => ({
-            complete: true as const,
-            input: {
-              amount: 1,
-            },
-          })),
-      ),
+    .discoverable(
+      discoveryStep("select_amount")
+        .initial()
+        .input(selectAmountInputSchema)
+        .output(selectAmountOutputSchema)
+        .resolve(() => ({
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        }))
+        .build(),
     )
     .validate(() => ({ ok: true as const }))
     .execute(() => {})
@@ -289,18 +292,18 @@ test("describeGameProtocol rejects discovery commands with empty discovery steps
     commandId: "empty_discovery_steps",
     commandSchema: gainScoreCommandSchema,
   })
-    .discoverable((flow) =>
-      flow.step("select_amount", (step) =>
-        step
-          .input(selectAmountInputSchema)
-          .output(selectAmountOutputSchema)
-          .resolve(() => ({
-            complete: true as const,
-            input: {
-              amount: 1,
-            },
-          })),
-      ),
+    .discoverable(
+      discoveryStep("select_amount")
+        .initial()
+        .input(selectAmountInputSchema)
+        .output(selectAmountOutputSchema)
+        .resolve(() => ({
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        }))
+        .build(),
     )
     .validate(() => ({ ok: true as const }))
     .execute(() => {})
@@ -325,18 +328,18 @@ test("describeGameProtocol rejects malformed discovery step entries", () => {
     commandId: "malformed_discovery_step",
     commandSchema: gainScoreCommandSchema,
   })
-    .discoverable((flow) =>
-      flow.step("select_amount", (step) =>
-        step
-          .input(selectAmountInputSchema)
-          .output(selectAmountOutputSchema)
-          .resolve(() => ({
-            complete: true as const,
-            input: {
-              amount: 1,
-            },
-          })),
-      ),
+    .discoverable(
+      discoveryStep("select_amount")
+        .initial()
+        .input(selectAmountInputSchema)
+        .output(selectAmountOutputSchema)
+        .resolve(() => ({
+          complete: true as const,
+          input: {
+            amount: 1,
+          },
+        }))
+        .build(),
     )
     .validate(() => ({ ok: true as const }))
     .execute(() => {})

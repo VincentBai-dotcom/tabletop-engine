@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { createCommandFactory } from "../src/command-factory";
+import { createCommandFactory, discoveryStep } from "../src/command-factory";
 import { createStageFactory } from "../src/stage-factory";
 import { createGameExecutor } from "../src/runtime/game-executor";
 import { GameDefinitionBuilder } from "../src/game-definition";
@@ -868,63 +868,61 @@ test("availability and discovery contexts hydrate readonly decorated state facad
       commandId: "increment_counter",
       commandSchema: amountCommandSchema,
     })
-      .discoverable((flow) =>
-        flow
-          .step("select_amount", (step) =>
-            step
-              .input(selectAmountInputSchema)
-              .output(selectAmountOutputSchema)
-              .resolve(({ discovery, game, input }) => {
-                expect(discovery.step).toBe("select_amount");
-                expect(discovery.input).toEqual(input);
+      .discoverable(
+        discoveryStep("select_amount")
+          .initial()
+          .input(selectAmountInputSchema)
+          .output(selectAmountOutputSchema)
+          .resolve(({ discovery, game, input }) => {
+            expect(discovery.step).toBe("select_amount");
+            expect(discovery.input).toEqual(input);
 
-                if (
-                  (game as RootCounterStateFacade).hasCounterValueAtLeast(2)
-                ) {
-                  return [
-                    {
-                      id: "two",
-                      output: {
-                        amount: 2,
-                        label: "Two",
-                      },
-                      nextInput: {
-                        amount: 2,
-                      },
-                    },
-                  ];
-                }
-
-                return [
-                  {
-                    id: "one",
-                    output: {
-                      amount: 1,
-                      label: "One",
-                    },
-                    nextInput: {
-                      amount: 1,
-                    },
+            if ((game as RootCounterStateFacade).hasCounterValueAtLeast(2)) {
+              return [
+                {
+                  id: "two",
+                  output: {
+                    amount: 2,
+                    label: "Two",
                   },
-                ];
-              }),
-          )
-          .step("confirm_amount", (step) =>
-            step
-              .input(confirmAmountInputSchema)
-              .output(confirmAmountOutputSchema)
-              .resolve(({ discovery, input }) => {
-                expect(discovery.step).toBe("confirm_amount");
-                expect(input).toEqual({
-                  amount: 2,
-                });
+                  nextInput: {
+                    amount: 2,
+                  },
+                  nextStep: "confirm_amount",
+                },
+              ];
+            }
 
-                return {
-                  complete: true as const,
-                  input,
-                };
-              }),
-          ),
+            return [
+              {
+                id: "one",
+                output: {
+                  amount: 1,
+                  label: "One",
+                },
+                nextInput: {
+                  amount: 1,
+                },
+                nextStep: "confirm_amount",
+              },
+            ];
+          })
+          .build(),
+        discoveryStep("confirm_amount")
+          .input(confirmAmountInputSchema)
+          .output(confirmAmountOutputSchema)
+          .resolve(({ discovery, input }) => {
+            expect(discovery.step).toBe("confirm_amount");
+            expect(input).toEqual({
+              amount: 2,
+            });
+
+            return {
+              complete: true as const,
+              input,
+            };
+          })
+          .build(),
       )
       .isAvailable(({ game }) =>
         (game as RootCounterStateFacade).hasCounterValueAtLeast(1),
@@ -1214,23 +1212,24 @@ test("createGameExecutor rejects discovery missing input at runtime", () => {
       commandId: "play_card",
       commandSchema: playCardCommandSchema,
     })
-      .discoverable((flow) =>
-        flow.step("select_card", (step) =>
-          step
-            .input(selectCardInputSchema)
-            .output(selectCardOutputSchema)
-            .resolve(() => [
-              {
-                id: "card-1",
-                output: {
-                  cardId: 1,
-                },
-                nextInput: {
-                  cardId: 1,
-                },
+      .discoverable(
+        discoveryStep("select_card")
+          .initial()
+          .input(selectCardInputSchema)
+          .output(selectCardOutputSchema)
+          .resolve(() => [
+            {
+              id: "card-1",
+              output: {
+                cardId: 1,
               },
-            ]),
-        ),
+              nextInput: {
+                cardId: 1,
+              },
+              nextStep: "select_card",
+            },
+          ])
+          .build(),
       )
       .validate(() => ({ ok: true as const }))
       .execute(() => {})
@@ -1678,48 +1677,48 @@ test("game executor can discover the next semantic options for a command", () =>
       commandId: "play_card",
       commandSchema: playCardCommandSchema,
     })
-      .discoverable((flow) =>
-        flow
-          .step("select_card", (step) =>
-            step
-              .input(selectAmountInputSchema)
-              .output(selectCardOutputSchema)
-              .resolve(() => [
-                {
-                  id: "card-1",
-                  output: {
-                    cardId: 1,
-                  },
-                  nextInput: {
-                    cardId: 1,
-                  },
-                },
-                {
-                  id: "card-2",
-                  output: {
-                    cardId: 2,
-                  },
-                  nextInput: {
-                    cardId: 2,
-                  },
-                },
-              ]),
+      .discoverable(
+        discoveryStep("select_card")
+          .initial()
+          .input(selectAmountInputSchema)
+          .output(selectCardOutputSchema)
+          .resolve(() => [
+            {
+              id: "card-1",
+              output: {
+                cardId: 1,
+              },
+              nextInput: {
+                cardId: 1,
+              },
+              nextStep: "select_target",
+            },
+            {
+              id: "card-2",
+              output: {
+                cardId: 2,
+              },
+              nextInput: {
+                cardId: 2,
+              },
+              nextStep: "select_target",
+            },
+          ])
+          .build(),
+        discoveryStep("select_target")
+          .input(selectCardInputSchema)
+          .output(
+            t.object({
+              targetId: t.number(),
+            }),
           )
-          .step("select_target", (step) =>
-            step
-              .input(selectCardInputSchema)
-              .output(
-                t.object({
-                  targetId: t.number(),
-                }),
-              )
-              .resolve(({ input }) => ({
-                complete: true as const,
-                input: {
-                  cardId: input.cardId,
-                },
-              })),
-          ),
+          .resolve(({ input }) => ({
+            complete: true as const,
+            input: {
+              cardId: input.cardId,
+            },
+          }))
+          .build(),
       )
       .isAvailable(({ game }) => game.canPlay)
       .validate(() => ({ ok: true as const }))
@@ -1797,23 +1796,24 @@ test("createGameExecutor rejects invalid discovery results for step-authored com
       commandId: "invalid_output",
       commandSchema: playCardCommandSchema,
     })
-      .discoverable((flow) =>
-        flow.step("select_card", (step) =>
-          step
-            .input(selectAmountInputSchema)
-            .output(selectCardOutputSchema)
-            .resolve(() => [
-              {
-                id: "card-1",
-                output: {
-                  cardId: "bad",
-                } as never,
-                nextInput: {
-                  cardId: 1,
-                },
+      .discoverable(
+        discoveryStep("select_card")
+          .initial()
+          .input(selectAmountInputSchema)
+          .output(selectCardOutputSchema)
+          .resolve(() => [
+            {
+              id: "card-1",
+              output: {
+                cardId: "bad",
+              } as never,
+              nextInput: {
+                cardId: 1,
               },
-            ]),
-        ),
+              nextStep: "select_card",
+            },
+          ])
+          .build(),
       )
       .validate(() => ({ ok: true as const }))
       .execute(() => {})
@@ -1822,18 +1822,18 @@ test("createGameExecutor rejects invalid discovery results for step-authored com
       commandId: "invalid_completion",
       commandSchema: playCardCommandSchema,
     })
-      .discoverable((flow) =>
-        flow.step("select_target", (step) =>
-          step
-            .input(selectCardInputSchema)
-            .output(t.object({ targetId: t.number() }))
-            .resolve(() => ({
-              complete: true as const,
-              input: {
-                cardId: "bad",
-              } as never,
-            })),
-        ),
+      .discoverable(
+        discoveryStep("select_target")
+          .initial()
+          .input(selectCardInputSchema)
+          .output(t.object({ targetId: t.number() }))
+          .resolve(() => ({
+            complete: true as const,
+            input: {
+              cardId: "bad",
+            } as never,
+          }))
+          .build(),
       )
       .validate(() => ({ ok: true as const }))
       .execute(() => {})
@@ -1842,21 +1842,21 @@ test("createGameExecutor rejects invalid discovery results for step-authored com
       commandId: "malformed_completion",
       commandSchema: playCardCommandSchema,
     })
-      .discoverable((flow) =>
-        flow.step("select_target", (step) =>
-          step
-            .input(selectCardInputSchema)
-            .output(t.object({ targetId: t.number() }))
-            .resolve(
-              () =>
-                ({
-                  complete: false as const,
-                  input: {
-                    cardId: 2,
-                  },
-                }) as never,
-            ),
-        ),
+      .discoverable(
+        discoveryStep("select_target")
+          .initial()
+          .input(selectCardInputSchema)
+          .output(t.object({ targetId: t.number() }))
+          .resolve(
+            () =>
+              ({
+                complete: false as const,
+                input: {
+                  cardId: 2,
+                },
+              }) as never,
+          )
+          .build(),
       )
       .validate(() => ({ ok: true as const }))
       .execute(() => {})
@@ -1865,23 +1865,23 @@ test("createGameExecutor rejects invalid discovery results for step-authored com
       commandId: "missing_next_step",
       commandSchema: playCardCommandSchema,
     })
-      .discoverable((flow) =>
-        flow.step("select_card", (step) =>
-          step
-            .input(selectAmountInputSchema)
-            .output(selectCardOutputSchema)
-            .resolve(() => [
-              {
-                id: "card-1",
-                output: {
-                  cardId: 1,
-                },
-                nextInput: {
-                  cardId: 1,
-                },
+      .discoverable(
+        discoveryStep("select_card")
+          .initial()
+          .input(selectAmountInputSchema)
+          .output(selectCardOutputSchema)
+          .resolve(() => [
+            {
+              id: "card-1",
+              output: {
+                cardId: 1,
               },
-            ]),
-        ),
+              nextInput: {
+                cardId: 1,
+              },
+            } as never,
+          ])
+          .build(),
       )
       .validate(() => ({ ok: true as const }))
       .execute(() => {})
@@ -1890,24 +1890,24 @@ test("createGameExecutor rejects invalid discovery results for step-authored com
       commandId: "undeclared_next_step",
       commandSchema: playCardCommandSchema,
     })
-      .discoverable((flow) =>
-        flow.step("select_card", (step) =>
-          step
-            .input(selectAmountInputSchema)
-            .output(selectCardOutputSchema)
-            .resolve(() => [
-              {
-                id: "card-1",
-                output: {
-                  cardId: 1,
-                },
-                nextInput: {
-                  cardId: 1,
-                },
-                nextStep: "missing_step",
+      .discoverable(
+        discoveryStep("select_card")
+          .initial()
+          .input(selectAmountInputSchema)
+          .output(selectCardOutputSchema)
+          .resolve(() => [
+            {
+              id: "card-1",
+              output: {
+                cardId: 1,
               },
-            ]),
-        ),
+              nextInput: {
+                cardId: 1,
+              },
+              nextStep: "missing_step",
+            },
+          ])
+          .build(),
       )
       .validate(() => ({ ok: true as const }))
       .execute(() => {})
@@ -1973,27 +1973,28 @@ test("executor APIs reject invalid incoming canonical state", () => {
     commandId: "increment_counter",
     commandSchema: amountCommandSchema,
   })
-    .discoverable((flow) =>
-      flow.step("pick_amount", (step) =>
-        step
-          .input(amountCommandSchema)
-          .output(
-            t.object({
-              amount: t.number(),
-            }),
-          )
-          .resolve(() => [
-            {
-              id: "one",
-              output: {
-                amount: 1,
-              },
-              nextInput: {
-                amount: 1,
-              },
+    .discoverable(
+      discoveryStep("pick_amount")
+        .initial()
+        .input(amountCommandSchema)
+        .output(
+          t.object({
+            amount: t.number(),
+          }),
+        )
+        .resolve(() => [
+          {
+            id: "one",
+            output: {
+              amount: 1,
             },
-          ]),
-      ),
+            nextInput: {
+              amount: 1,
+            },
+            nextStep: "pick_amount",
+          },
+        ])
+        .build(),
     )
     .validate(() => ({ ok: true as const }))
     .execute(({ game, command }) => {

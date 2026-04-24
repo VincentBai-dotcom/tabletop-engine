@@ -627,13 +627,11 @@ export function createGameExecutor<
           return null;
         }
 
-        const nextStep = option.nextStep ?? step.defaultNextStep;
-
         if (
-          typeof nextStep !== "string" ||
-          nextStep.length === 0 ||
+          typeof option.nextStep !== "string" ||
+          option.nextStep.length === 0 ||
           !discoveryDefinition.steps.some(
-            (candidate) => candidate.stepId === nextStep,
+            (candidate) => candidate.stepId === option.nextStep,
           )
         ) {
           return null;
@@ -641,7 +639,6 @@ export function createGameExecutor<
 
         discoveryOptions.push({
           ...option,
-          nextStep,
         });
       }
 
