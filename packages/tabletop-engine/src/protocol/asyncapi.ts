@@ -112,8 +112,11 @@ export function generateAsyncApi<
       );
       const discoveryResultSchema = createDiscoveryStepResultSchema(
         step.stepId,
-        inputSchema,
         outputSchema,
+        command.discovery.steps.map((targetStep) => ({
+          stepId: targetStep.stepId,
+          inputSchema: targetStep.inputSchema.schema!,
+        })),
       );
 
       schemaComponents[`${commandPascalCase}${stepPascalCase}DiscoveryInput`] =
@@ -306,19 +309,28 @@ function createDiscoveryInputSchema(
 
 function createDiscoveryStepResultSchema(
   stepId: string,
-  discoveryInputSchema: TSchema,
   discoveryOutputSchema: TSchema,
+  nextStepTargets: Array<{
+    stepId: string;
+    inputSchema: TSchema;
+  }>,
 ) {
+  const nextStepOptions = nextStepTargets.map((targetStep) =>
+    Type.Object({
+      id: Type.String(),
+      output: discoveryOutputSchema,
+      nextStep: Type.Literal(targetStep.stepId),
+      nextInput: targetStep.inputSchema,
+    }),
+  );
+
   return Type.Object({
     complete: Type.Literal(false),
     step: Type.Literal(stepId),
     options: Type.Array(
-      Type.Object({
-        id: Type.String(),
-        output: discoveryOutputSchema,
-        nextStep: Type.String(),
-        nextInput: discoveryInputSchema,
-      }),
+      nextStepOptions.length === 1
+        ? nextStepOptions[0]!
+        : Type.Union(nextStepOptions),
     ),
   });
 }

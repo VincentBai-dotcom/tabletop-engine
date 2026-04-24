@@ -627,13 +627,23 @@ export function createGameExecutor<
           return null;
         }
 
+        let nextStepDefinition:
+          | (typeof discoveryDefinition.steps)[number]
+          | undefined;
+
         if (
           typeof option.nextStep !== "string" ||
           option.nextStep.length === 0 ||
-          !discoveryDefinition.steps.some(
+          !(nextStepDefinition = discoveryDefinition.steps.find(
             (candidate) => candidate.stepId === option.nextStep,
-          )
+          ))
         ) {
+          return null;
+        }
+
+        try {
+          assertSchemaValue(nextStepDefinition.inputSchema, option.nextInput);
+        } catch {
           return null;
         }
 

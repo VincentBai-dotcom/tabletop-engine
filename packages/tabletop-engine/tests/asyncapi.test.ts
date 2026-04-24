@@ -88,7 +88,7 @@ test("generateAsyncApi emits step-authored discovery channels and schemas", () =
               label: "One",
             },
             nextInput: {
-              selectedAmount: 1,
+              amount: 1,
             },
             nextStep: "confirm_selection",
           },
@@ -189,17 +189,35 @@ test("generateAsyncApi emits step-authored discovery channels and schemas", () =
   ).toBe("select_amount");
   expect(
     discoveryResultVariants[0]!.properties.result.anyOf[0]!.properties.options
-      .items.properties,
-  ).toMatchObject({
-    id: {
-      type: "string",
+      .items.anyOf,
+  ).toMatchObject([
+    {
+      properties: {
+        id: {
+          type: "string",
+        },
+        output: selectAmountOutputSchema.schema,
+        nextStep: {
+          const: "select_amount",
+          type: "string",
+        },
+        nextInput: selectAmountInputSchema.schema,
+      },
     },
-    output: selectAmountOutputSchema.schema,
-    nextStep: {
-      type: "string",
+    {
+      properties: {
+        id: {
+          type: "string",
+        },
+        output: selectAmountOutputSchema.schema,
+        nextStep: {
+          const: "confirm_selection",
+          type: "string",
+        },
+        nextInput: confirmSelectionInputSchema.schema,
+      },
     },
-    nextInput: selectAmountInputSchema.schema,
-  });
+  ]);
   expect(
     discoveryResultVariants[0]!.properties.result.anyOf[0]!.required,
   ).toEqual(["complete", "step", "options"]);

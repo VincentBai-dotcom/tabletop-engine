@@ -61,6 +61,27 @@ async function writeCliConfig(cwd: string): Promise<void> {
     "          ],",
     "        },",
     "      },",
+    "      seeded_target: {",
+    '        commandId: "seeded_target",',
+    "        commandSchema: t.object({",
+    "          targetId: t.string(),",
+    "        }),",
+    "        discovery: {",
+    '          startStep: "select_target",',
+    "          steps: [",
+    "            {",
+    '              stepId: "select_target",',
+    "              inputSchema: t.object({",
+    "                seed: t.string(),",
+    "              }),",
+    "              outputSchema: t.object({",
+    "                targetId: t.string(),",
+    "              }),",
+    "              resolve: () => [],",
+    "            },",
+    "          ],",
+    "        },",
+    "      },",
     "    },",
     "  },",
     "});",
@@ -108,6 +129,10 @@ describe("generate client-sdk", () => {
     expect(generated).toContain('step: "confirm_selection"');
     expect(generated).toContain(
       'export type TakeThreeDistinctGemsDiscoveryStart = Omit<Extract<TakeThreeDistinctGemsDiscoveryRequest, { step: "confirm_selection" }>, "actorId">;',
+    );
+    expect(generated).toContain("export type SeededTargetDiscoveryStart =");
+    expect(generated).not.toContain(
+      "export const seededTargetDiscoveryStart =",
     );
     expect(generated).toContain("export type CommandRequest =");
     expect(generated).toContain("export type DiscoveryRequest =");

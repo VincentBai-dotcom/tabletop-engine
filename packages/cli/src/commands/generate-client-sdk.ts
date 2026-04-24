@@ -240,11 +240,17 @@ function renderDiscoveryStartHelpers(
         `export type ${pascalName}DiscoveryStart = Omit<Extract<${pascalName}DiscoveryRequest, { step: ${JSON.stringify(
           startStep.stepId,
         )} }>, "actorId">;\n`,
-        `export const ${camelName}DiscoveryStart = {
+        ...(hasRequiredProperties(
+          startStep.inputSchema.schema as Record<string, unknown>,
+        )
+          ? []
+          : [
+              `export const ${camelName}DiscoveryStart = {
   type: ${JSON.stringify(commandId)},
   step: ${JSON.stringify(startStep.stepId)},
   input: {},
 } satisfies ${pascalName}DiscoveryStart;\n`,
+            ]),
       ];
     })
     .join("\n");
@@ -273,4 +279,11 @@ function toPascalCase(value: string): string {
 function toCamelCase(value: string): string {
   const pascalCase = toPascalCase(value);
   return `${pascalCase[0]!.toLowerCase()}${pascalCase.slice(1)}`;
+}
+
+function hasRequiredProperties(schema: Record<string, unknown>): boolean {
+  return (
+    Array.isArray(schema.required) &&
+    schema.required.some((property) => typeof property === "string")
+  );
 }

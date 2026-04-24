@@ -1912,6 +1912,37 @@ test("createGameExecutor rejects invalid discovery results for step-authored com
       .validate(() => ({ ok: true as const }))
       .execute(() => {})
       .build(),
+    invalid_next_input: defineCommand({
+      commandId: "invalid_next_input",
+      commandSchema: playCardCommandSchema,
+    })
+      .discoverable((step) => [
+        step("select_card")
+          .initial()
+          .input(selectAmountInputSchema)
+          .output(selectCardOutputSchema)
+          .resolve(() => [
+            {
+              id: "card-1",
+              output: {
+                cardId: 1,
+              },
+              nextInput: {
+                amount: "bad",
+              } as never,
+              nextStep: "select_target",
+            },
+          ])
+          .build(),
+        step("select_target")
+          .input(selectCardInputSchema)
+          .output(t.object({ targetId: t.number() }))
+          .resolve(() => [])
+          .build(),
+      ])
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
   };
   const game = new GameDefinitionBuilder("invalid-step-discovery-game")
     .rootState(CanPlayRootState)
@@ -1960,6 +1991,14 @@ test("createGameExecutor rejects invalid discovery results for step-authored com
   expect(
     executor.discoverCommand(initialState, {
       type: "undeclared_next_step",
+      actorId: "player-1",
+      step: "select_card",
+      input: {},
+    }),
+  ).toBeNull();
+  expect(
+    executor.discoverCommand(initialState, {
+      type: "invalid_next_input",
       actorId: "player-1",
       step: "select_card",
       input: {},
