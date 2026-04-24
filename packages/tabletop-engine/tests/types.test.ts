@@ -37,6 +37,12 @@ import { GameDefinitionBuilder } from "../src/game-definition";
 void (0 as unknown as RemovedCanonicalGameStateOf<never>);
 void (0 as unknown as RemovedCanonicalStateOf<never>);
 
+type DiscoveryStepFactory = typeof import("../src/index") extends {
+  discoveryStep: infer TFactory;
+}
+  ? TFactory
+  : never;
+
 @State()
 class TypedCounterChildState {
   @field(t.number())
@@ -649,76 +655,98 @@ test("consumer command definitions infer step-authored discovery and reject lega
     amount: t.number(),
   });
 
-  const definition = defineCommand({
-    commandId: "gain_score",
-    commandSchema: gainScoreCommandSchema,
-  })
-    .discoverable((flow) =>
+  function assertExplicitBuiltStepDiscoveryAccepted() {
+    const discoveryStep = null as unknown as DiscoveryStepFactory;
+
+    const definition = defineCommand({
+      commandId: "gain_score",
+      commandSchema: gainScoreCommandSchema,
+    })
+      .discoverable(
+        discoveryStep("select_amount")
+          .initial()
+          .input(draftSchema)
+          .output(outputSchema)
+          .resolve(
+            ({
+              discovery,
+            }: {
+              discovery: {
+                input: {
+                  amount?: number;
+                };
+              };
+            }) => {
+              const amount: number | undefined = discovery.input.amount;
+
+              if (typeof amount !== "number") {
+                return [
+                  {
+                    id: "amount-1",
+                    output: {
+                      label: "One",
+                      amount: 1,
+                    },
+                    nextInput: {
+                      amount: 1,
+                    },
+                    nextStep: "select_amount",
+                  },
+                ];
+              }
+
+              return {
+                complete: true as const,
+                input: {
+                  amount,
+                },
+              };
+            },
+          )
+          .build(),
+      )
+      .validate(({ command }) => {
+        const amount: number = command.input.amount;
+
+        return {
+          ok: typeof amount === "number",
+          reason: "amount_required",
+        };
+      })
+      .execute(({ game, command }) => {
+        game.increment();
+        const amount: number = command.input.amount;
+        void amount;
+      })
+      .build();
+
+    expect(definition.commandId).toBe("gain_score");
+    expect(definition.discovery?.startStep).toBe("select_amount");
+    expect(definition.discovery?.steps[0]?.inputSchema).toBe(draftSchema);
+    expect(definition.discovery?.steps[0]?.outputSchema).toBe(outputSchema);
+  }
+
+  function assertLegacyFlowDiscoveryRejected() {
+    const invalidConfigDefinition = defineCommand({
+      commandId: "legacy_gain_score",
+      commandSchema: gainScoreCommandSchema,
+    });
+
+    // @ts-expect-error discoverable should reject the legacy flow callback builder
+    const invalidFlowDefinition = invalidConfigDefinition.discoverable((flow) =>
       flow.step("select_amount", (step) =>
         step
           .input(draftSchema)
           .output(outputSchema)
-          .resolve(({ discovery }) => {
-            const amount: number | undefined = discovery.input.amount;
-
-            if (typeof amount !== "number") {
-              return [
-                {
-                  id: "amount-1",
-                  output: {
-                    label: "One",
-                    amount: 1,
-                  },
-                  nextInput: {
-                    amount: 1,
-                  },
-                },
-              ];
-            }
-
-            return {
-              complete: true as const,
-              input: {
-                amount,
-              },
-            };
-          }),
+          .resolve(() => []),
       ),
-    )
-    .validate(({ command }) => {
-      const amount: number = command.input.amount;
+    );
 
-      return {
-        ok: typeof amount === "number",
-        reason: "amount_required",
-      };
-    })
-    .execute(({ game, command }) => {
-      game.increment();
-      const amount: number = command.input.amount;
-      void amount;
-    })
-    .build();
-
-  expect(definition.commandId).toBe("gain_score");
-  expect(definition.discovery?.startStep).toBe("select_amount");
-  expect(definition.discovery?.steps[0]?.inputSchema).toBe(draftSchema);
-  expect(definition.discovery?.steps[0]?.outputSchema).toBe(outputSchema);
-
-  function assertLegacyDiscoverableConfigRejected() {
-    const invalidDefinition = defineCommand({
-      commandId: "legacy_gain_score",
-      commandSchema: gainScoreCommandSchema,
-    }).discoverable({
-      // @ts-expect-error legacy discoverable config should be rejected
-      discoverySchema: draftSchema,
-      discover: () => null,
-    });
-
-    return invalidDefinition;
+    return invalidFlowDefinition;
   }
 
-  expect(assertLegacyDiscoverableConfigRejected).toBeFunction();
+  expect(assertExplicitBuiltStepDiscoveryAccepted).toBeFunction();
+  expect(assertLegacyFlowDiscoveryRejected).toBeFunction();
 });
 
 test("command factory contextually types command lifecycle methods", () => {

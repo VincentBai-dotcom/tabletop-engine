@@ -1,5 +1,12 @@
 import { expect, test } from "bun:test";
-import { createCommandFactory, t } from "../src";
+import * as tabletopEngine from "../src";
+
+const { createCommandFactory, t } = tabletopEngine;
+const discoveryStep = (
+  tabletopEngine as {
+    discoveryStep?: (...args: unknown[]) => unknown;
+  }
+).discoveryStep;
 
 test("chained builder supports non-discoverable commands", () => {
   const defineCommand = createCommandFactory<{
@@ -196,4 +203,216 @@ test("chained builder supports ordered discovery steps and completion", () => {
   expect(discoverableCommand.discovery?.steps[1]?.defaultNextStep).toBe(
     undefined,
   );
+});
+
+test("chained builder supports explicit built discovery steps", () => {
+  const defineCommand = createCommandFactory<{
+    score: number;
+  }>();
+  const commandSchema = t.object({
+    amount: t.number(),
+  });
+  const selectAmountInputSchema = t.object({});
+  const selectAmountOutputSchema = t.object({
+    label: t.string(),
+    amount: t.number(),
+  });
+
+  const command = defineCommand({
+    commandId: "gain_score_with_explicit_step",
+    commandSchema,
+  })
+    .discoverable(
+      discoveryStep!("select_amount")
+        .initial()
+        .input(selectAmountInputSchema)
+        .output(selectAmountOutputSchema)
+        .resolve(() => [
+          {
+            id: "one",
+            output: {
+              label: "One",
+              amount: 1,
+            },
+            nextInput: {
+              amount: 1,
+            },
+            nextStep: "select_amount",
+          },
+        ])
+        .build(),
+    )
+    .validate(({ command }) => {
+      expect(command.input?.amount).toBeNumber();
+      return { ok: true as const };
+    })
+    .execute(({ game, command }) => {
+      game.score += command.input?.amount ?? 0;
+    })
+    .build();
+
+  expect(command.discovery?.startStep).toBe("select_amount");
+  expect(command.discovery?.steps[0]?.stepId).toBe("select_amount");
+});
+
+test("chained builder rejects explicit discovery steps without an initial step", () => {
+  const defineCommand = createCommandFactory<{
+    score: number;
+  }>();
+  const commandSchema = t.object({
+    amount: t.number(),
+  });
+
+  expect(() =>
+    defineCommand({
+      commandId: "gain_score_missing_initial_step",
+      commandSchema,
+    })
+      .discoverable(
+        discoveryStep!("select_amount")
+          .input(t.object({}))
+          .output(
+            t.object({
+              amount: t.number(),
+            }),
+          )
+          .resolve(() => [
+            {
+              id: "one",
+              output: {
+                amount: 1,
+              },
+              nextInput: {
+                amount: 1,
+              },
+              nextStep: "select_amount",
+            },
+          ])
+          .build(),
+      )
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+  ).toThrow("command_builder_missing_initial_discovery_step");
+});
+
+test("chained builder rejects duplicate explicit initial discovery steps", () => {
+  const defineCommand = createCommandFactory<{
+    score: number;
+  }>();
+  const commandSchema = t.object({
+    amount: t.number(),
+  });
+
+  expect(() =>
+    defineCommand({
+      commandId: "gain_score_duplicate_initial_step",
+      commandSchema,
+    })
+      .discoverable(
+        discoveryStep!("select_amount")
+          .initial()
+          .input(t.object({}))
+          .output(
+            t.object({
+              amount: t.number(),
+            }),
+          )
+          .resolve(() => [
+            {
+              id: "one",
+              output: {
+                amount: 1,
+              },
+              nextInput: {
+                amount: 1,
+              },
+              nextStep: "select_target",
+            },
+          ])
+          .build(),
+        discoveryStep!("select_target")
+          .initial()
+          .input(
+            t.object({
+              amount: t.number(),
+            }),
+          )
+          .output(
+            t.object({
+              confirmed: t.boolean(),
+            }),
+          )
+          .resolve(() => ({
+            complete: true as const,
+            input: {
+              amount: 1,
+            },
+          }))
+          .build(),
+      )
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+  ).toThrow("command_builder_duplicate_initial_discovery_step");
+});
+
+test("chained builder still rejects duplicate explicit discovery step ids", () => {
+  const defineCommand = createCommandFactory<{
+    score: number;
+  }>();
+  const commandSchema = t.object({
+    amount: t.number(),
+  });
+
+  expect(() =>
+    defineCommand({
+      commandId: "gain_score_duplicate_explicit_step_id",
+      commandSchema,
+    })
+      .discoverable(
+        discoveryStep!("select_amount")
+          .initial()
+          .input(t.object({}))
+          .output(
+            t.object({
+              amount: t.number(),
+            }),
+          )
+          .resolve(() => [
+            {
+              id: "one",
+              output: {
+                amount: 1,
+              },
+              nextInput: {
+                amount: 1,
+              },
+              nextStep: "select_amount",
+            },
+          ])
+          .build(),
+        discoveryStep!("select_amount")
+          .input(
+            t.object({
+              amount: t.number(),
+            }),
+          )
+          .output(
+            t.object({
+              confirmed: t.boolean(),
+            }),
+          )
+          .resolve(() => ({
+            complete: true as const,
+            input: {
+              amount: 1,
+            },
+          }))
+          .build(),
+      )
+      .validate(() => ({ ok: true as const }))
+      .execute(() => {})
+      .build(),
+  ).toThrow("duplicate_discovery_step_id:select_amount");
 });
