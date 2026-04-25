@@ -36,14 +36,14 @@ export type BrowserLiveServerMessage =
   | { type: "room_updated"; room: BrowserRoomSnapshot }
   | { type: "game_started"; gameSessionId: string }
   | {
-      type: "game_snapshot";
-      stateVersion: number;
-      view: SplendorVisibleState;
+      type: "game_available_commands";
+      requestId: string;
+      gameSessionId: string;
       availableCommands: string[];
-      events: [];
     }
   | {
-      type: "game_updated";
+      type: "game_snapshot";
+      gameSessionId: string;
       stateVersion: number;
       view: SplendorVisibleState;
       availableCommands: string[];
@@ -51,10 +51,33 @@ export type BrowserLiveServerMessage =
     }
   | {
       type: "game_discovery_result";
+      requestId: string;
       gameSessionId: string;
       result: SplendorDiscoveryResult | null;
     }
-  | { type: "game_ended"; result: GameEndedPayload }
+  | (
+      | {
+          type: "game_execution_result";
+          requestId: string;
+          gameSessionId: string;
+          commandType: string;
+          accepted: true;
+          stateVersion: number;
+          events: unknown[];
+        }
+      | {
+          type: "game_execution_result";
+          requestId: string;
+          gameSessionId: string;
+          commandType: string;
+          accepted: false;
+          stateVersion: number;
+          reason: string;
+          metadata?: unknown;
+          events: unknown[];
+        }
+    )
+  | { type: "game_ended"; gameSessionId: string; result: GameEndedPayload }
   | {
       type: "player_disconnected";
       playerSessionId: string;
@@ -97,7 +120,6 @@ export function normalizeServerMessage(
         room: normalizeRoomSnapshot(normalized.room),
       };
     case "game_snapshot":
-    case "game_updated":
       return {
         ...normalized,
         view: normalized.view as SplendorVisibleState,

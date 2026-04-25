@@ -49,7 +49,10 @@ type Screen = "menu" | "room" | "game" | "ended";
 
 const DISCOVERY_STARTS: Record<
   CommandType,
-  Omit<SplendorDiscoveryRequest, "actorId">
+  {
+    step: SplendorDiscoveryRequest["step"];
+    input: SplendorDiscoveryRequest["input"];
+  }
 > = {
   buy_face_up_card: buyFaceUpCardDiscoveryStart,
   buy_reserved_card: buyReservedCardDiscoveryStart,
@@ -111,6 +114,12 @@ export function useSplendorApp() {
   const latestPresenceTargetRef = useRef<PresenceTarget | null>(presenceTarget);
   const latestGameRef = useRef(game);
   const latestActiveCommandTypeRef = useRef(activeCommandType);
+  const requestCounterRef = useRef(0);
+
+  function createRequestId() {
+    requestCounterRef.current += 1;
+    return `web-request-${requestCounterRef.current}`;
+  }
 
   function resetTransientGameState() {
     setDiscovery(null);
@@ -232,15 +241,9 @@ export function useSplendorApp() {
             });
             return;
           case "game_snapshot":
-          case "game_updated":
             startTransition(() => {
-              const latestTarget = latestPresenceTargetRef.current;
-              const latestGame = latestGameRef.current;
               setGame({
-                gameSessionId:
-                  latestTarget?.kind === "game"
-                    ? latestTarget.gameSessionId
-                    : (latestGame?.gameSessionId ?? ""),
+                gameSessionId: message.gameSessionId,
                 stateVersion: message.stateVersion,
                 view: message.view,
                 availableCommands: message.availableCommands,
@@ -272,7 +275,8 @@ export function useSplendorApp() {
                 }
 
                 liveRef.current?.send({
-                  type: "game_command",
+                  type: "game_execute",
+                  requestId: createRequestId(),
                   gameSessionId: message.gameSessionId,
                   command: {
                     type: latestActiveCommandType,
@@ -286,6 +290,16 @@ export function useSplendorApp() {
               setDiscovery(result as OpenDiscovery);
               setBusy(false);
             });
+            return;
+          case "game_execution_result":
+            startTransition(() => {
+              if (!message.accepted) {
+                setError(message.reason);
+              }
+              setBusy(false);
+            });
+            return;
+          case "game_available_commands":
             return;
           case "game_ended":
             shouldReconnectRef.current = false;
@@ -434,8 +448,12 @@ export function useSplendorApp() {
     setActiveCommandType(commandType);
     liveRef.current?.send({
       type: "game_discover",
+      requestId: createRequestId(),
       gameSessionId: game.gameSessionId,
-      discovery: DISCOVERY_STARTS[commandType],
+      discovery: {
+        type: commandType,
+        ...DISCOVERY_STARTS[commandType],
+      },
     });
   }
 
@@ -447,6 +465,7 @@ export function useSplendorApp() {
     setBusy(true);
     liveRef.current?.send({
       type: "game_discover",
+      requestId: createRequestId(),
       gameSessionId: game.gameSessionId,
       discovery: {
         type: activeCommandType,
