@@ -243,7 +243,7 @@ export function createGameSessionService<
         gameSession.canonicalState,
         toEngineCommand(command, player.playerId),
       );
-      if (!result.ok) {
+      if (result.ok === false) {
         return {
           accepted: false,
           stateVersion: gameSession.stateVersion,

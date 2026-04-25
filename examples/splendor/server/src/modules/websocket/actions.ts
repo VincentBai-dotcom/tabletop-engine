@@ -140,7 +140,7 @@ export function createLiveMessageHandler({
               command: message.command,
             });
 
-            if (!result.accepted) {
+            if (result.accepted === false) {
               connection.send({
                 type: "error",
                 code: result.reason,
