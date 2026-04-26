@@ -145,6 +145,9 @@ test("generateAsyncApi emits hosted engine websocket channels and schemas", () =
   expect(document.channels["game_ended"]!.publish!.message.$ref).toBe(
     "#/components/messages/GameEnded",
   );
+  expect(document.channels.error!.publish!.message.$ref).toBe(
+    "#/components/messages/GameError",
+  );
 
   expect(websocket.messages.execute).toBe("game_execute");
 
@@ -255,6 +258,12 @@ test("generateAsyncApi emits hosted engine websocket channels and schemas", () =
     gameEndedPayload.properties.result.properties.reason.anyOf,
   ).toHaveLength(2);
 
+  const errorPayload = document.components.messages.GameError!.payload;
+  expect(errorPayload.properties.type.const).toBe("error");
+  expect(errorPayload.properties.code.type).toBe("string");
+  expect(errorPayload.properties.requestId.type).toBe("string");
+  expect(errorPayload.required).toEqual(["type", "code"]);
+
   const executionResultPayload =
     document.components.messages.GameExecutionResult!.payload;
   expect(executionResultPayload.anyOf).toHaveLength(2);
@@ -270,4 +279,5 @@ test("generateAsyncApi emits hosted engine websocket channels and schemas", () =
   expect(document.components.schemas.GameExecutionResult).toBeDefined();
   expect(document.components.schemas.GameSnapshot).toBeDefined();
   expect(document.components.schemas.GameEnded).toBeDefined();
+  expect(document.components.schemas.GameError).toBeDefined();
 });

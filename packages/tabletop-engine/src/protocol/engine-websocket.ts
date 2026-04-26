@@ -12,6 +12,7 @@ export interface EngineWebSocketMessageNames {
   executionResult: string;
   gameSnapshot: string;
   gameEnded: string;
+  error: string;
 }
 
 export interface EngineWebSocketProtocolOptions {
@@ -34,6 +35,7 @@ export interface EngineWebSocketProtocolDescriptor {
     executionResultMessage: TSchema;
     gameSnapshotMessage: TSchema;
     gameEndedMessage: TSchema;
+    errorMessage: TSchema;
   };
 }
 
@@ -46,6 +48,7 @@ const defaultMessageNames: EngineWebSocketMessageNames = {
   executionResult: "game_execution_result",
   gameSnapshot: "game_snapshot",
   gameEnded: "game_ended",
+  error: "error",
 };
 
 export function describeEngineWebSocketProtocol<
@@ -151,6 +154,12 @@ export function describeEngineWebSocketProtocol<
         type: Type.Literal(messages.gameEnded),
         gameSessionId: Type.String(),
         result: gameEndedResult,
+      }),
+      errorMessage: Type.Object({
+        type: Type.Literal(messages.error),
+        requestId: Type.Optional(Type.String()),
+        code: Type.String(),
+        message: Type.Optional(Type.String()),
       }),
     },
   };

@@ -1243,6 +1243,25 @@ export function createGameEngineClient(
     socket.send(JSON.stringify(message));
   };
 
+  const rejectPendingRequests = (reason: string) => {
+    const error = new Error(reason);
+
+    for (const [requestId, pending] of pendingAvailableCommands) {
+      pending.reject(error);
+      pendingAvailableCommands.delete(requestId);
+    }
+
+    for (const [requestId, pending] of pendingDiscovery) {
+      pending.reject(error);
+      pendingDiscovery.delete(requestId);
+    }
+
+    for (const [requestId, pending] of pendingExecution) {
+      pending.reject(error);
+      pendingExecution.delete(requestId);
+    }
+  };
+
   return {
     listAvailableCommands(request) {
       const requestId = createRequestId();
@@ -1499,10 +1518,8 @@ export function createGameEngineClient(
       };
     },
     dispose() {
+      rejectPendingRequests("Game engine client disposed");
       socket.removeEventListener("message", handleMessage);
-      pendingAvailableCommands.clear();
-      pendingDiscovery.clear();
-      pendingExecution.clear();
       gameSnapshotListeners.clear();
       gameEndedListeners.clear();
       discoveryResultListeners.clear();

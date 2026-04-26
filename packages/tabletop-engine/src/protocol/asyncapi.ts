@@ -131,6 +131,13 @@ export function generateAsyncApi<
           },
         },
       },
+      [channels.error]: {
+        publish: {
+          message: {
+            $ref: "#/components/messages/GameError",
+          },
+        },
+      },
     },
     components: {
       messages: {
@@ -166,6 +173,10 @@ export function generateAsyncApi<
           name: "GameEnded",
           payload: websocket.schemas.gameEndedMessage,
         },
+        GameError: {
+          name: "GameError",
+          payload: websocket.schemas.errorMessage,
+        },
       },
       schemas: {
         VisibleState: websocket.schemas.visibleState,
@@ -182,6 +193,7 @@ export function generateAsyncApi<
         GameExecutionResult: websocket.schemas.executionResultMessage,
         GameSnapshot: websocket.schemas.gameSnapshotMessage,
         GameEnded: websocket.schemas.gameEndedMessage,
+        GameError: websocket.schemas.errorMessage,
       },
     },
   };

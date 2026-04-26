@@ -141,15 +141,29 @@ export function createLiveMessageHandler({
               );
             }
 
+            const discoveryResult = await gameSessionService.discoverCommand({
+              gameSessionId: message.gameSessionId,
+              playerSessionId,
+              discovery: message.discovery,
+            });
+            const discoveryType =
+              typeof message.discovery === "object" &&
+              message.discovery !== null &&
+              "type" in message.discovery &&
+              typeof message.discovery.type === "string"
+                ? message.discovery.type
+                : "unknown_discovery";
+
             connection.send({
               type: "game_discovery_result",
               requestId: message.requestId,
               gameSessionId: message.gameSessionId,
-              result: await gameSessionService.discoverCommand({
-                gameSessionId: message.gameSessionId,
-                playerSessionId,
-                discovery: message.discovery,
-              }),
+              result: discoveryResult
+                ? {
+                    type: discoveryType,
+                    result: discoveryResult,
+                  }
+                : null,
             });
             return;
           }

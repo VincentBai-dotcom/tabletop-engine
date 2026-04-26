@@ -285,9 +285,12 @@ describe("game websocket actions", () => {
         requestId: "request-1",
         gameSessionId: "game-1",
         result: {
-          complete: false,
-          step: "select_gem_color",
-          options: [],
+          type: "take_two_same_gems",
+          result: {
+            complete: false,
+            step: "select_gem_color",
+            options: [],
+          },
         },
       },
     ]);
