@@ -13,6 +13,7 @@ export interface LiveConnectionHandlers {
 }
 
 export interface LiveConnectionHandle {
+  socket: WebSocket;
   close(): void;
   send(message: BrowserLiveClientMessage): void;
 }
@@ -45,6 +46,7 @@ export function connectLive(
   });
 
   return {
+    socket,
     close() {
       socket.close();
     },

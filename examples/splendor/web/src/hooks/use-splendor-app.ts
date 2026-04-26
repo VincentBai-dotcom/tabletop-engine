@@ -9,11 +9,16 @@ import {
   buyFaceUpCardDiscoveryStart,
   buyReservedCardDiscoveryStart,
   chooseNobleDiscoveryStart,
+  createGameEngineClient,
   reserveDeckCardDiscoveryStart,
   reserveFaceUpCardDiscoveryStart,
   takeThreeDistinctGemsDiscoveryStart,
   takeTwoSameGemsDiscoveryStart,
+  type CommandPayload,
+  type CommandType,
+  type DiscoveryPayload,
   type DiscoveryResult,
+  type GameEngineClient,
   type VisibleState,
 } from "splendor-example/client";
 import { connectLive, type LiveConnectionHandle } from "../lib/live-connection";
@@ -34,17 +39,8 @@ import type {
 } from "../types/live";
 import { normalizeRoomSnapshot } from "../types/live";
 
-type CommandType =
-  | "buy_face_up_card"
-  | "buy_reserved_card"
-  | "choose_noble"
-  | "reserve_deck_card"
-  | "reserve_face_up_card"
-  | "take_three_distinct_gems"
-  | "take_two_same_gems";
-
 type OpenDiscovery = Extract<DiscoveryResult, { complete: false }>;
-
+type CompleteDiscovery = Extract<DiscoveryResult, { complete: true }>;
 type Screen = "menu" | "room" | "game" | "ended";
 
 const DISCOVERY_STARTS: Record<
@@ -88,6 +84,28 @@ function messageToText(message: BrowserLiveServerMessage) {
   return message.message ?? message.code;
 }
 
+function createDiscoveryRequest(
+  commandType: CommandType,
+  step: SplendorDiscoveryRequest["step"],
+  input: SplendorDiscoveryRequest["input"],
+): DiscoveryPayload {
+  return {
+    type: commandType,
+    step,
+    input,
+  } as DiscoveryPayload;
+}
+
+function createCommandRequest(
+  commandType: CommandType,
+  input: CompleteDiscovery["input"],
+): CommandPayload {
+  return {
+    type: commandType,
+    input,
+  } as CommandPayload;
+}
+
 export function useSplendorApp() {
   const [screen, setScreen] = useState<Screen>("menu");
   const [playerSessionToken, setPlayerSessionToken] = useState<string | null>(
@@ -109,9 +127,9 @@ export function useSplendorApp() {
   const [discovery, setDiscovery] = useState<OpenDiscovery | null>(null);
 
   const liveRef = useRef<LiveConnectionHandle | null>(null);
+  const gameEngineClientRef = useRef<GameEngineClient | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const shouldReconnectRef = useRef(false);
-  const latestPresenceTargetRef = useRef<PresenceTarget | null>(presenceTarget);
   const latestGameRef = useRef(game);
   const latestActiveCommandTypeRef = useRef(activeCommandType);
   const requestCounterRef = useRef(0);
@@ -133,9 +151,10 @@ export function useSplendorApp() {
     }
   }
 
-  useEffect(() => {
-    latestPresenceTargetRef.current = presenceTarget;
-  }, [presenceTarget]);
+  function disposeGameEngineClient() {
+    gameEngineClientRef.current?.dispose();
+    gameEngineClientRef.current = null;
+  }
 
   useEffect(() => {
     latestGameRef.current = game;
@@ -150,30 +169,124 @@ export function useSplendorApp() {
     target: PresenceTarget,
   ) {
     liveRef.current?.close();
+    disposeGameEngineClient();
     clearReconnectTimer();
     shouldReconnectRef.current = true;
 
-    liveRef.current = connectLive(token, {
+    let gameEngineClient: GameEngineClient | null = null;
+
+    const connection = connectLive(token, {
       onOpen() {
+        gameEngineClient = createGameEngineClient(connection.socket, {
+          createRequestId,
+        });
+        gameEngineClientRef.current = gameEngineClient;
+
+        gameEngineClient.onGameSnapshot((message) => {
+          startTransition(() => {
+            setGame({
+              gameSessionId: message.gameSessionId,
+              stateVersion: message.stateVersion,
+              view: message.view,
+              availableCommands: message.availableCommands,
+              events: message.events,
+            });
+            setScreen("game");
+            setBusy(false);
+            resetTransientGameState();
+          });
+        });
+
+        gameEngineClient.onDiscoveryResult((message) => {
+          startTransition(() => {
+            const result = message.result?.result;
+
+            if (!result) {
+              setDiscovery(null);
+              setError("Discovery is unavailable for this action");
+              setBusy(false);
+              return;
+            }
+
+            if (result.complete) {
+              const latestActiveCommandType =
+                latestActiveCommandTypeRef.current;
+              if (!latestActiveCommandType || !gameEngineClient) {
+                setError("Discovery completed without an active command");
+                setBusy(false);
+                return;
+              }
+
+              void gameEngineClient.execute({
+                gameSessionId: message.gameSessionId,
+                command: createCommandRequest(
+                  latestActiveCommandType,
+                  result.input,
+                ),
+              });
+              setDiscovery(null);
+              return;
+            }
+
+            setDiscovery(result);
+            setBusy(false);
+          });
+        });
+
+        gameEngineClient.onExecutionResult((message) => {
+          startTransition(() => {
+            if (!message.accepted) {
+              setError(message.reason);
+            }
+            setBusy(false);
+          });
+        });
+
+        gameEngineClient.onGameEnded((message) => {
+          shouldReconnectRef.current = false;
+          clearPresenceTarget();
+          startTransition(() => {
+            setEnded({
+              result: message.result,
+              lastView: latestGameRef.current?.view ?? null,
+            });
+            setGame(null);
+            setRoom(null);
+            setScreen("ended");
+            setBusy(false);
+            setPresenceTarget(null);
+            resetTransientGameState();
+          });
+        });
+
         startTransition(() => {
           setLiveStatus("connected");
         });
 
         if (target.kind === "room") {
-          liveRef.current?.send({
+          connection.send({
             type: "subscribe_room",
             roomId: target.roomId,
           });
           return;
         }
 
-        liveRef.current?.send({
+        connection.send({
           type: "subscribe_game",
           gameSessionId: target.gameSessionId,
         });
       },
       onClose() {
-        liveRef.current = null;
+        gameEngineClient?.dispose();
+        if (gameEngineClientRef.current === gameEngineClient) {
+          gameEngineClientRef.current = null;
+        }
+        gameEngineClient = null;
+
+        if (liveRef.current === connection) {
+          liveRef.current = null;
+        }
+
         startTransition(() => {
           setLiveStatus("idle");
         });
@@ -235,87 +348,16 @@ export function useSplendorApp() {
               setPresenceTarget(nextTarget);
               savePresenceTarget(nextTarget);
             });
-            liveRef.current?.send({
+            connection.send({
               type: "subscribe_game",
               gameSessionId: message.gameSessionId,
             });
             return;
           case "game_snapshot":
-            startTransition(() => {
-              setGame({
-                gameSessionId: message.gameSessionId,
-                stateVersion: message.stateVersion,
-                view: message.view,
-                availableCommands: message.availableCommands,
-                events: message.events,
-              });
-              setScreen("game");
-              setBusy(false);
-              resetTransientGameState();
-            });
-            return;
-          case "game_discovery_result":
-            startTransition(() => {
-              const result = message.result;
-
-              if (!result) {
-                setDiscovery(null);
-                setError("Discovery is unavailable for this action");
-                setBusy(false);
-                return;
-              }
-
-              if (result.complete) {
-                const latestActiveCommandType =
-                  latestActiveCommandTypeRef.current;
-                if (!latestActiveCommandType) {
-                  setError("Discovery completed without an active command");
-                  setBusy(false);
-                  return;
-                }
-
-                liveRef.current?.send({
-                  type: "game_execute",
-                  requestId: createRequestId(),
-                  gameSessionId: message.gameSessionId,
-                  command: {
-                    type: latestActiveCommandType,
-                    input: result.input,
-                  },
-                });
-                setDiscovery(null);
-                return;
-              }
-
-              setDiscovery(result as OpenDiscovery);
-              setBusy(false);
-            });
-            return;
-          case "game_execution_result":
-            startTransition(() => {
-              if (!message.accepted) {
-                setError(message.reason);
-              }
-              setBusy(false);
-            });
-            return;
           case "game_available_commands":
-            return;
+          case "game_discovery_result":
+          case "game_execution_result":
           case "game_ended":
-            shouldReconnectRef.current = false;
-            clearPresenceTarget();
-            startTransition(() => {
-              setEnded({
-                result: message.result,
-                lastView: latestGameRef.current?.view ?? null,
-              });
-              setGame(null);
-              setRoom(null);
-              setScreen("ended");
-              setBusy(false);
-              setPresenceTarget(null);
-              resetTransientGameState();
-            });
             return;
           case "server_restarting":
             startTransition(() => {
@@ -328,6 +370,8 @@ export function useSplendorApp() {
         }
       },
     });
+
+    liveRef.current = connection;
   }, []);
 
   useEffect(() => {
@@ -340,6 +384,7 @@ export function useSplendorApp() {
     return () => {
       shouldReconnectRef.current = false;
       clearReconnectTimer();
+      disposeGameEngineClient();
       liveRef.current?.close();
       liveRef.current = null;
     };
@@ -410,6 +455,7 @@ export function useSplendorApp() {
 
     shouldReconnectRef.current = false;
     clearPresenceTarget();
+    disposeGameEngineClient();
     liveRef.current?.send({
       type: "room_leave",
       roomId: room.id,
@@ -439,39 +485,36 @@ export function useSplendorApp() {
   }
 
   function beginDiscovery(commandType: CommandType) {
-    if (!game) {
+    if (!game || !gameEngineClientRef.current) {
       return;
     }
 
     setBusy(true);
     setError(null);
     setActiveCommandType(commandType);
-    liveRef.current?.send({
-      type: "game_discover",
-      requestId: createRequestId(),
+    void gameEngineClientRef.current.discover({
       gameSessionId: game.gameSessionId,
-      discovery: {
-        type: commandType,
-        ...DISCOVERY_STARTS[commandType],
-      },
+      discovery: createDiscoveryRequest(
+        commandType,
+        DISCOVERY_STARTS[commandType].step,
+        DISCOVERY_STARTS[commandType].input,
+      ),
     });
   }
 
   function chooseDiscoveryOption(option: OpenDiscovery["options"][number]) {
-    if (!game || !activeCommandType) {
+    if (!game || !activeCommandType || !gameEngineClientRef.current) {
       return;
     }
 
     setBusy(true);
-    liveRef.current?.send({
-      type: "game_discover",
-      requestId: createRequestId(),
+    void gameEngineClientRef.current.discover({
       gameSessionId: game.gameSessionId,
-      discovery: {
-        type: activeCommandType,
-        step: option.nextStep,
-        input: option.nextInput,
-      },
+      discovery: createDiscoveryRequest(
+        activeCommandType,
+        option.nextStep,
+        option.nextInput,
+      ),
     });
   }
 
@@ -483,6 +526,7 @@ export function useSplendorApp() {
     shouldReconnectRef.current = false;
     clearReconnectTimer();
     clearPresenceTarget();
+    disposeGameEngineClient();
     liveRef.current?.close();
     liveRef.current = null;
     setRoom(null);
