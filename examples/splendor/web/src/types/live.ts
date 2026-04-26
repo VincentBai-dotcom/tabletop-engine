@@ -83,7 +83,7 @@ export type BrowserLiveServerMessage =
     }
   | { type: "player_reconnected"; playerSessionId: string }
   | { type: "server_restarting"; reconnectAfterMs: number }
-  | { type: "error"; code: string; message?: string };
+  | { type: "error"; requestId?: string; code: string; message?: string };
 
 export type BrowserLiveClientMessage = LiveClientMessage;
 

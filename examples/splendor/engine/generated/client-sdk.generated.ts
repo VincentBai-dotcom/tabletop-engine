@@ -846,6 +846,13 @@ export interface GameEndedMessage {
   result: GameEndedResult;
 }
 
+export interface GameEngineErrorMessage {
+  type: "error";
+  requestId?: string;
+  code: string;
+  message?: string;
+}
+
 export type GameEngineClientMessage =
   | {
       type: "game_list_available_commands";
@@ -870,7 +877,8 @@ export type GameEngineServerMessage =
   | GameDiscoveryResultMessage
   | GameExecutionResultMessage
   | GameSnapshotMessage
-  | GameEndedMessage;
+  | GameEndedMessage
+  | GameEngineErrorMessage;
 
 export type TakeThreeDistinctGemsDiscoveryStart = {
   step: "select_gem_color";
@@ -1072,15 +1080,24 @@ export function createGameEngineClient(
 ): GameEngineClient {
   const pendingAvailableCommands = new Map<
     string,
-    (message: GameAvailableCommandsMessage) => void
+    {
+      resolve: (message: GameAvailableCommandsMessage) => void;
+      reject: (error: Error) => void;
+    }
   >();
   const pendingDiscovery = new Map<
     string,
-    (message: GameDiscoveryResultMessage) => void
+    {
+      resolve: (message: GameDiscoveryResultMessage) => void;
+      reject: (error: Error) => void;
+    }
   >();
   const pendingExecution = new Map<
     string,
-    (message: GameExecutionResultMessage) => void
+    {
+      resolve: (message: GameExecutionResultMessage) => void;
+      reject: (error: Error) => void;
+    }
   >();
   const gameSnapshotListeners = new Set<
     (message: GameSnapshotMessage) => void
@@ -1143,10 +1160,10 @@ export function createGameEngineClient(
 
     switch (message.type) {
       case "game_available_commands": {
-        const resolve = pendingAvailableCommands.get(message.requestId);
-        if (resolve) {
+        const pending = pendingAvailableCommands.get(message.requestId);
+        if (pending) {
           pendingAvailableCommands.delete(message.requestId);
-          resolve(message);
+          pending.resolve(message);
         }
         return;
       }
@@ -1155,10 +1172,10 @@ export function createGameEngineClient(
         for (const listener of discoveryResultListeners) {
           listener(message);
         }
-        const resolve = pendingDiscovery.get(message.requestId);
-        if (resolve) {
+        const pending = pendingDiscovery.get(message.requestId);
+        if (pending) {
           pendingDiscovery.delete(message.requestId);
-          resolve(message);
+          pending.resolve(message);
         }
         return;
       }
@@ -1167,13 +1184,44 @@ export function createGameEngineClient(
         for (const listener of executionResultListeners) {
           listener(message);
         }
-        const resolve = pendingExecution.get(message.requestId);
-        if (resolve) {
+        const pending = pendingExecution.get(message.requestId);
+        if (pending) {
           pendingExecution.delete(message.requestId);
-          resolve(message);
+          pending.resolve(message);
         }
         return;
       }
+
+      case "error":
+        if (!message.requestId) {
+          return;
+        }
+
+        {
+          const error = new Error(message.message ?? message.code);
+          const availableCommandsPending = pendingAvailableCommands.get(
+            message.requestId,
+          );
+          if (availableCommandsPending) {
+            pendingAvailableCommands.delete(message.requestId);
+            availableCommandsPending.reject(error);
+            return;
+          }
+
+          const discoveryPending = pendingDiscovery.get(message.requestId);
+          if (discoveryPending) {
+            pendingDiscovery.delete(message.requestId);
+            discoveryPending.reject(error);
+            return;
+          }
+
+          const executionPending = pendingExecution.get(message.requestId);
+          if (executionPending) {
+            pendingExecution.delete(message.requestId);
+            executionPending.reject(error);
+          }
+        }
+        return;
 
       case "game_snapshot":
         for (const listener of gameSnapshotListeners) {
@@ -1198,8 +1246,8 @@ export function createGameEngineClient(
   return {
     listAvailableCommands(request) {
       const requestId = createRequestId();
-      return new Promise<GameAvailableCommandsMessage>((resolve) => {
-        pendingAvailableCommands.set(requestId, resolve);
+      return new Promise<GameAvailableCommandsMessage>((resolve, reject) => {
+        pendingAvailableCommands.set(requestId, { resolve, reject });
         send({
           type: "game_list_available_commands",
           requestId,
@@ -1209,8 +1257,8 @@ export function createGameEngineClient(
     },
     discover(request) {
       const requestId = createRequestId();
-      return new Promise<GameDiscoveryResultMessage>((resolve) => {
-        pendingDiscovery.set(requestId, resolve);
+      return new Promise<GameDiscoveryResultMessage>((resolve, reject) => {
+        pendingDiscovery.set(requestId, { resolve, reject });
         send({
           type: "game_discover",
           requestId,
@@ -1221,8 +1269,8 @@ export function createGameEngineClient(
     },
     execute(request) {
       const requestId = createRequestId();
-      return new Promise<GameExecutionResultMessage>((resolve) => {
-        pendingExecution.set(requestId, resolve);
+      return new Promise<GameExecutionResultMessage>((resolve, reject) => {
+        pendingExecution.set(requestId, { resolve, reject });
         send({
           type: "game_execute",
           requestId,

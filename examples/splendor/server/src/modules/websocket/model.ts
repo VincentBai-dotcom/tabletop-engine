@@ -129,7 +129,7 @@ export type LiveServerMessage =
     }
   | { type: "player_reconnected"; playerSessionId: string }
   | { type: "server_restarting"; reconnectAfterMs: number }
-  | { type: "error"; code: string; message?: string };
+  | { type: "error"; requestId?: string; code: string; message?: string };
 
 /** Messages sent from the client to the server over WebSocket. */
 export type LiveClientMessage =

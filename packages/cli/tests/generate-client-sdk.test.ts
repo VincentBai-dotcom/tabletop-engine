@@ -160,10 +160,14 @@ describe("generate client-sdk", () => {
     expect(generated).toContain("onExecutionResult(");
     expect(generated).toContain("discoverTakeThreeDistinctGems(");
     expect(generated).toContain("executeTakeThreeDistinctGems(");
+    expect(generated).toContain("export interface GameEngineErrorMessage");
+    expect(generated).toContain("requestId?: string;");
     expect(generated).toContain('type: "game_discover"');
     expect(generated).toContain('type: "game_execute"');
     expect(generated).toContain('type: "game_snapshot"');
     expect(generated).toContain('type: "game_execution_result"');
+    expect(generated).toContain('case "error":');
+    expect(generated).toContain(".reject(error)");
     expect(generated).not.toContain("commandType: CommandType;");
   });
 });

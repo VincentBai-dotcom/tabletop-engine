@@ -243,6 +243,7 @@ describe("createLiveMessageHandler", () => {
     expect(client.sent).toEqual([
       {
         type: "error",
+        requestId: "request-1",
         code: "game_commands_not_implemented",
         message: "Game commands are not implemented yet",
       },
@@ -266,6 +267,7 @@ describe("createLiveMessageHandler", () => {
     expect(client.sent).toEqual([
       {
         type: "error",
+        requestId: "request-1",
         code: "game_commands_not_implemented",
         message: "Game commands are not implemented yet",
       },

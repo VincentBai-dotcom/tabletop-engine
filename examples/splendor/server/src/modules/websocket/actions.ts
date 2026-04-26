@@ -23,10 +23,15 @@ export interface LiveMessageHandlerDeps {
   livePresenceService?: LivePresenceService;
 }
 
-function sendError(connection: LiveConnection, error: unknown) {
+function sendError(
+  connection: LiveConnection,
+  error: unknown,
+  requestId?: string,
+) {
   const response = toErrorResponse(error);
   connection.send({
     type: "error",
+    ...(requestId ? { requestId } : {}),
     code: response.body.error.code,
     message: response.body.error.message,
   } satisfies LiveServerMessage);
@@ -201,7 +206,13 @@ export function createLiveMessageHandler({
           }
         }
       } catch (error) {
-        sendError(connection, error);
+        sendError(
+          connection,
+          error,
+          "requestId" in message && typeof message.requestId === "string"
+            ? message.requestId
+            : undefined,
+        );
       }
     },
   };

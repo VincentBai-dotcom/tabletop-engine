@@ -106,6 +106,30 @@ function createCommandRequest(
   } as CommandPayload;
 }
 
+function toErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Live request failed";
+}
+
+function updatePresenceTargetIfChanged(
+  current: PresenceTarget | null,
+  next: PresenceTarget,
+) {
+  if (
+    current?.kind === next.kind &&
+    ((current.kind === "room" &&
+      next.kind === "room" &&
+      current.roomId === next.roomId) ||
+      (current.kind === "game" &&
+        next.kind === "game" &&
+        current.gameSessionId === next.gameSessionId))
+  ) {
+    return current;
+  }
+
+  savePresenceTarget(next);
+  return next;
+}
+
 export function useSplendorApp() {
   const [screen, setScreen] = useState<Screen>("menu");
   const [playerSessionToken, setPlayerSessionToken] = useState<string | null>(
@@ -217,13 +241,20 @@ export function useSplendorApp() {
                 return;
               }
 
-              void gameEngineClient.execute({
-                gameSessionId: message.gameSessionId,
-                command: createCommandRequest(
-                  latestActiveCommandType,
-                  result.input,
-                ),
-              });
+              void gameEngineClient
+                .execute({
+                  gameSessionId: message.gameSessionId,
+                  command: createCommandRequest(
+                    latestActiveCommandType,
+                    result.input,
+                  ),
+                })
+                .catch((error: unknown) => {
+                  startTransition(() => {
+                    setError(toErrorMessage(error));
+                    setBusy(false);
+                  });
+                });
               setDiscovery(null);
               return;
             }
@@ -333,8 +364,12 @@ export function useSplendorApp() {
               setGame(null);
               setEnded(null);
               setScreen("room");
-              setPresenceTarget({ kind: "room", roomId: message.room.id });
-              savePresenceTarget({ kind: "room", roomId: message.room.id });
+              setPresenceTarget((current) =>
+                updatePresenceTargetIfChanged(current, {
+                  kind: "room",
+                  roomId: message.room.id,
+                }),
+              );
               setBusy(false);
             });
             return;
@@ -347,8 +382,9 @@ export function useSplendorApp() {
                 kind: "game" as const,
                 gameSessionId: message.gameSessionId,
               };
-              setPresenceTarget(nextTarget);
-              savePresenceTarget(nextTarget);
+              setPresenceTarget((current) =>
+                updatePresenceTargetIfChanged(current, nextTarget),
+              );
             });
             connection.send({
               type: "subscribe_game",
@@ -494,14 +530,21 @@ export function useSplendorApp() {
     setBusy(true);
     setError(null);
     setActiveCommandType(commandType);
-    void gameEngineClientRef.current.discover({
-      gameSessionId: game.gameSessionId,
-      discovery: createDiscoveryRequest(
-        commandType,
-        DISCOVERY_STARTS[commandType].step,
-        DISCOVERY_STARTS[commandType].input,
-      ),
-    });
+    void gameEngineClientRef.current
+      .discover({
+        gameSessionId: game.gameSessionId,
+        discovery: createDiscoveryRequest(
+          commandType,
+          DISCOVERY_STARTS[commandType].step,
+          DISCOVERY_STARTS[commandType].input,
+        ),
+      })
+      .catch((error: unknown) => {
+        startTransition(() => {
+          setError(toErrorMessage(error));
+          setBusy(false);
+        });
+      });
   }
 
   function chooseDiscoveryOption(option: OpenDiscovery["options"][number]) {
@@ -510,14 +553,21 @@ export function useSplendorApp() {
     }
 
     setBusy(true);
-    void gameEngineClientRef.current.discover({
-      gameSessionId: game.gameSessionId,
-      discovery: createDiscoveryRequest(
-        activeCommandType,
-        option.nextStep,
-        option.nextInput,
-      ),
-    });
+    void gameEngineClientRef.current
+      .discover({
+        gameSessionId: game.gameSessionId,
+        discovery: createDiscoveryRequest(
+          activeCommandType,
+          option.nextStep,
+          option.nextInput,
+        ),
+      })
+      .catch((error: unknown) => {
+        startTransition(() => {
+          setError(toErrorMessage(error));
+          setBusy(false);
+        });
+      });
   }
 
   function cancelDiscovery() {

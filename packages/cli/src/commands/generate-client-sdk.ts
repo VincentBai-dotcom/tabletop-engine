@@ -229,6 +229,12 @@ function renderHostedMessageTypes(
   gameSessionId: string;
   result: GameEndedResult;
 }\n`,
+    `export interface GameEngineErrorMessage {
+  type: "error";
+  requestId?: string;
+  code: string;
+  message?: string;
+}\n`,
     `export type GameEngineClientMessage =
   | {
       type: ${JSON.stringify(messageNames.listAvailableCommands)};
@@ -252,7 +258,8 @@ function renderHostedMessageTypes(
   | GameDiscoveryResultMessage
   | GameExecutionResultMessage
   | GameSnapshotMessage
-  | GameEndedMessage;\n`,
+  | GameEndedMessage
+  | GameEngineErrorMessage;\n`,
   ].join("\n");
 }
 
@@ -424,15 +431,24 @@ export function createGameEngineClient(
 ): GameEngineClient {
   const pendingAvailableCommands = new Map<
     string,
-    (message: GameAvailableCommandsMessage) => void
+    {
+      resolve: (message: GameAvailableCommandsMessage) => void;
+      reject: (error: Error) => void;
+    }
   >();
   const pendingDiscovery = new Map<
     string,
-    (message: GameDiscoveryResultMessage) => void
+    {
+      resolve: (message: GameDiscoveryResultMessage) => void;
+      reject: (error: Error) => void;
+    }
   >();
   const pendingExecution = new Map<
     string,
-    (message: GameExecutionResultMessage) => void
+    {
+      resolve: (message: GameExecutionResultMessage) => void;
+      reject: (error: Error) => void;
+    }
   >();
   const gameSnapshotListeners = new Set<
     (message: GameSnapshotMessage) => void
@@ -491,10 +507,10 @@ export function createGameEngineClient(
 
     switch (message.type) {
       case ${JSON.stringify(messageNames.availableCommands)}: {
-        const resolve = pendingAvailableCommands.get(message.requestId);
-        if (resolve) {
+        const pending = pendingAvailableCommands.get(message.requestId);
+        if (pending) {
           pendingAvailableCommands.delete(message.requestId);
-          resolve(message);
+          pending.resolve(message);
         }
         return;
       }
@@ -503,10 +519,10 @@ export function createGameEngineClient(
         for (const listener of discoveryResultListeners) {
           listener(message);
         }
-        const resolve = pendingDiscovery.get(message.requestId);
-        if (resolve) {
+        const pending = pendingDiscovery.get(message.requestId);
+        if (pending) {
           pendingDiscovery.delete(message.requestId);
-          resolve(message);
+          pending.resolve(message);
         }
         return;
       }
@@ -515,13 +531,44 @@ export function createGameEngineClient(
         for (const listener of executionResultListeners) {
           listener(message);
         }
-        const resolve = pendingExecution.get(message.requestId);
-        if (resolve) {
+        const pending = pendingExecution.get(message.requestId);
+        if (pending) {
           pendingExecution.delete(message.requestId);
-          resolve(message);
+          pending.resolve(message);
         }
         return;
       }
+
+      case "error":
+        if (!message.requestId) {
+          return;
+        }
+
+        {
+          const error = new Error(message.message ?? message.code);
+          const availableCommandsPending = pendingAvailableCommands.get(
+            message.requestId,
+          );
+          if (availableCommandsPending) {
+            pendingAvailableCommands.delete(message.requestId);
+            availableCommandsPending.reject(error);
+            return;
+          }
+
+          const discoveryPending = pendingDiscovery.get(message.requestId);
+          if (discoveryPending) {
+            pendingDiscovery.delete(message.requestId);
+            discoveryPending.reject(error);
+            return;
+          }
+
+          const executionPending = pendingExecution.get(message.requestId);
+          if (executionPending) {
+            pendingExecution.delete(message.requestId);
+            executionPending.reject(error);
+          }
+        }
+        return;
 
       case ${JSON.stringify(messageNames.gameSnapshot)}:
         for (const listener of gameSnapshotListeners) {
@@ -546,8 +593,8 @@ export function createGameEngineClient(
   return {
     listAvailableCommands(request) {
       const requestId = createRequestId();
-      return new Promise<GameAvailableCommandsMessage>((resolve) => {
-        pendingAvailableCommands.set(requestId, resolve);
+      return new Promise<GameAvailableCommandsMessage>((resolve, reject) => {
+        pendingAvailableCommands.set(requestId, { resolve, reject });
         send({
           type: ${JSON.stringify(messageNames.listAvailableCommands)},
           requestId,
@@ -557,8 +604,8 @@ export function createGameEngineClient(
     },
     discover(request) {
       const requestId = createRequestId();
-      return new Promise<GameDiscoveryResultMessage>((resolve) => {
-        pendingDiscovery.set(requestId, resolve);
+      return new Promise<GameDiscoveryResultMessage>((resolve, reject) => {
+        pendingDiscovery.set(requestId, { resolve, reject });
         send({
           type: ${JSON.stringify(messageNames.discover)},
           requestId,
@@ -569,8 +616,8 @@ export function createGameEngineClient(
     },
     execute(request) {
       const requestId = createRequestId();
-      return new Promise<GameExecutionResultMessage>((resolve) => {
-        pendingExecution.set(requestId, resolve);
+      return new Promise<GameExecutionResultMessage>((resolve, reject) => {
+        pendingExecution.set(requestId, { resolve, reject });
         send({
           type: ${JSON.stringify(messageNames.execute)},
           requestId,
