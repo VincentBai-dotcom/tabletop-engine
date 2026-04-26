@@ -113,20 +113,24 @@ function renderCommandPayloadAliases(
     }
   >,
 ): string {
-  const aliases = Object.keys(commands).flatMap((commandId) => {
-    const typeName = toPascalCase(commandId);
-    const payloadAliases = [
-      `export type ${typeName}CommandPayload = Omit<${typeName}CommandRequest, "actorId">;\n`,
-    ];
+  const aliases = [
+    'export type WithoutActorId<T> = T extends unknown ? Omit<T, "actorId"> : never;\n',
+    'export type WithoutType<T> = T extends unknown ? Omit<T, "type"> : never;\n',
+    ...Object.keys(commands).flatMap((commandId) => {
+      const typeName = toPascalCase(commandId);
+      const payloadAliases = [
+        `export type ${typeName}CommandPayload = WithoutActorId<${typeName}CommandRequest>;\n`,
+      ];
 
-    if (commands[commandId]!.discovery) {
-      payloadAliases.push(
-        `export type ${typeName}DiscoveryPayload = Omit<${typeName}DiscoveryRequest, "actorId">;\n`,
-      );
-    }
+      if (commands[commandId]!.discovery) {
+        payloadAliases.push(
+          `export type ${typeName}DiscoveryPayload = WithoutActorId<${typeName}DiscoveryRequest>;\n`,
+        );
+      }
 
-    return payloadAliases;
-  });
+      return payloadAliases;
+    }),
+  ];
 
   aliases.push(
     `export type CommandPayload = ${renderUnion(
@@ -329,7 +333,7 @@ function renderRuntimeClient(
       const pascalName = toPascalCase(commandId);
 
       return [
-        `discover${pascalName}(request: { gameSessionId: string } & Omit<${pascalName}DiscoveryPayload, "type">): Promise<GameDiscoveryResultMessage>;`,
+        `discover${pascalName}(request: { gameSessionId: string } & WithoutType<${pascalName}DiscoveryPayload>): Promise<GameDiscoveryResultMessage>;`,
       ];
     })
     .join("\n  ");
@@ -354,14 +358,16 @@ function renderRuntimeClient(
       const pascalName = toPascalCase(commandId);
 
       return [
-        `discover${pascalName}(request: { gameSessionId: string } & Omit<${pascalName}DiscoveryPayload, "type">) {
+        `discover${pascalName}(request: { gameSessionId: string } & WithoutType<${pascalName}DiscoveryPayload>) {
+      const discovery = {
+        type: ${JSON.stringify(commandId)},
+        step: request.step,
+        input: request.input,
+      } as ${pascalName}DiscoveryPayload;
+
       return this.discover({
         gameSessionId: request.gameSessionId,
-        discovery: {
-          type: ${JSON.stringify(commandId)},
-          step: request.step,
-          input: request.input,
-        },
+        discovery,
       });
     },`,
       ];

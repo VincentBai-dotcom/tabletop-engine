@@ -659,75 +659,51 @@ export type CommandType =
   | "buy_reserved_card"
   | "choose_noble";
 
-export type TakeThreeDistinctGemsCommandPayload = Omit<
-  TakeThreeDistinctGemsCommandRequest,
-  "actorId"
->;
+export type WithoutActorId<T> = T extends unknown ? Omit<T, "actorId"> : never;
 
-export type TakeThreeDistinctGemsDiscoveryPayload = Omit<
-  TakeThreeDistinctGemsDiscoveryRequest,
-  "actorId"
->;
+export type WithoutType<T> = T extends unknown ? Omit<T, "type"> : never;
 
-export type TakeTwoSameGemsCommandPayload = Omit<
-  TakeTwoSameGemsCommandRequest,
-  "actorId"
->;
+export type TakeThreeDistinctGemsCommandPayload =
+  WithoutActorId<TakeThreeDistinctGemsCommandRequest>;
 
-export type TakeTwoSameGemsDiscoveryPayload = Omit<
-  TakeTwoSameGemsDiscoveryRequest,
-  "actorId"
->;
+export type TakeThreeDistinctGemsDiscoveryPayload =
+  WithoutActorId<TakeThreeDistinctGemsDiscoveryRequest>;
 
-export type ReserveFaceUpCardCommandPayload = Omit<
-  ReserveFaceUpCardCommandRequest,
-  "actorId"
->;
+export type TakeTwoSameGemsCommandPayload =
+  WithoutActorId<TakeTwoSameGemsCommandRequest>;
 
-export type ReserveFaceUpCardDiscoveryPayload = Omit<
-  ReserveFaceUpCardDiscoveryRequest,
-  "actorId"
->;
+export type TakeTwoSameGemsDiscoveryPayload =
+  WithoutActorId<TakeTwoSameGemsDiscoveryRequest>;
 
-export type ReserveDeckCardCommandPayload = Omit<
-  ReserveDeckCardCommandRequest,
-  "actorId"
->;
+export type ReserveFaceUpCardCommandPayload =
+  WithoutActorId<ReserveFaceUpCardCommandRequest>;
 
-export type ReserveDeckCardDiscoveryPayload = Omit<
-  ReserveDeckCardDiscoveryRequest,
-  "actorId"
->;
+export type ReserveFaceUpCardDiscoveryPayload =
+  WithoutActorId<ReserveFaceUpCardDiscoveryRequest>;
 
-export type BuyFaceUpCardCommandPayload = Omit<
-  BuyFaceUpCardCommandRequest,
-  "actorId"
->;
+export type ReserveDeckCardCommandPayload =
+  WithoutActorId<ReserveDeckCardCommandRequest>;
 
-export type BuyFaceUpCardDiscoveryPayload = Omit<
-  BuyFaceUpCardDiscoveryRequest,
-  "actorId"
->;
+export type ReserveDeckCardDiscoveryPayload =
+  WithoutActorId<ReserveDeckCardDiscoveryRequest>;
 
-export type BuyReservedCardCommandPayload = Omit<
-  BuyReservedCardCommandRequest,
-  "actorId"
->;
+export type BuyFaceUpCardCommandPayload =
+  WithoutActorId<BuyFaceUpCardCommandRequest>;
 
-export type BuyReservedCardDiscoveryPayload = Omit<
-  BuyReservedCardDiscoveryRequest,
-  "actorId"
->;
+export type BuyFaceUpCardDiscoveryPayload =
+  WithoutActorId<BuyFaceUpCardDiscoveryRequest>;
 
-export type ChooseNobleCommandPayload = Omit<
-  ChooseNobleCommandRequest,
-  "actorId"
->;
+export type BuyReservedCardCommandPayload =
+  WithoutActorId<BuyReservedCardCommandRequest>;
 
-export type ChooseNobleDiscoveryPayload = Omit<
-  ChooseNobleDiscoveryRequest,
-  "actorId"
->;
+export type BuyReservedCardDiscoveryPayload =
+  WithoutActorId<BuyReservedCardDiscoveryRequest>;
+
+export type ChooseNobleCommandPayload =
+  WithoutActorId<ChooseNobleCommandRequest>;
+
+export type ChooseNobleDiscoveryPayload =
+  WithoutActorId<ChooseNobleDiscoveryRequest>;
 
 export type CommandPayload =
   | TakeThreeDistinctGemsCommandPayload
@@ -993,46 +969,39 @@ export interface GameEngineClient {
   discover(request: GameDiscoverRequest): Promise<GameDiscoveryResultMessage>;
   execute(request: GameExecuteRequest): Promise<GameExecutionResultMessage>;
   discoverTakeThreeDistinctGems(
-    request: { gameSessionId: string } & Omit<
-      TakeThreeDistinctGemsDiscoveryPayload,
-      "type"
-    >,
+    request: {
+      gameSessionId: string;
+    } & WithoutType<TakeThreeDistinctGemsDiscoveryPayload>,
   ): Promise<GameDiscoveryResultMessage>;
   discoverTakeTwoSameGems(
-    request: { gameSessionId: string } & Omit<
-      TakeTwoSameGemsDiscoveryPayload,
-      "type"
-    >,
+    request: {
+      gameSessionId: string;
+    } & WithoutType<TakeTwoSameGemsDiscoveryPayload>,
   ): Promise<GameDiscoveryResultMessage>;
   discoverReserveFaceUpCard(
-    request: { gameSessionId: string } & Omit<
-      ReserveFaceUpCardDiscoveryPayload,
-      "type"
-    >,
+    request: {
+      gameSessionId: string;
+    } & WithoutType<ReserveFaceUpCardDiscoveryPayload>,
   ): Promise<GameDiscoveryResultMessage>;
   discoverReserveDeckCard(
-    request: { gameSessionId: string } & Omit<
-      ReserveDeckCardDiscoveryPayload,
-      "type"
-    >,
+    request: {
+      gameSessionId: string;
+    } & WithoutType<ReserveDeckCardDiscoveryPayload>,
   ): Promise<GameDiscoveryResultMessage>;
   discoverBuyFaceUpCard(
-    request: { gameSessionId: string } & Omit<
-      BuyFaceUpCardDiscoveryPayload,
-      "type"
-    >,
+    request: {
+      gameSessionId: string;
+    } & WithoutType<BuyFaceUpCardDiscoveryPayload>,
   ): Promise<GameDiscoveryResultMessage>;
   discoverBuyReservedCard(
-    request: { gameSessionId: string } & Omit<
-      BuyReservedCardDiscoveryPayload,
-      "type"
-    >,
+    request: {
+      gameSessionId: string;
+    } & WithoutType<BuyReservedCardDiscoveryPayload>,
   ): Promise<GameDiscoveryResultMessage>;
   discoverChooseNoble(
-    request: { gameSessionId: string } & Omit<
-      ChooseNobleDiscoveryPayload,
-      "type"
-    >,
+    request: {
+      gameSessionId: string;
+    } & WithoutType<ChooseNobleDiscoveryPayload>,
   ): Promise<GameDiscoveryResultMessage>;
   executeTakeThreeDistinctGems(request: {
     gameSessionId: string;
@@ -1299,108 +1268,115 @@ export function createGameEngineClient(
       });
     },
     discoverTakeThreeDistinctGems(
-      request: { gameSessionId: string } & Omit<
-        TakeThreeDistinctGemsDiscoveryPayload,
-        "type"
-      >,
+      request: {
+        gameSessionId: string;
+      } & WithoutType<TakeThreeDistinctGemsDiscoveryPayload>,
     ) {
+      const discovery = {
+        type: "take_three_distinct_gems",
+        step: request.step,
+        input: request.input,
+      } as TakeThreeDistinctGemsDiscoveryPayload;
+
       return this.discover({
         gameSessionId: request.gameSessionId,
-        discovery: {
-          type: "take_three_distinct_gems",
-          step: request.step,
-          input: request.input,
-        },
+        discovery,
       });
     },
     discoverTakeTwoSameGems(
-      request: { gameSessionId: string } & Omit<
-        TakeTwoSameGemsDiscoveryPayload,
-        "type"
-      >,
+      request: {
+        gameSessionId: string;
+      } & WithoutType<TakeTwoSameGemsDiscoveryPayload>,
     ) {
+      const discovery = {
+        type: "take_two_same_gems",
+        step: request.step,
+        input: request.input,
+      } as TakeTwoSameGemsDiscoveryPayload;
+
       return this.discover({
         gameSessionId: request.gameSessionId,
-        discovery: {
-          type: "take_two_same_gems",
-          step: request.step,
-          input: request.input,
-        },
+        discovery,
       });
     },
     discoverReserveFaceUpCard(
-      request: { gameSessionId: string } & Omit<
-        ReserveFaceUpCardDiscoveryPayload,
-        "type"
-      >,
+      request: {
+        gameSessionId: string;
+      } & WithoutType<ReserveFaceUpCardDiscoveryPayload>,
     ) {
+      const discovery = {
+        type: "reserve_face_up_card",
+        step: request.step,
+        input: request.input,
+      } as ReserveFaceUpCardDiscoveryPayload;
+
       return this.discover({
         gameSessionId: request.gameSessionId,
-        discovery: {
-          type: "reserve_face_up_card",
-          step: request.step,
-          input: request.input,
-        },
+        discovery,
       });
     },
     discoverReserveDeckCard(
-      request: { gameSessionId: string } & Omit<
-        ReserveDeckCardDiscoveryPayload,
-        "type"
-      >,
+      request: {
+        gameSessionId: string;
+      } & WithoutType<ReserveDeckCardDiscoveryPayload>,
     ) {
+      const discovery = {
+        type: "reserve_deck_card",
+        step: request.step,
+        input: request.input,
+      } as ReserveDeckCardDiscoveryPayload;
+
       return this.discover({
         gameSessionId: request.gameSessionId,
-        discovery: {
-          type: "reserve_deck_card",
-          step: request.step,
-          input: request.input,
-        },
+        discovery,
       });
     },
     discoverBuyFaceUpCard(
-      request: { gameSessionId: string } & Omit<
-        BuyFaceUpCardDiscoveryPayload,
-        "type"
-      >,
+      request: {
+        gameSessionId: string;
+      } & WithoutType<BuyFaceUpCardDiscoveryPayload>,
     ) {
+      const discovery = {
+        type: "buy_face_up_card",
+        step: request.step,
+        input: request.input,
+      } as BuyFaceUpCardDiscoveryPayload;
+
       return this.discover({
         gameSessionId: request.gameSessionId,
-        discovery: {
-          type: "buy_face_up_card",
-          step: request.step,
-          input: request.input,
-        },
+        discovery,
       });
     },
     discoverBuyReservedCard(
-      request: { gameSessionId: string } & Omit<
-        BuyReservedCardDiscoveryPayload,
-        "type"
-      >,
+      request: {
+        gameSessionId: string;
+      } & WithoutType<BuyReservedCardDiscoveryPayload>,
     ) {
+      const discovery = {
+        type: "buy_reserved_card",
+        step: request.step,
+        input: request.input,
+      } as BuyReservedCardDiscoveryPayload;
+
       return this.discover({
         gameSessionId: request.gameSessionId,
-        discovery: {
-          type: "buy_reserved_card",
-          step: request.step,
-          input: request.input,
-        },
+        discovery,
       });
     },
     discoverChooseNoble(
-      request: { gameSessionId: string } & Omit<
-        ChooseNobleDiscoveryPayload,
-        "type"
-      >,
+      request: {
+        gameSessionId: string;
+      } & WithoutType<ChooseNobleDiscoveryPayload>,
     ) {
+      const discovery = {
+        type: "choose_noble",
+        step: request.step,
+        input: request.input,
+      } as ChooseNobleDiscoveryPayload;
+
       return this.discover({
         gameSessionId: request.gameSessionId,
-        discovery: {
-          type: "choose_noble",
-          step: request.step,
-          input: request.input,
-        },
+        discovery,
       });
     },
     executeTakeThreeDistinctGems(request: {

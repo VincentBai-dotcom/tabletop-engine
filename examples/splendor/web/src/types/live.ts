@@ -12,7 +12,11 @@ import type {
 } from "splendor-server/client-types";
 
 export type SplendorVisibleState = VisibleState;
-export type SplendorDiscoveryRequest = Omit<DiscoveryRequest, "actorId">;
+export type SplendorDiscoveryRequest = DiscoveryRequest extends infer TRequest
+  ? TRequest extends { actorId: string }
+    ? Omit<TRequest, "actorId">
+    : never
+  : never;
 export type SplendorDiscoveryResult = DiscoveryResult;
 export type SplendorGameCommand = {
   type: string;
@@ -126,7 +130,12 @@ export function normalizeServerMessage(
     case "game_discovery_result":
       return {
         ...normalized,
-        result: normalized.result as SplendorDiscoveryResult | null,
+        result:
+          normalized.result &&
+          typeof normalized.result === "object" &&
+          "result" in normalized.result
+            ? (normalized.result.result as SplendorDiscoveryResult)
+            : null,
       };
     default:
       return normalized;

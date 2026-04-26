@@ -127,6 +127,14 @@ describe("generate client-sdk", () => {
     expect(generated).toContain(
       "export type TakeThreeDistinctGemsDiscoveryPayload =",
     );
+    expect(generated).toContain("export type WithoutActorId<T> =");
+    expect(generated).toContain("export type WithoutType<T> =");
+    expect(generated).toContain(
+      "WithoutActorId<TakeThreeDistinctGemsDiscoveryRequest>",
+    );
+    expect(generated).toContain(
+      "WithoutType<TakeThreeDistinctGemsDiscoveryPayload>",
+    );
     expect(generated).toContain(
       "export type TakeThreeDistinctGemsDiscoveryStart =",
     );

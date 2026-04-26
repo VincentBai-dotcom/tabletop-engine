@@ -344,6 +344,10 @@ export function useSplendorApp() {
         });
       },
       onMessage(message) {
+        if (liveRef.current !== connection) {
+          return;
+        }
+
         const text = messageToText(message);
         if (text) {
           startTransition(() => {
