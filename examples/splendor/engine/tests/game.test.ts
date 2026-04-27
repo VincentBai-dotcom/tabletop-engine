@@ -802,3 +802,28 @@ test("taking three distinct gems with overflow lands the actor in returnExcessiv
     activePlayerId: "p1",
   });
 });
+
+test("reserving a deck card with overflow lands the actor in returnExcessiveTokens", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  state.game.players.p1!.tokens.white = 10;
+
+  const result = gameExecutor.executeCommand(state, {
+    type: "reserve_deck_card",
+    actorId: "p1",
+    input: {
+      level: 1,
+    },
+  });
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    throw new Error("expected reserve_deck_card to succeed");
+  }
+  expect(result.state.game.players.p1?.tokens.gold).toBe(1);
+  expect(result.state.runtime.progression.currentStage).toEqual({
+    id: "returnExcessiveTokens",
+    kind: "activePlayer",
+    activePlayerId: "p1",
+  });
+});
