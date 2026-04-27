@@ -538,7 +538,7 @@ test("buying with multiple eligible nobles moves into the choose-noble stage", (
   state.game.players.p1!.tokens.green = 0;
   state.game.players.p1!.tokens.red = 0;
   state.game.players.p1!.tokens.black = 0;
-  state.game.players.p1!.tokens.gold = 20;
+  state.game.players.p1!.tokens.gold = 1;
   state.game.players.p1!.reservedCardIds = [45];
   state.game.players.p1!.purchasedCardIds = [
     17, 18, 19, 20, 33, 34, 35, 36, 1, 2, 3,
@@ -584,7 +584,7 @@ test("choosing a noble claims it and then advances to the next player", () => {
   state.game.players.p1!.tokens.green = 0;
   state.game.players.p1!.tokens.red = 0;
   state.game.players.p1!.tokens.black = 0;
-  state.game.players.p1!.tokens.gold = 20;
+  state.game.players.p1!.tokens.gold = 1;
   state.game.players.p1!.reservedCardIds = [45];
   state.game.players.p1!.purchasedCardIds = [
     17, 18, 19, 20, 33, 34, 35, 36, 1, 2, 3,
@@ -646,6 +646,34 @@ test("return_tokens is unavailable to a player without overflow", () => {
   expect(
     gameExecutor.listAvailableCommands(state, { actorId: "p1" }),
   ).not.toContain("return_tokens");
+});
+
+test("playerTurn transition exposes a returnExcessiveTokensStage branch", () => {
+  const game = createSplendorGame();
+  const playerTurn = game.stages.playerTurn;
+
+  if (!playerTurn || playerTurn.kind !== "activePlayer") {
+    throw new Error("expected playerTurn active-player stage");
+  }
+  const nextStages = playerTurn.nextStages?.() ?? {};
+
+  expect(Object.keys(nextStages)).toContain("returnExcessiveTokensStage");
+});
+
+test("returnExcessiveTokens stage exposes only return_tokens to the active player", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  state.game.players.p1!.tokens.white = 6;
+  state.game.players.p1!.tokens.blue = 6;
+  state.runtime.progression.currentStage = {
+    id: "returnExcessiveTokens",
+    kind: "activePlayer",
+    activePlayerId: "p1",
+  };
+
+  expect(gameExecutor.listAvailableCommands(state, { actorId: "p1" })).toEqual([
+    "return_tokens",
+  ]);
 });
 
 test("endgame finishes after the final player in turn order and breaks ties by fewest cards", () => {

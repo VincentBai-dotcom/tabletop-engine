@@ -50,10 +50,8 @@ export function createSplendorStages(): SplendorStages {
     commands,
     getResolveNobleStage: () => resolveNobleStage,
     getCheckVictoryConditionStage: () => checkVictoryConditionStage,
+    getReturnExcessiveTokensStage: () => returnExcessiveTokensStage,
   });
-
-  // Reference the new stage so its registration is reachable.
-  void returnExcessiveTokensStage;
 
   return {
     initialStage: playerTurnStage,
