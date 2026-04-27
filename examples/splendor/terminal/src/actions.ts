@@ -14,6 +14,7 @@ import {
   nobleTilesById,
   reserveDeckCardDiscoveryStart,
   reserveFaceUpCardDiscoveryStart,
+  returnTokensDiscoveryStart,
   SPLENDOR_DISCOVERY_STEPS,
   takeThreeDistinctGemsDiscoveryStart,
   takeTwoSameGemsDiscoveryStart,
@@ -32,6 +33,7 @@ export const COMMAND_LABELS: Record<string, string> = {
   buy_face_up_card: "Buy a face-up card",
   buy_reserved_card: "Buy a reserved card",
   choose_noble: "Choose a noble",
+  return_tokens: "Return tokens",
 };
 
 const DISCOVERY_STARTS = {
@@ -42,9 +44,13 @@ const DISCOVERY_STARTS = {
   buy_face_up_card: buyFaceUpCardDiscoveryStart,
   buy_reserved_card: buyReservedCardDiscoveryStart,
   choose_noble: chooseNobleDiscoveryStart,
+  return_tokens: returnTokensDiscoveryStart,
 } satisfies Record<
   SplendorTerminalCommand["type"],
-  Omit<SplendorTerminalDiscoveryRequest, "actorId">
+  {
+    step: SplendorTerminalDiscoveryRequest["step"];
+    input: SplendorTerminalDiscoveryRequest["input"];
+  }
 >;
 
 export function createCommandMenuOptions(
@@ -68,6 +74,7 @@ export async function buildCommandFromDiscovery(
   const discoveryStart = DISCOVERY_STARTS[normalizedCommandType];
 
   let nextDiscovery = {
+    type: normalizedCommandType,
     ...discoveryStart,
     actorId,
   } as SplendorTerminalDiscoveryRequest;

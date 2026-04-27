@@ -73,100 +73,39 @@ export type TakeThreeDistinctGemsCommandRequest = {
   actorId: string;
   input: {
     colors: string[];
-    returnTokens?: Record<string, number>;
   };
 };
 
-export type TakeThreeDistinctGemsDiscoveryRequest =
-  | {
-      type: "take_three_distinct_gems";
-      actorId: string;
-      step: "select_gem_color";
-      input: {
-        selectedColors?: string[];
-        returnTokens?: Record<string, number>;
-      };
-    }
-  | {
-      type: "take_three_distinct_gems";
-      actorId: string;
-      step: "select_return_token";
-      input: {
-        selectedColors: string[];
-        returnTokens?: Record<string, number>;
-      };
-    };
+export type TakeThreeDistinctGemsDiscoveryRequest = {
+  type: "take_three_distinct_gems";
+  actorId: string;
+  step: "select_gem_color";
+  input: {
+    selectedColors?: string[];
+  };
+};
 
 export type TakeThreeDistinctGemsDiscoveryResult =
   | {
       complete: false;
       step: "select_gem_color";
-      options: Array<
-        | {
-            id: string;
-            output: {
-              color: string;
-              selectedCount: number;
-              requiredCount: number;
-            };
-            nextStep: "select_gem_color";
-            nextInput: {
-              selectedColors?: string[];
-              returnTokens?: Record<string, number>;
-            };
-          }
-        | {
-            id: string;
-            output: {
-              color: string;
-              selectedCount: number;
-              requiredCount: number;
-            };
-            nextStep: "select_return_token";
-            nextInput: {
-              selectedColors: string[];
-              returnTokens?: Record<string, number>;
-            };
-          }
-      >;
-    }
-  | {
-      complete: false;
-      step: "select_return_token";
-      options: Array<
-        | {
-            id: string;
-            output: {
-              color: string;
-              selectedCount: number;
-              requiredReturnCount: number;
-            };
-            nextStep: "select_gem_color";
-            nextInput: {
-              selectedColors?: string[];
-              returnTokens?: Record<string, number>;
-            };
-          }
-        | {
-            id: string;
-            output: {
-              color: string;
-              selectedCount: number;
-              requiredReturnCount: number;
-            };
-            nextStep: "select_return_token";
-            nextInput: {
-              selectedColors: string[];
-              returnTokens?: Record<string, number>;
-            };
-          }
-      >;
+      options: Array<{
+        id: string;
+        output: {
+          color: string;
+          selectedCount: number;
+          requiredCount: number;
+        };
+        nextStep: "select_gem_color";
+        nextInput: {
+          selectedColors?: string[];
+        };
+      }>;
     }
   | {
       complete: true;
       input: {
         colors: string[];
-        returnTokens?: Record<string, number>;
       };
     };
 
@@ -175,98 +114,38 @@ export type TakeTwoSameGemsCommandRequest = {
   actorId: string;
   input: {
     color: string;
-    returnTokens?: Record<string, number>;
   };
 };
 
-export type TakeTwoSameGemsDiscoveryRequest =
-  | {
-      type: "take_two_same_gems";
-      actorId: string;
-      step: "select_gem_color";
-      input: {
-        selectedColor?: string;
-        returnTokens?: Record<string, number>;
-      };
-    }
-  | {
-      type: "take_two_same_gems";
-      actorId: string;
-      step: "select_return_token";
-      input: {
-        selectedColor: string;
-        returnTokens?: Record<string, number>;
-      };
-    };
+export type TakeTwoSameGemsDiscoveryRequest = {
+  type: "take_two_same_gems";
+  actorId: string;
+  step: "select_gem_color";
+  input: {
+    selectedColor?: string;
+  };
+};
 
 export type TakeTwoSameGemsDiscoveryResult =
   | {
       complete: false;
       step: "select_gem_color";
-      options: Array<
-        | {
-            id: string;
-            output: {
-              color: string;
-              amount: number;
-            };
-            nextStep: "select_gem_color";
-            nextInput: {
-              selectedColor?: string;
-              returnTokens?: Record<string, number>;
-            };
-          }
-        | {
-            id: string;
-            output: {
-              color: string;
-              amount: number;
-            };
-            nextStep: "select_return_token";
-            nextInput: {
-              selectedColor: string;
-              returnTokens?: Record<string, number>;
-            };
-          }
-      >;
-    }
-  | {
-      complete: false;
-      step: "select_return_token";
-      options: Array<
-        | {
-            id: string;
-            output: {
-              color: string;
-              selectedCount: number;
-              requiredReturnCount: number;
-            };
-            nextStep: "select_gem_color";
-            nextInput: {
-              selectedColor?: string;
-              returnTokens?: Record<string, number>;
-            };
-          }
-        | {
-            id: string;
-            output: {
-              color: string;
-              selectedCount: number;
-              requiredReturnCount: number;
-            };
-            nextStep: "select_return_token";
-            nextInput: {
-              selectedColor: string;
-              returnTokens?: Record<string, number>;
-            };
-          }
-      >;
+      options: Array<{
+        id: string;
+        output: {
+          color: string;
+          amount: number;
+        };
+        nextStep: "select_gem_color";
+        nextInput: {
+          selectedColor?: string;
+        };
+      }>;
     }
   | {
       complete: true;
       input: {
         color: string;
-        returnTokens?: Record<string, number>;
       };
     };
 
@@ -276,111 +155,44 @@ export type ReserveFaceUpCardCommandRequest = {
   input: {
     level: number;
     cardId: number;
-    returnTokens?: Record<string, number>;
   };
 };
 
-export type ReserveFaceUpCardDiscoveryRequest =
-  | {
-      type: "reserve_face_up_card";
-      actorId: string;
-      step: "select_face_up_card";
-      input: {
-        selectedLevel?: number;
-        selectedCardId?: number;
-        returnTokens?: Record<string, number>;
-      };
-    }
-  | {
-      type: "reserve_face_up_card";
-      actorId: string;
-      step: "select_return_token";
-      input: {
-        selectedLevel: number;
-        selectedCardId: number;
-        returnTokens?: Record<string, number>;
-      };
-    };
+export type ReserveFaceUpCardDiscoveryRequest = {
+  type: "reserve_face_up_card";
+  actorId: string;
+  step: "select_face_up_card";
+  input: {
+    selectedLevel?: number;
+    selectedCardId?: number;
+  };
+};
 
 export type ReserveFaceUpCardDiscoveryResult =
   | {
       complete: false;
       step: "select_face_up_card";
-      options: Array<
-        | {
-            id: string;
-            output: {
-              level: number;
-              cardId: number;
-              bonusColor: string;
-              prestigePoints: number;
-              source: string;
-            };
-            nextStep: "select_face_up_card";
-            nextInput: {
-              selectedLevel?: number;
-              selectedCardId?: number;
-              returnTokens?: Record<string, number>;
-            };
-          }
-        | {
-            id: string;
-            output: {
-              level: number;
-              cardId: number;
-              bonusColor: string;
-              prestigePoints: number;
-              source: string;
-            };
-            nextStep: "select_return_token";
-            nextInput: {
-              selectedLevel: number;
-              selectedCardId: number;
-              returnTokens?: Record<string, number>;
-            };
-          }
-      >;
-    }
-  | {
-      complete: false;
-      step: "select_return_token";
-      options: Array<
-        | {
-            id: string;
-            output: {
-              color: string;
-              selectedCount: number;
-              requiredReturnCount: number;
-            };
-            nextStep: "select_face_up_card";
-            nextInput: {
-              selectedLevel?: number;
-              selectedCardId?: number;
-              returnTokens?: Record<string, number>;
-            };
-          }
-        | {
-            id: string;
-            output: {
-              color: string;
-              selectedCount: number;
-              requiredReturnCount: number;
-            };
-            nextStep: "select_return_token";
-            nextInput: {
-              selectedLevel: number;
-              selectedCardId: number;
-              returnTokens?: Record<string, number>;
-            };
-          }
-      >;
+      options: Array<{
+        id: string;
+        output: {
+          level: number;
+          cardId: number;
+          bonusColor: string;
+          prestigePoints: number;
+          source: string;
+        };
+        nextStep: "select_face_up_card";
+        nextInput: {
+          selectedLevel?: number;
+          selectedCardId?: number;
+        };
+      }>;
     }
   | {
       complete: true;
       input: {
         level: number;
         cardId: number;
-        returnTokens?: Record<string, number>;
       };
     };
 
@@ -389,100 +201,39 @@ export type ReserveDeckCardCommandRequest = {
   actorId: string;
   input: {
     level: number;
-    returnTokens?: Record<string, number>;
   };
 };
 
-export type ReserveDeckCardDiscoveryRequest =
-  | {
-      type: "reserve_deck_card";
-      actorId: string;
-      step: "select_deck_level";
-      input: {
-        selectedLevel?: number;
-        returnTokens?: Record<string, number>;
-      };
-    }
-  | {
-      type: "reserve_deck_card";
-      actorId: string;
-      step: "select_return_token";
-      input: {
-        selectedLevel: number;
-        returnTokens?: Record<string, number>;
-      };
-    };
+export type ReserveDeckCardDiscoveryRequest = {
+  type: "reserve_deck_card";
+  actorId: string;
+  step: "select_deck_level";
+  input: {
+    selectedLevel?: number;
+  };
+};
 
 export type ReserveDeckCardDiscoveryResult =
   | {
       complete: false;
       step: "select_deck_level";
-      options: Array<
-        | {
-            id: string;
-            output: {
-              level: number;
-              cardCount: number;
-              source: string;
-            };
-            nextStep: "select_deck_level";
-            nextInput: {
-              selectedLevel?: number;
-              returnTokens?: Record<string, number>;
-            };
-          }
-        | {
-            id: string;
-            output: {
-              level: number;
-              cardCount: number;
-              source: string;
-            };
-            nextStep: "select_return_token";
-            nextInput: {
-              selectedLevel: number;
-              returnTokens?: Record<string, number>;
-            };
-          }
-      >;
-    }
-  | {
-      complete: false;
-      step: "select_return_token";
-      options: Array<
-        | {
-            id: string;
-            output: {
-              color: string;
-              selectedCount: number;
-              requiredReturnCount: number;
-            };
-            nextStep: "select_deck_level";
-            nextInput: {
-              selectedLevel?: number;
-              returnTokens?: Record<string, number>;
-            };
-          }
-        | {
-            id: string;
-            output: {
-              color: string;
-              selectedCount: number;
-              requiredReturnCount: number;
-            };
-            nextStep: "select_return_token";
-            nextInput: {
-              selectedLevel: number;
-              returnTokens?: Record<string, number>;
-            };
-          }
-      >;
+      options: Array<{
+        id: string;
+        output: {
+          level: number;
+          cardCount: number;
+          source: string;
+        };
+        nextStep: "select_deck_level";
+        nextInput: {
+          selectedLevel?: number;
+        };
+      }>;
     }
   | {
       complete: true;
       input: {
         level: number;
-        returnTokens?: Record<string, number>;
       };
     };
 
@@ -576,6 +327,47 @@ export type BuyReservedCardDiscoveryResult =
       };
     };
 
+export type ReturnTokensCommandRequest = {
+  type: "return_tokens";
+  actorId: string;
+  input: {
+    returnTokens: Record<string, number>;
+  };
+};
+
+export type ReturnTokensDiscoveryRequest = {
+  type: "return_tokens";
+  actorId: string;
+  step: "select_return_token";
+  input: {
+    returnTokens?: Record<string, number>;
+  };
+};
+
+export type ReturnTokensDiscoveryResult =
+  | {
+      complete: false;
+      step: "select_return_token";
+      options: Array<{
+        id: string;
+        output: {
+          color: string;
+          selectedCount: number;
+          requiredReturnCount: number;
+        };
+        nextStep: "select_return_token";
+        nextInput: {
+          returnTokens?: Record<string, number>;
+        };
+      }>;
+    }
+  | {
+      complete: true;
+      input: {
+        returnTokens: Record<string, number>;
+      };
+    };
+
 export type ChooseNobleCommandRequest = {
   type: "choose_noble";
   actorId: string;
@@ -630,6 +422,7 @@ export type CommandRequest =
   | ReserveDeckCardCommandRequest
   | BuyFaceUpCardCommandRequest
   | BuyReservedCardCommandRequest
+  | ReturnTokensCommandRequest
   | ChooseNobleCommandRequest;
 
 export type DiscoveryRequest =
@@ -639,6 +432,7 @@ export type DiscoveryRequest =
   | ReserveDeckCardDiscoveryRequest
   | BuyFaceUpCardDiscoveryRequest
   | BuyReservedCardDiscoveryRequest
+  | ReturnTokensDiscoveryRequest
   | ChooseNobleDiscoveryRequest;
 
 export type DiscoveryResult =
@@ -648,6 +442,7 @@ export type DiscoveryResult =
   | ReserveDeckCardDiscoveryResult
   | BuyFaceUpCardDiscoveryResult
   | BuyReservedCardDiscoveryResult
+  | ReturnTokensDiscoveryResult
   | ChooseNobleDiscoveryResult;
 
 export type CommandType =
@@ -657,6 +452,7 @@ export type CommandType =
   | "reserve_deck_card"
   | "buy_face_up_card"
   | "buy_reserved_card"
+  | "return_tokens"
   | "choose_noble";
 
 export type WithoutActorId<T> = T extends unknown ? Omit<T, "actorId"> : never;
@@ -699,6 +495,12 @@ export type BuyReservedCardCommandPayload =
 export type BuyReservedCardDiscoveryPayload =
   WithoutActorId<BuyReservedCardDiscoveryRequest>;
 
+export type ReturnTokensCommandPayload =
+  WithoutActorId<ReturnTokensCommandRequest>;
+
+export type ReturnTokensDiscoveryPayload =
+  WithoutActorId<ReturnTokensDiscoveryRequest>;
+
 export type ChooseNobleCommandPayload =
   WithoutActorId<ChooseNobleCommandRequest>;
 
@@ -712,6 +514,7 @@ export type CommandPayload =
   | ReserveDeckCardCommandPayload
   | BuyFaceUpCardCommandPayload
   | BuyReservedCardCommandPayload
+  | ReturnTokensCommandPayload
   | ChooseNobleCommandPayload;
 
 export type DiscoveryPayload =
@@ -721,6 +524,7 @@ export type DiscoveryPayload =
   | ReserveDeckCardDiscoveryPayload
   | BuyFaceUpCardDiscoveryPayload
   | BuyReservedCardDiscoveryPayload
+  | ReturnTokensDiscoveryPayload
   | ChooseNobleDiscoveryPayload;
 
 export interface GameListAvailableCommandsRequest {
@@ -763,6 +567,10 @@ export type GameDiscoveryResultEnvelope =
   | {
       type: "buy_reserved_card";
       result: BuyReservedCardDiscoveryResult;
+    }
+  | {
+      type: "return_tokens";
+      result: ReturnTokensDiscoveryResult;
     }
   | {
       type: "choose_noble";
@@ -860,7 +668,6 @@ export type TakeThreeDistinctGemsDiscoveryStart = {
   step: "select_gem_color";
   input: {
     selectedColors?: string[];
-    returnTokens?: Record<string, number>;
   };
 };
 
@@ -873,7 +680,6 @@ export type TakeTwoSameGemsDiscoveryStart = {
   step: "select_gem_color";
   input: {
     selectedColor?: string;
-    returnTokens?: Record<string, number>;
   };
 };
 
@@ -887,7 +693,6 @@ export type ReserveFaceUpCardDiscoveryStart = {
   input: {
     selectedLevel?: number;
     selectedCardId?: number;
-    returnTokens?: Record<string, number>;
   };
 };
 
@@ -900,7 +705,6 @@ export type ReserveDeckCardDiscoveryStart = {
   step: "select_deck_level";
   input: {
     selectedLevel?: number;
-    returnTokens?: Record<string, number>;
   };
 };
 
@@ -933,6 +737,18 @@ export const buyReservedCardDiscoveryStart = {
   step: "select_reserved_card",
   input: {},
 } satisfies BuyReservedCardDiscoveryStart;
+
+export type ReturnTokensDiscoveryStart = {
+  step: "select_return_token";
+  input: {
+    returnTokens?: Record<string, number>;
+  };
+};
+
+export const returnTokensDiscoveryStart = {
+  step: "select_return_token",
+  input: {},
+} satisfies ReturnTokensDiscoveryStart;
 
 export type ChooseNobleDiscoveryStart = {
   step: "select_noble";
@@ -1000,6 +816,11 @@ export interface GameEngineClient {
       gameSessionId: string;
     } & WithoutType<BuyReservedCardDiscoveryPayload>,
   ): Promise<GameDiscoveryResultMessage>;
+  discoverReturnTokens(
+    request: {
+      gameSessionId: string;
+    } & WithoutType<ReturnTokensDiscoveryPayload>,
+  ): Promise<GameDiscoveryResultMessage>;
   discoverChooseNoble(
     request: {
       gameSessionId: string;
@@ -1028,6 +849,10 @@ export interface GameEngineClient {
   executeBuyReservedCard(request: {
     gameSessionId: string;
     input: BuyReservedCardCommandPayload["input"];
+  }): Promise<GameExecutionResultMessage>;
+  executeReturnTokens(request: {
+    gameSessionId: string;
+    input: ReturnTokensCommandPayload["input"];
   }): Promise<GameExecutionResultMessage>;
   executeChooseNoble(request: {
     gameSessionId: string;
@@ -1375,6 +1200,22 @@ export function createGameEngineClient(
         discovery,
       });
     },
+    discoverReturnTokens(
+      request: {
+        gameSessionId: string;
+      } & WithoutType<ReturnTokensDiscoveryPayload>,
+    ) {
+      const discovery = {
+        type: "return_tokens",
+        step: request.step,
+        input: request.input,
+      } as ReturnTokensDiscoveryPayload;
+
+      return this.discover({
+        gameSessionId: request.gameSessionId,
+        discovery,
+      });
+    },
     discoverChooseNoble(
       request: {
         gameSessionId: string;
@@ -1459,6 +1300,18 @@ export function createGameEngineClient(
         gameSessionId: request.gameSessionId,
         command: {
           type: "buy_reserved_card",
+          input: request.input,
+        },
+      });
+    },
+    executeReturnTokens(request: {
+      gameSessionId: string;
+      input: ReturnTokensCommandPayload["input"];
+    }) {
+      return this.execute({
+        gameSessionId: request.gameSessionId,
+        command: {
+          type: "return_tokens",
           input: request.input,
         },
       });

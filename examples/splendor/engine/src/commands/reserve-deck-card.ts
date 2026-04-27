@@ -1,9 +1,5 @@
 import { t } from "tabletop-engine";
-import {
-  completeDiscovery,
-  createReturnTokenDiscovery,
-  SPLENDOR_DISCOVERY_STEPS,
-} from "../discovery.ts";
+import { completeDiscovery, SPLENDOR_DISCOVERY_STEPS } from "../discovery.ts";
 import {
   assertDevelopmentLevel,
   guardedAvailability,
@@ -14,31 +10,18 @@ import {
 
 const reserveDeckCardCommandSchema = t.object({
   level: t.number(),
-  returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
 export type ReserveDeckCardInput = typeof reserveDeckCardCommandSchema.static;
 
 const selectDeckLevelDiscoveryInputSchema = t.object({
   selectedLevel: t.optional(t.number()),
-  returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
 const selectDeckLevelDiscoveryOutputSchema = t.object({
   level: t.number(),
   cardCount: t.number(),
   source: t.string(),
-});
-
-const selectReturnTokenDiscoveryInputSchema = t.object({
-  selectedLevel: t.number(),
-  returnTokens: t.optional(t.record(t.string(), t.number())),
-});
-
-const selectReturnTokenDiscoveryOutputSchema = t.object({
-  color: t.string(),
-  selectedCount: t.number(),
-  requiredReturnCount: t.number(),
 });
 
 const reserveDeckCardCommand = defineSplendorCommand({
@@ -57,7 +40,7 @@ const reserveDeckCardCommand = defineSplendorCommand({
         >;
 
         if (draft.selectedLevel) {
-          return null;
+          return completeDiscovery({ level: draft.selectedLevel });
         }
 
         return deckEntries
@@ -70,38 +53,10 @@ const reserveDeckCardCommand = defineSplendorCommand({
               source: "deck",
             },
             nextInput: {
-              ...draft,
               selectedLevel: Number(level),
             },
-            nextStep: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
+            nextStep: SPLENDOR_DISCOVERY_STEPS.selectDeckLevel,
           }));
-      })
-      .build(),
-    step("select_return_token")
-      .input(selectReturnTokenDiscoveryInputSchema)
-      .output(selectReturnTokenDiscoveryOutputSchema)
-      .resolve(({ actorId, game, discovery }) => {
-        const draft = discovery.input;
-        const player = game.getPlayer(actorId).clone();
-
-        if (game.bank.gold > 0) {
-          player.tokens.adjustColor("gold", 1);
-        }
-
-        const requiredReturnCount = player.getRequiredReturnCount();
-        const returnDiscovery = createReturnTokenDiscovery(
-          draft,
-          player.tokens,
-          requiredReturnCount,
-        );
-
-        return (
-          returnDiscovery ??
-          completeDiscovery({
-            level: draft.selectedLevel,
-            returnTokens: draft.returnTokens,
-          })
-        );
       })
       .build(),
   ])
@@ -123,7 +78,7 @@ const reserveDeckCardCommand = defineSplendorCommand({
     return guardedValidate(() => {
       const actorId = command.actorId;
       const input = command.input;
-      const player = game.getPlayer(actorId).clone();
+      const player = game.getPlayer(actorId);
 
       if (!player.canReserveMoreCards()) {
         return { ok: false, reason: "reserved_limit_reached" };
@@ -139,19 +94,6 @@ const reserveDeckCardCommand = defineSplendorCommand({
         return { ok: false, reason: "deck_empty" };
       }
 
-      if (game.bank.gold > 0) {
-        player.tokens.adjustColor("gold", 1);
-      }
-
-      if (
-        !player.canReturnTokens(
-          input.returnTokens,
-          player.getRequiredReturnCount(),
-        )
-      ) {
-        return { ok: false, reason: "invalid_return_tokens" };
-      }
-
       return { ok: true };
     });
   })
@@ -164,7 +106,6 @@ const reserveDeckCardCommand = defineSplendorCommand({
 
     player.reserveCard(reservedCardId);
     const receivedGold = player.gainGoldFrom(game.bank);
-    player.returnTokensTo(game.bank, input.returnTokens);
     emitEvent({
       category: "domain",
       type: "card_reserved",
@@ -174,7 +115,6 @@ const reserveDeckCardCommand = defineSplendorCommand({
         level,
         cardId: reservedCardId,
         receivedGold,
-        returnTokens: input.returnTokens ?? null,
       },
     });
   })

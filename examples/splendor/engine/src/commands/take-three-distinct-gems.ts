@@ -1,9 +1,5 @@
 import { t } from "tabletop-engine";
-import {
-  completeDiscovery,
-  createReturnTokenDiscovery,
-  SPLENDOR_DISCOVERY_STEPS,
-} from "../discovery.ts";
+import { completeDiscovery, SPLENDOR_DISCOVERY_STEPS } from "../discovery.ts";
 import {
   assertGemTokenColor,
   guardedAvailability,
@@ -14,7 +10,6 @@ import {
 
 const takeThreeDistinctGemsCommandSchema = t.object({
   colors: t.array(t.string()),
-  returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
 export type TakeThreeDistinctGemsInput =
@@ -22,24 +17,12 @@ export type TakeThreeDistinctGemsInput =
 
 const selectGemColorDiscoveryInputSchema = t.object({
   selectedColors: t.optional(t.array(t.string())),
-  returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
 const selectGemColorDiscoveryOutputSchema = t.object({
   color: t.string(),
   selectedCount: t.number(),
   requiredCount: t.number(),
-});
-
-const selectReturnTokenDiscoveryInputSchema = t.object({
-  selectedColors: t.array(t.string()),
-  returnTokens: t.optional(t.record(t.string(), t.number())),
-});
-
-const selectReturnTokenDiscoveryOutputSchema = t.object({
-  color: t.string(),
-  selectedCount: t.number(),
-  requiredReturnCount: t.number(),
 });
 
 const takeThreeDistinctGemsCommand = defineSplendorCommand({
@@ -56,7 +39,7 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
         const selectedColors = draft.selectedColors ?? [];
 
         if (selectedColors.length >= 3) {
-          return null;
+          return completeDiscovery({ colors: selectedColors });
         }
 
         const bankEntries = Object.entries(game.bank) as Array<
@@ -76,46 +59,10 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
               requiredCount: 3,
             },
             nextInput: {
-              ...draft,
               selectedColors: [...selectedColors, color],
             },
-            nextStep:
-              selectedColors.length >= 2
-                ? SPLENDOR_DISCOVERY_STEPS.selectReturnToken
-                : SPLENDOR_DISCOVERY_STEPS.selectGemColor,
+            nextStep: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
           }));
-      })
-      .build(),
-    step("select_return_token")
-      .input(selectReturnTokenDiscoveryInputSchema)
-      .output(selectReturnTokenDiscoveryOutputSchema)
-      .resolve(({ actorId, game, discovery }) => {
-        const draft = discovery.input;
-        const selectedColors = draft.selectedColors;
-        const player = game.getPlayer(actorId).clone();
-
-        for (const rawColor of selectedColors) {
-          const color = assertGemTokenColor(rawColor);
-          player.tokens.adjustColor(color, 1);
-        }
-
-        const requiredReturnCount = player.getRequiredReturnCount();
-        const returnDiscovery = createReturnTokenDiscovery(
-          {
-            ...draft,
-            selectedColors: [...selectedColors],
-          },
-          player.tokens,
-          requiredReturnCount,
-        );
-
-        return (
-          returnDiscovery ??
-          completeDiscovery({
-            colors: [...selectedColors],
-            returnTokens: draft.returnTokens,
-          })
-        );
       })
       .build(),
   ])
@@ -132,7 +79,6 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
   })
   .validate(({ game, command }) => {
     return guardedValidate(() => {
-      const actorId = command.actorId;
       const input = command.input;
 
       if (input.colors.length !== 3) {
@@ -151,23 +97,10 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
         return { ok: false, reason: "colors_must_be_distinct" };
       }
 
-      const player = game.getPlayer(actorId).clone();
-
       for (const color of colors) {
         if (game.bank[color] <= 0) {
           return { ok: false, reason: "token_color_unavailable" };
         }
-
-        player.tokens.adjustColor(color, 1);
-      }
-
-      if (
-        !player.canReturnTokens(
-          input.returnTokens,
-          player.getRequiredReturnCount(),
-        )
-      ) {
-        return { ok: false, reason: "invalid_return_tokens" };
       }
 
       return { ok: true };
@@ -190,14 +123,12 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
       player.tokens.adjustColor(color, 1);
     }
 
-    player.returnTokensTo(game.bank, input.returnTokens);
     emitEvent({
       category: "domain",
       type: "gems_taken",
       payload: {
         actorId,
         colors,
-        returnTokens: input.returnTokens ?? null,
       },
     });
   })

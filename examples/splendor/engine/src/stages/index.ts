@@ -9,6 +9,7 @@ import { createChooseNobleStage } from "./choose-noble.ts";
 import { createGameEndStage } from "./game-end.ts";
 import { createPlayerTurnStage } from "./player-turn.ts";
 import { createResolveNobleStage } from "./resolve-noble.ts";
+import { createReturnExcessiveTokensStage } from "./return-excessive-tokens.ts";
 
 export interface SplendorStages {
   initialStage: SingleActivePlayerStageDefinition<SplendorGameState>;
@@ -39,11 +40,17 @@ export function createSplendorStages(): SplendorStages {
     getPlayerTurnStage: () => playerTurnStage,
   });
 
+  const returnExcessiveTokensStage = createReturnExcessiveTokensStage({
+    defineStage,
+    getCheckVictoryConditionStage: () => checkVictoryConditionStage,
+  });
+
   const playerTurnStage = createPlayerTurnStage({
     defineStage,
     commands,
     getResolveNobleStage: () => resolveNobleStage,
     getCheckVictoryConditionStage: () => checkVictoryConditionStage,
+    getReturnExcessiveTokensStage: () => returnExcessiveTokensStage,
   });
 
   return {

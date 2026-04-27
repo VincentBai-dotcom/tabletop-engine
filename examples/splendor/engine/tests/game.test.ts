@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { createGameExecutor } from "tabletop-engine";
 import { SPLENDOR_DISCOVERY_STEPS } from "../src/discovery.ts";
 import { createCommands } from "../src/commands/index.ts";
+import { returnTokensCommand } from "../src/commands/return-tokens.ts";
 import { createSplendorGame } from "../src/game";
 
 const TEST_SEED = "splendor-seed";
@@ -196,16 +197,13 @@ test("splendor commands declare step-authored discovery flows", () => {
   expect(takeThreeDistinctGems?.discovery).toMatchObject({
     startStep: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
   });
-  expect(takeThreeDistinctGems?.discovery?.steps).toHaveLength(2);
+  expect(takeThreeDistinctGems?.discovery?.steps).toHaveLength(1);
   expect(takeThreeDistinctGems?.discovery?.steps[0]).toMatchObject({
     stepId: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
   });
-  expect(takeThreeDistinctGems?.discovery?.steps[1]).toMatchObject({
-    stepId: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
-  });
 });
 
-test("splendor discovers gem color choices before return tokens for three-distinct take", () => {
+test("splendor discovers gem color choices for three-distinct take", () => {
   const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
 
   const firstStep = gameExecutor.discoverCommand(state, {
@@ -222,10 +220,10 @@ test("splendor discovers gem color choices before return tokens for three-distin
       selectedColors: ["white", "blue"],
     },
   });
-  const returnStep = gameExecutor.discoverCommand(state, {
+  const thirdStep = gameExecutor.discoverCommand(state, {
     type: "take_three_distinct_gems",
     actorId: "p1",
-    step: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
+    step: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
     input: {
       selectedColors: ["white", "blue", "green"],
     },
@@ -272,15 +270,15 @@ test("splendor discovers gem color choices before return tokens for three-distin
         expect.any(String),
       ],
     },
-    nextStep: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
+    nextStep: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
   });
-  expect(returnStep).toMatchObject({
+  expect(thirdStep).toMatchObject({
     complete: true,
   });
-  if (!returnStep || !returnStep.complete) {
+  if (!thirdStep || !thirdStep.complete) {
     throw new Error("expected_complete_discovery");
   }
-  expect(returnStep.input).toEqual({
+  expect(thirdStep.input).toEqual({
     colors: ["white", "blue", "green"],
   });
 });
@@ -537,7 +535,7 @@ test("buying with multiple eligible nobles moves into the choose-noble stage", (
   state.game.players.p1!.tokens.green = 0;
   state.game.players.p1!.tokens.red = 0;
   state.game.players.p1!.tokens.black = 0;
-  state.game.players.p1!.tokens.gold = 20;
+  state.game.players.p1!.tokens.gold = 1;
   state.game.players.p1!.reservedCardIds = [45];
   state.game.players.p1!.purchasedCardIds = [
     17, 18, 19, 20, 33, 34, 35, 36, 1, 2, 3,
@@ -583,7 +581,7 @@ test("choosing a noble claims it and then advances to the next player", () => {
   state.game.players.p1!.tokens.green = 0;
   state.game.players.p1!.tokens.red = 0;
   state.game.players.p1!.tokens.black = 0;
-  state.game.players.p1!.tokens.gold = 20;
+  state.game.players.p1!.tokens.gold = 1;
   state.game.players.p1!.reservedCardIds = [45];
   state.game.players.p1!.purchasedCardIds = [
     17, 18, 19, 20, 33, 34, 35, 36, 1, 2, 3,
@@ -626,6 +624,53 @@ test("choosing a noble claims it and then advances to the next player", () => {
   expect(chooseResult.events.map((event) => event.type)).toContain(
     "noble_claimed",
   );
+});
+
+test("splendor return_tokens command declares the select_return_token discovery step", () => {
+  expect(returnTokensCommand.commandId).toBe("return_tokens");
+  expect(returnTokensCommand.discovery).toMatchObject({
+    startStep: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
+  });
+  expect(returnTokensCommand.discovery?.steps).toHaveLength(1);
+  expect(returnTokensCommand.discovery?.steps[0]).toMatchObject({
+    stepId: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
+  });
+});
+
+test("return_tokens is unavailable to a player without overflow", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  expect(
+    gameExecutor.listAvailableCommands(state, { actorId: "p1" }),
+  ).not.toContain("return_tokens");
+});
+
+test("playerTurn transition exposes a returnExcessiveTokensStage branch", () => {
+  const game = createSplendorGame();
+  const playerTurn = game.stages.playerTurn;
+
+  if (!playerTurn || playerTurn.kind !== "activePlayer") {
+    throw new Error("expected playerTurn active-player stage");
+  }
+  const nextStages = playerTurn.nextStages?.() ?? {};
+
+  expect(Object.keys(nextStages)).toContain("returnExcessiveTokensStage");
+});
+
+test("returnExcessiveTokens stage exposes only return_tokens to the active player", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  state.game.players.p1!.tokens.white = 6;
+  state.game.players.p1!.tokens.blue = 6;
+  state.runtime.progression.currentStage = {
+    id: "returnExcessiveTokens",
+    kind: "activePlayer",
+    activePlayerId: "p1",
+  };
+
+  expect(gameExecutor.listAvailableCommands(state, { actorId: "p1" })).toEqual([
+    "return_tokens",
+  ]);
 });
 
 test("endgame finishes after the final player in turn order and breaks ties by fewest cards", () => {
@@ -700,4 +745,161 @@ test("endgame finishes after the final player in turn order and breaks ties by f
   expect(secondResult.events.map((event) => event.type)).toContain(
     "game_finished",
   );
+});
+
+test("taking two same gems with overflow lands the actor in returnExcessiveTokens", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  state.game.players.p1!.tokens.white = 9;
+  state.game.bank.white = 4;
+
+  const result = gameExecutor.executeCommand(state, {
+    type: "take_two_same_gems",
+    actorId: "p1",
+    input: {
+      color: "white",
+    },
+  });
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    throw new Error("expected take_two to succeed");
+  }
+  expect(result.state.game.players.p1?.tokens.white).toBe(11);
+  expect(result.state.runtime.progression.currentStage).toEqual({
+    id: "returnExcessiveTokens",
+    kind: "activePlayer",
+    activePlayerId: "p1",
+  });
+});
+
+test("taking three distinct gems with overflow lands the actor in returnExcessiveTokens", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  state.game.players.p1!.tokens.white = 4;
+  state.game.players.p1!.tokens.blue = 4;
+
+  const result = gameExecutor.executeCommand(state, {
+    type: "take_three_distinct_gems",
+    actorId: "p1",
+    input: {
+      colors: ["white", "blue", "green"],
+    },
+  });
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    throw new Error("expected take_three to succeed");
+  }
+  expect(result.state.game.players.p1?.tokens).toMatchObject({
+    white: 5,
+    blue: 5,
+    green: 1,
+  });
+  expect(result.state.runtime.progression.currentStage).toEqual({
+    id: "returnExcessiveTokens",
+    kind: "activePlayer",
+    activePlayerId: "p1",
+  });
+});
+
+test("reserving a deck card with overflow lands the actor in returnExcessiveTokens", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  state.game.players.p1!.tokens.white = 10;
+
+  const result = gameExecutor.executeCommand(state, {
+    type: "reserve_deck_card",
+    actorId: "p1",
+    input: {
+      level: 1,
+    },
+  });
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    throw new Error("expected reserve_deck_card to succeed");
+  }
+  expect(result.state.game.players.p1?.tokens.gold).toBe(1);
+  expect(result.state.runtime.progression.currentStage).toEqual({
+    id: "returnExcessiveTokens",
+    kind: "activePlayer",
+    activePlayerId: "p1",
+  });
+});
+
+test("reserving a face-up card with overflow lands the actor in returnExcessiveTokens", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  state.game.players.p1!.tokens.white = 10;
+  const targetCardId = state.game.board.faceUpByLevel[1]![0]!;
+
+  const result = gameExecutor.executeCommand(state, {
+    type: "reserve_face_up_card",
+    actorId: "p1",
+    input: {
+      level: 1,
+      cardId: targetCardId,
+    },
+  });
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    throw new Error("expected reserve_face_up_card to succeed");
+  }
+  expect(result.state.runtime.progression.currentStage).toEqual({
+    id: "returnExcessiveTokens",
+    kind: "activePlayer",
+    activePlayerId: "p1",
+  });
+});
+
+test("after overflow the active player returns tokens and the turn proceeds to p2", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  state.game.players.p1!.tokens.white = 4;
+  state.game.players.p1!.tokens.blue = 4;
+
+  const taken = gameExecutor.executeCommand(state, {
+    type: "take_three_distinct_gems",
+    actorId: "p1",
+    input: {
+      colors: ["white", "blue", "green"],
+    },
+  });
+
+  expect(taken.ok).toBe(true);
+  if (!taken.ok) {
+    throw new Error("expected take_three to succeed");
+  }
+  expect(taken.state.runtime.progression.currentStage).toMatchObject({
+    id: "returnExcessiveTokens",
+    activePlayerId: "p1",
+  });
+
+  const returned = gameExecutor.executeCommand(taken.state, {
+    type: "return_tokens",
+    actorId: "p1",
+    input: {
+      returnTokens: { white: 1 },
+    },
+  });
+
+  expect(returned.ok).toBe(true);
+  if (!returned.ok) {
+    throw new Error("expected return_tokens to succeed");
+  }
+  expect(returned.state.game.players.p1?.tokens).toMatchObject({
+    white: 4,
+    blue: 5,
+    green: 1,
+  });
+  expect(returned.state.runtime.progression.currentStage).toEqual({
+    id: "playerTurn",
+    kind: "activePlayer",
+    activePlayerId: "p2",
+  });
+  expect(
+    returned.events.some((event) => event.type === "tokens_returned"),
+  ).toBe(true);
 });

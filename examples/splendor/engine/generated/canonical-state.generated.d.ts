@@ -46,6 +46,11 @@ export interface CanonicalState {
             activePlayerId: string;
           }
         | {
+            id: "returnExcessiveTokens";
+            kind: "activePlayer";
+            activePlayerId: string;
+          }
+        | {
             id: "checkVictoryCondition";
             kind: "automatic";
           }
@@ -65,6 +70,11 @@ export interface CanonicalState {
       lastActingStage:
         | {
             id: "playerTurn";
+            kind: "activePlayer";
+            activePlayerId: string;
+          }
+        | {
+            id: "returnExcessiveTokens";
             kind: "activePlayer";
             activePlayerId: string;
           }

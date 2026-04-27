@@ -25,30 +25,6 @@ test("buildCommandFromDiscovery follows discovered steps until completion", asyn
 
       if (discovery.step === SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard) {
         return {
-          complete: false,
-          step: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
-          options: [
-            {
-              id: "1:45",
-              output: {
-                cardId: 45,
-                level: 1,
-                bonusColor: "White",
-                prestigePoints: 1,
-                source: "face_up",
-              },
-              nextInput: {
-                selectedLevel: 1,
-                selectedCardId: 45,
-              },
-              nextStep: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
-            },
-          ],
-        } as SplendorTerminalDiscoveryResult;
-      }
-
-      if (discovery.step === SPLENDOR_DISCOVERY_STEPS.selectReturnToken) {
-        return {
           complete: true,
           input: {
             level: 1,
@@ -80,15 +56,6 @@ test("buildCommandFromDiscovery follows discovered steps until completion", asyn
       actorId: "you",
       step: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
       input: {},
-    },
-    {
-      type: "reserve_face_up_card",
-      actorId: "you",
-      step: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
-      input: {
-        selectedLevel: 1,
-        selectedCardId: 45,
-      },
     },
   ]);
   expect(command).toEqual({
@@ -192,7 +159,7 @@ test("describeDiscoveryOption renders two-same-gem choices by amount", () => {
     nextInput: {
       selectedColor: "red",
     },
-    nextStep: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
+    nextStep: SPLENDOR_DISCOVERY_STEPS.selectGemColor,
   };
 
   expect(describeDiscoveryOption(discovery, option)).toBe("Take 2 red");
