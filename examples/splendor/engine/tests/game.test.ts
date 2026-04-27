@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { createGameExecutor } from "tabletop-engine";
 import { SPLENDOR_DISCOVERY_STEPS } from "../src/discovery.ts";
 import { createCommands } from "../src/commands/index.ts";
+import { returnTokensCommand } from "../src/commands/return-tokens.ts";
 import { createSplendorGame } from "../src/game";
 
 const TEST_SEED = "splendor-seed";
@@ -626,6 +627,25 @@ test("choosing a noble claims it and then advances to the next player", () => {
   expect(chooseResult.events.map((event) => event.type)).toContain(
     "noble_claimed",
   );
+});
+
+test("splendor return_tokens command declares the select_return_token discovery step", () => {
+  expect(returnTokensCommand.commandId).toBe("return_tokens");
+  expect(returnTokensCommand.discovery).toMatchObject({
+    startStep: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
+  });
+  expect(returnTokensCommand.discovery?.steps).toHaveLength(1);
+  expect(returnTokensCommand.discovery?.steps[0]).toMatchObject({
+    stepId: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
+  });
+});
+
+test("return_tokens is unavailable to a player without overflow", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  expect(
+    gameExecutor.listAvailableCommands(state, { actorId: "p1" }),
+  ).not.toContain("return_tokens");
 });
 
 test("endgame finishes after the final player in turn order and breaks ties by fewest cards", () => {
