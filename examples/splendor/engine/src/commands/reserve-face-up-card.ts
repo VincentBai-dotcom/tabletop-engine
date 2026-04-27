@@ -1,9 +1,5 @@
 import { t } from "tabletop-engine";
-import {
-  completeDiscovery,
-  createReturnTokenDiscovery,
-  SPLENDOR_DISCOVERY_STEPS,
-} from "../discovery.ts";
+import { completeDiscovery, SPLENDOR_DISCOVERY_STEPS } from "../discovery.ts";
 import {
   assertDevelopmentLevel,
   guardedAvailability,
@@ -15,7 +11,6 @@ import {
 const reserveFaceUpCardCommandSchema = t.object({
   level: t.number(),
   cardId: t.number(),
-  returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
 export type ReserveFaceUpCardInput =
@@ -24,7 +19,6 @@ export type ReserveFaceUpCardInput =
 const selectFaceUpCardDiscoveryInputSchema = t.object({
   selectedLevel: t.optional(t.number()),
   selectedCardId: t.optional(t.number()),
-  returnTokens: t.optional(t.record(t.string(), t.number())),
 });
 
 const selectFaceUpCardDiscoveryOutputSchema = t.object({
@@ -33,18 +27,6 @@ const selectFaceUpCardDiscoveryOutputSchema = t.object({
   bonusColor: t.string(),
   prestigePoints: t.number(),
   source: t.string(),
-});
-
-const selectReturnTokenDiscoveryInputSchema = t.object({
-  selectedLevel: t.number(),
-  selectedCardId: t.number(),
-  returnTokens: t.optional(t.record(t.string(), t.number())),
-});
-
-const selectReturnTokenDiscoveryOutputSchema = t.object({
-  color: t.string(),
-  selectedCount: t.number(),
-  requiredReturnCount: t.number(),
 });
 
 const reserveFaceUpCardCommand = defineSplendorCommand({
@@ -63,7 +45,10 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
         >;
 
         if (draft.selectedLevel && draft.selectedCardId) {
-          return null;
+          return completeDiscovery({
+            level: draft.selectedLevel,
+            cardId: draft.selectedCardId,
+          });
         }
 
         return faceUpEntries.flatMap(([level, cardIds]) =>
@@ -80,41 +65,12 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
                 source: "face_up",
               },
               nextInput: {
-                ...draft,
                 selectedLevel: Number(level),
                 selectedCardId: cardId,
               },
-              nextStep: SPLENDOR_DISCOVERY_STEPS.selectReturnToken,
+              nextStep: SPLENDOR_DISCOVERY_STEPS.selectFaceUpCard,
             };
           }),
-        );
-      })
-      .build(),
-    step("select_return_token")
-      .input(selectReturnTokenDiscoveryInputSchema)
-      .output(selectReturnTokenDiscoveryOutputSchema)
-      .resolve(({ actorId, game, discovery }) => {
-        const draft = discovery.input;
-        const player = game.getPlayer(actorId).clone();
-
-        if (game.bank.gold > 0) {
-          player.tokens.adjustColor("gold", 1);
-        }
-
-        const requiredReturnCount = player.getRequiredReturnCount();
-        const returnDiscovery = createReturnTokenDiscovery(
-          draft,
-          player.tokens,
-          requiredReturnCount,
-        );
-
-        return (
-          returnDiscovery ??
-          completeDiscovery({
-            level: draft.selectedLevel,
-            cardId: draft.selectedCardId,
-            returnTokens: draft.returnTokens,
-          })
         );
       })
       .build(),
@@ -137,7 +93,7 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
     return guardedValidate(() => {
       const actorId = command.actorId;
       const input = command.input;
-      const player = game.getPlayer(actorId).clone();
+      const player = game.getPlayer(actorId);
 
       if (!player.canReserveMoreCards()) {
         return { ok: false, reason: "reserved_limit_reached" };
@@ -151,19 +107,6 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
 
       if (!game.board.faceUpByLevel[level].includes(input.cardId)) {
         return { ok: false, reason: "card_not_face_up" };
-      }
-
-      if (game.bank.gold > 0) {
-        player.tokens.adjustColor("gold", 1);
-      }
-
-      if (
-        !player.canReturnTokens(
-          input.returnTokens,
-          player.getRequiredReturnCount(),
-        )
-      ) {
-        return { ok: false, reason: "invalid_return_tokens" };
       }
 
       return { ok: true };
@@ -180,7 +123,6 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
     game.board.replenishFaceUpCard(level);
 
     const receivedGold = player.gainGoldFrom(game.bank);
-    player.returnTokensTo(game.bank, input.returnTokens);
     emitEvent({
       category: "domain",
       type: "card_reserved",
@@ -190,7 +132,6 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
         level,
         cardId: input.cardId,
         receivedGold,
-        returnTokens: input.returnTokens ?? null,
       },
     });
   })

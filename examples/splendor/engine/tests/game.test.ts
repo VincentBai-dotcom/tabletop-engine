@@ -827,3 +827,29 @@ test("reserving a deck card with overflow lands the actor in returnExcessiveToke
     activePlayerId: "p1",
   });
 });
+
+test("reserving a face-up card with overflow lands the actor in returnExcessiveTokens", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  state.game.players.p1!.tokens.white = 10;
+  const targetCardId = state.game.board.faceUpByLevel[1]![0]!;
+
+  const result = gameExecutor.executeCommand(state, {
+    type: "reserve_face_up_card",
+    actorId: "p1",
+    input: {
+      level: 1,
+      cardId: targetCardId,
+    },
+  });
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    throw new Error("expected reserve_face_up_card to succeed");
+  }
+  expect(result.state.runtime.progression.currentStage).toEqual({
+    id: "returnExcessiveTokens",
+    kind: "activePlayer",
+    activePlayerId: "p1",
+  });
+});
