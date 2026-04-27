@@ -853,3 +853,53 @@ test("reserving a face-up card with overflow lands the actor in returnExcessiveT
     activePlayerId: "p1",
   });
 });
+
+test("after overflow the active player returns tokens and the turn proceeds to p2", () => {
+  const { gameExecutor, state } = createTestInitialState(["p1", "p2"]);
+
+  state.game.players.p1!.tokens.white = 4;
+  state.game.players.p1!.tokens.blue = 4;
+
+  const taken = gameExecutor.executeCommand(state, {
+    type: "take_three_distinct_gems",
+    actorId: "p1",
+    input: {
+      colors: ["white", "blue", "green"],
+    },
+  });
+
+  expect(taken.ok).toBe(true);
+  if (!taken.ok) {
+    throw new Error("expected take_three to succeed");
+  }
+  expect(taken.state.runtime.progression.currentStage).toMatchObject({
+    id: "returnExcessiveTokens",
+    activePlayerId: "p1",
+  });
+
+  const returned = gameExecutor.executeCommand(taken.state, {
+    type: "return_tokens",
+    actorId: "p1",
+    input: {
+      returnTokens: { white: 1 },
+    },
+  });
+
+  expect(returned.ok).toBe(true);
+  if (!returned.ok) {
+    throw new Error("expected return_tokens to succeed");
+  }
+  expect(returned.state.game.players.p1?.tokens).toMatchObject({
+    white: 4,
+    blue: 5,
+    green: 1,
+  });
+  expect(returned.state.runtime.progression.currentStage).toEqual({
+    id: "playerTurn",
+    kind: "activePlayer",
+    activePlayerId: "p2",
+  });
+  expect(
+    returned.events.some((event) => event.type === "tokens_returned"),
+  ).toBe(true);
+});
