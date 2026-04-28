@@ -12,6 +12,7 @@ import {
   createGameEngineClient,
   reserveDeckCardDiscoveryStart,
   reserveFaceUpCardDiscoveryStart,
+  returnTokensDiscoveryStart,
   takeThreeDistinctGemsDiscoveryStart,
   takeTwoSameGemsDiscoveryStart,
   type CommandPayload,
@@ -55,6 +56,7 @@ const DISCOVERY_STARTS: Record<
   choose_noble: chooseNobleDiscoveryStart,
   reserve_deck_card: reserveDeckCardDiscoveryStart,
   reserve_face_up_card: reserveFaceUpCardDiscoveryStart,
+  return_tokens: returnTokensDiscoveryStart,
   take_three_distinct_gems: takeThreeDistinctGemsDiscoveryStart,
   take_two_same_gems: takeTwoSameGemsDiscoveryStart,
 };
