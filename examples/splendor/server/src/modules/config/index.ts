@@ -38,7 +38,7 @@ function readPort(value: string | undefined): number {
   return port;
 }
 
-export const configService = {
+export const config = {
   get() {
     return loadConfig();
   },

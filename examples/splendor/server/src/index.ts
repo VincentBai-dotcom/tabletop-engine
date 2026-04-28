@@ -9,7 +9,7 @@ import {
   SERVER_RESTART_CLOSE_CODE,
   SERVER_RESTART_RECONNECT_AFTER_MS,
 } from "./lib/reconnect-policy";
-import { configService } from "./modules/config";
+import { config } from "./modules/config";
 import { createDbClient } from "./modules/db";
 import { createDisconnectCleanupService } from "./modules/disconnect-cleanup";
 import {
@@ -32,8 +32,8 @@ import { createLivePresenceService } from "./modules/live-presence";
 import { createApp } from "./app";
 
 const logger = createModuleLogger("server");
-const config = configService.get();
-const { db } = createDbClient(config.database.url);
+const serverConfig = config.get();
+const { db } = createDbClient(serverConfig.database.url);
 const playerSessionService = createPlayerSessionService({
   store: createPlayerSessionStore(db),
   clock: systemClock,
@@ -127,8 +127,8 @@ process.on("SIGTERM", handleShutdownSignal);
 process.on("SIGINT", handleShutdownSignal);
 
 app.listen({
-  hostname: config.server.host,
-  port: config.server.port,
+  hostname: serverConfig.server.host,
+  port: serverConfig.server.port,
 });
 
 rootLogger.info(

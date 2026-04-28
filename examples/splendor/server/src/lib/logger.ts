@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import pino, { type LoggerOptions } from "pino";
-import { configService } from "../modules/config";
+import { config } from "../modules/config";
 
 type LogPayload = Record<string, unknown> | Error | string;
 
@@ -40,7 +40,7 @@ export function createAppLogger(overrides: LoggerOptions = {}): AppLogger {
     { stream: process.stdout },
   ];
 
-  if (configService.get().env === "development") {
+  if (config.get().env === "development") {
     const dateStamp = new Date().toISOString().slice(0, 10);
     const logFilePath = resolve(
       process.cwd(),
