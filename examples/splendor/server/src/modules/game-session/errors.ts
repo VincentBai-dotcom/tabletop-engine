@@ -1,12 +1,12 @@
 import { AppError } from "../errors";
 
 export const GameSessionErrorCodes = {
-  InvalidGameCommand: "invalid_game_command",
-  InvalidGameDiscovery: "invalid_game_discovery",
-  GameNotFound: "game_not_found",
-  GamePlayerNotFound: "game_player_not_found",
-  RoomNotFound: "room_not_found",
-  RoomHostRequired: "room_host_required",
+  InvalidGameCommand: "INVALID_GAME_COMMAND",
+  InvalidGameDiscovery: "INVALID_GAME_DISCOVERY",
+  GameNotFound: "GAME_NOT_FOUND",
+  GamePlayerNotFound: "GAME_PLAYER_NOT_FOUND",
+  RoomNotFound: "ROOM_NOT_FOUND",
+  RoomHostRequired: "ROOM_HOST_REQUIRED",
 } as const;
 
 export class GameSessionError extends AppError {

@@ -190,7 +190,7 @@ describe("room routes", () => {
     expect(response.status).toBe(404);
     expect(await readJson(response)).toEqual({
       error: {
-        code: "room_not_found",
+        code: "ROOM_NOT_FOUND",
         message: "Room not found",
       },
     });

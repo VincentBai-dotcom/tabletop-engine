@@ -46,7 +46,7 @@ export function toErrorResponse(error: unknown): {
     statusCode: 500,
     body: {
       error: {
-        code: "internal_server_error",
+        code: "INTERNAL_SERVER_ERROR",
         message: "Internal server error",
       },
     },

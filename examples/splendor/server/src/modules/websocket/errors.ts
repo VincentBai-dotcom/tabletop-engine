@@ -1,8 +1,8 @@
 import { AppError } from "../errors";
 
 export const WebSocketErrorCodes = {
-  LiveConnectionNotRegistered: "live_connection_not_registered",
-  GameCommandsNotImplemented: "game_commands_not_implemented",
+  LiveConnectionNotRegistered: "LIVE_CONNECTION_NOT_REGISTERED",
+  GameCommandsNotImplemented: "GAME_COMMANDS_NOT_IMPLEMENTED",
 } as const;
 
 export class WebSocketError extends AppError {

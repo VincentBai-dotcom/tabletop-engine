@@ -163,7 +163,7 @@ describe("createLiveMessageHandler", () => {
     expect(client.sent).toEqual([
       {
         type: "error",
-        code: "live_connection_not_registered",
+        code: "LIVE_CONNECTION_NOT_REGISTERED",
         message: "Live connection is not registered",
       },
     ]);
@@ -220,7 +220,7 @@ describe("createLiveMessageHandler", () => {
     expect(client.sent).toEqual([
       {
         type: "error",
-        code: "room_not_found",
+        code: "ROOM_NOT_FOUND",
         message: "Room not found",
       },
     ]);
@@ -244,7 +244,7 @@ describe("createLiveMessageHandler", () => {
       {
         type: "error",
         requestId: "request-1",
-        code: "game_commands_not_implemented",
+        code: "GAME_COMMANDS_NOT_IMPLEMENTED",
         message: "Game commands are not implemented yet",
       },
     ]);
@@ -268,7 +268,7 @@ describe("createLiveMessageHandler", () => {
       {
         type: "error",
         requestId: "request-1",
-        code: "game_commands_not_implemented",
+        code: "GAME_COMMANDS_NOT_IMPLEMENTED",
         message: "Game commands are not implemented yet",
       },
     ]);

@@ -324,7 +324,7 @@ describe("createRoomService", () => {
         roomCode: "ABC123",
         displayName: "Fifth",
       }),
-    ).rejects.toMatchObject({ code: "room_full" });
+    ).rejects.toMatchObject({ code: "ROOM_FULL" });
   });
 
   it("rejects duplicate display names within a room", async () => {
@@ -337,7 +337,7 @@ describe("createRoomService", () => {
         roomCode: "ABC123",
         displayName: "  vincent   bai  ",
       }),
-    ).rejects.toMatchObject({ code: "display_name_taken" });
+    ).rejects.toMatchObject({ code: "DISPLAY_NAME_TAKEN" });
   });
 
   it("toggles readiness only for seated players", async () => {
@@ -365,7 +365,7 @@ describe("createRoomService", () => {
         playerSessionId: "not-seated",
         ready: true,
       }),
-    ).rejects.toMatchObject({ code: "room_player_not_found" });
+    ).rejects.toMatchObject({ code: "ROOM_PLAYER_NOT_FOUND" });
   });
 
   it("requires the host to start the game", async () => {
@@ -378,7 +378,7 @@ describe("createRoomService", () => {
 
     await expect(
       service.startGame({ roomId: room.id, playerSessionId: "p2" }),
-    ).rejects.toMatchObject({ code: "room_host_required" });
+    ).rejects.toMatchObject({ code: "ROOM_HOST_REQUIRED" });
   });
 
   it("requires two to four players to start the game", async () => {
@@ -389,7 +389,7 @@ describe("createRoomService", () => {
 
     await expect(
       service.startGame({ roomId: room.id, playerSessionId: "host" }),
-    ).rejects.toMatchObject({ code: "room_needs_more_players" });
+    ).rejects.toMatchObject({ code: "ROOM_NEEDS_MORE_PLAYERS" });
   });
 
   it("requires all seated players to be ready before start", async () => {
@@ -401,7 +401,7 @@ describe("createRoomService", () => {
 
     await expect(
       service.startGame({ roomId: room.id, playerSessionId: "host" }),
-    ).rejects.toMatchObject({ code: "room_players_not_ready" });
+    ).rejects.toMatchObject({ code: "ROOM_PLAYERS_NOT_READY" });
   });
 
   it("requires all seated players to be connected before start", async () => {
@@ -415,7 +415,7 @@ describe("createRoomService", () => {
 
     await expect(
       service.startGame({ roomId: room.id, playerSessionId: "host" }),
-    ).rejects.toMatchObject({ code: "room_players_disconnected" });
+    ).rejects.toMatchObject({ code: "ROOM_PLAYERS_DISCONNECTED" });
   });
 
   it("marks the room starting and publishes game started when start succeeds", async () => {

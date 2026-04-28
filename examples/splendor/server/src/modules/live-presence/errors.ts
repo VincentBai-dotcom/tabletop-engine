@@ -1,9 +1,9 @@
 import { AppError } from "../errors";
 
 export const LivePresenceErrorCodes = {
-  GamePresenceNotImplemented: "game_presence_not_implemented",
-  RoomNotFound: "room_not_found",
-  GameNotFound: "game_not_found",
+  GamePresenceNotImplemented: "GAME_PRESENCE_NOT_IMPLEMENTED",
+  RoomNotFound: "ROOM_NOT_FOUND",
+  GameNotFound: "GAME_NOT_FOUND",
 } as const;
 
 export class LivePresenceError extends AppError {

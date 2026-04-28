@@ -1,16 +1,16 @@
 import { AppError } from "../errors";
 
 export const RoomErrorCodes = {
-  RoomCodeGenerationFailed: "room_code_generation_failed",
-  RoomNotFound: "room_not_found",
-  RoomNotOpen: "room_not_open",
-  RoomPlayerNotFound: "room_player_not_found",
-  RoomFull: "room_full",
-  DisplayNameTaken: "display_name_taken",
-  RoomHostRequired: "room_host_required",
-  RoomNeedsMorePlayers: "room_needs_more_players",
-  RoomPlayersNotReady: "room_players_not_ready",
-  RoomPlayersDisconnected: "room_players_disconnected",
+  RoomCodeGenerationFailed: "ROOM_CODE_GENERATION_FAILED",
+  RoomNotFound: "ROOM_NOT_FOUND",
+  RoomNotOpen: "ROOM_NOT_OPEN",
+  RoomPlayerNotFound: "ROOM_PLAYER_NOT_FOUND",
+  RoomFull: "ROOM_FULL",
+  DisplayNameTaken: "DISPLAY_NAME_TAKEN",
+  RoomHostRequired: "ROOM_HOST_REQUIRED",
+  RoomNeedsMorePlayers: "ROOM_NEEDS_MORE_PLAYERS",
+  RoomPlayersNotReady: "ROOM_PLAYERS_NOT_READY",
+  RoomPlayersDisconnected: "ROOM_PLAYERS_DISCONNECTED",
 } as const;
 
 export class RoomError extends AppError {
