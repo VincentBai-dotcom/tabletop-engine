@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
 import { openapi } from "@elysiajs/openapi";
+import { cors } from "@elysiajs/cors";
 import { errorHandler } from "./plugins/error-handler";
 import { requestId } from "./plugins/request-id";
 import { createRoomRoutes } from "./modules/room/routes";
@@ -28,6 +29,12 @@ export function createApp({
   disconnectCleanup,
 }: AppDeps) {
   const app = new Elysia()
+    .use(
+      cors({
+        origin: /^http:\/\/localhost(:\d+)?$/,
+        credentials: true,
+      }),
+    )
     .use(
       openapi({
         documentation: {
