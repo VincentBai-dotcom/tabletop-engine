@@ -14,6 +14,9 @@ describe("loadConfig", () => {
       database: {
         url: "postgres://postgres:postgres@localhost:5432/splendor",
       },
+      web: {
+        origin: "http://localhost:5173",
+      },
     });
   });
 
@@ -24,6 +27,7 @@ describe("loadConfig", () => {
       PORT: "4173",
       POSTGRES_URL: "postgres://render.example/prod",
       POSTGRES_URL_LOCAL: "postgres://localhost/ignored",
+      WEB_ORIGIN: "https://splendor-web.example",
     });
 
     expect(config.env).toBe("production");
@@ -32,6 +36,7 @@ describe("loadConfig", () => {
       port: 4173,
     });
     expect(config.database.url).toBe("postgres://render.example/prod");
+    expect(config.web.origin).toBe("https://splendor-web.example");
   });
 
   it("uses local database url when primary url is absent", () => {
@@ -40,6 +45,14 @@ describe("loadConfig", () => {
     });
 
     expect(config.database.url).toBe("postgres://localhost/local");
+  });
+
+  it("uses explicit web origin override", () => {
+    const config = loadConfig({
+      WEB_ORIGIN: "https://splendor-web.example",
+    });
+
+    expect(config.web.origin).toBe("https://splendor-web.example");
   });
 
   it("rejects invalid ports", () => {

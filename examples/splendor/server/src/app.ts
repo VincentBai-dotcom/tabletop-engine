@@ -3,6 +3,7 @@ import { openapi } from "@elysiajs/openapi";
 import { cors } from "@elysiajs/cors";
 import { errorHandler } from "./plugins/error-handler";
 import { requestId } from "./plugins/request-id";
+import { config } from "./modules/config";
 import { createRoomRoutes } from "./modules/room/routes";
 import type { RoomService } from "./modules/room";
 import {
@@ -28,10 +29,11 @@ export function createApp({
   websocket,
   disconnectCleanup,
 }: AppDeps) {
+  const serverConfig = config.get();
   const app = new Elysia()
     .use(
       cors({
-        origin: /^http:\/\/localhost(:\d+)?$/,
+        origin: serverConfig.web.origin,
         credentials: true,
       }),
     )

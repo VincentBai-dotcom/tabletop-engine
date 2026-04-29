@@ -110,6 +110,34 @@ describe("room routes", () => {
     expect(await readJson(response)).toEqual({ status: "ok" });
   });
 
+  it("allows the configured frontend origin through cors", async () => {
+    const previousWebOrigin = process.env.WEB_ORIGIN;
+    process.env.WEB_ORIGIN = "https://splendor-web.example";
+
+    try {
+      const { service } = createFakeRoomService();
+      const app = createApp(createAppDeps(service));
+
+      const response = await app.handle(
+        new Request("http://localhost/health", {
+          headers: {
+            origin: "https://splendor-web.example",
+          },
+        }),
+      );
+
+      expect(response.headers.get("access-control-allow-origin")).toBe(
+        "https://splendor-web.example",
+      );
+    } finally {
+      if (previousWebOrigin === undefined) {
+        delete process.env.WEB_ORIGIN;
+      } else {
+        process.env.WEB_ORIGIN = previousWebOrigin;
+      }
+    }
+  });
+
   it("creates a room and returns the player session token", async () => {
     const { calls, service } = createFakeRoomService();
     const app = createApp(createAppDeps(service));

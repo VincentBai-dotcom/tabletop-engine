@@ -2,6 +2,7 @@ import type { ServerConfig, ServerEnvironment } from "./model";
 
 const DEFAULT_DATABASE_URL =
   "postgres://postgres:postgres@localhost:5432/splendor";
+const DEFAULT_WEB_ORIGIN = "http://localhost:5173";
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   return {
@@ -12,6 +13,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     },
     database: {
       url: env.POSTGRES_URL || env.POSTGRES_URL_LOCAL || DEFAULT_DATABASE_URL,
+    },
+    web: {
+      origin: env.WEB_ORIGIN || DEFAULT_WEB_ORIGIN,
     },
   };
 }

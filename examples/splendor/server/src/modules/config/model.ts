@@ -9,4 +9,7 @@ export interface ServerConfig {
   database: {
     url: string;
   };
+  web: {
+    origin: string;
+  };
 }
