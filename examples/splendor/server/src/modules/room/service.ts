@@ -274,11 +274,11 @@ export function createRoomService({
       if (!player.isHost) {
         throw RoomError.roomHostRequired();
       }
-      if (room.players.length < MIN_PLAYERS_TO_START) {
-        throw RoomError.roomNeedsMorePlayers();
-      }
       if (room.players.some((candidate) => !candidate.isReady)) {
         throw RoomError.roomPlayersNotReady();
+      }
+      if (room.players.length < MIN_PLAYERS_TO_START) {
+        throw RoomError.roomNeedsMorePlayers();
       }
       if (room.players.some((candidate) => candidate.disconnectedAt !== null)) {
         throw RoomError.roomPlayersDisconnected();

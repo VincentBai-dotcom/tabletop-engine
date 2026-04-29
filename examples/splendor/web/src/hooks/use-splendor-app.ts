@@ -346,8 +346,13 @@ export function useSplendorApp() {
         }, 1_500);
       },
       onError() {
+        if (liveRef.current !== connection) {
+          return;
+        }
+
         startTransition(() => {
           setError("Live connection failed");
+          setBusy(false);
         });
       },
       onMessage(message) {
@@ -359,6 +364,7 @@ export function useSplendorApp() {
         if (text) {
           startTransition(() => {
             setError(text);
+            setBusy(false);
           });
           return;
         }
@@ -372,6 +378,9 @@ export function useSplendorApp() {
           case "room_snapshot":
           case "room_updated":
             startTransition(() => {
+              setError((current) =>
+                current === "Live connection failed" ? null : current,
+              );
               setRoom(message.room);
               setGame(null);
               setEnded(null);
@@ -387,6 +396,9 @@ export function useSplendorApp() {
             return;
           case "game_started":
             startTransition(() => {
+              setError((current) =>
+                current === "Live connection failed" ? null : current,
+              );
               setRoom(null);
               setScreen("game");
               setBusy(false);
