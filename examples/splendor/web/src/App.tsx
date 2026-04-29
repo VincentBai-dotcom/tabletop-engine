@@ -5,6 +5,8 @@ import { useSplendorApp } from "./hooks/use-splendor-app";
 
 const TOKEN_ORDER = ["white", "blue", "green", "red", "black", "gold"] as const;
 const COST_ORDER = ["White", "Blue", "Green", "Red", "Black"] as const;
+const BONUS_COLOR_ORDER = ["White", "Blue", "Green", "Red", "Black"] as const;
+type BonusColor = (typeof BONUS_COLOR_ORDER)[number];
 
 const COMMAND_LABELS: Record<string, string> = {
   take_three_distinct_gems: "Take 3 distinct gems",
@@ -52,6 +54,95 @@ function GemDot({ color }: { color: string }) {
 function CostChip({ color, amount }: { color: string; amount: number }) {
   if (amount <= 0) return null;
   return <span className={`cost-chip cost-chip-${color}`}>{amount}</span>;
+}
+
+function CardGemBadge({ color, size }: { color: string; size?: "sm" }) {
+  return (
+    <span
+      className={`card-gem card-gem-${color}${size ? ` card-gem-${size}` : ""}`}
+    />
+  );
+}
+
+function DevelopmentCardView({
+  cardId,
+  compact = false,
+}: {
+  cardId: number;
+  compact?: boolean;
+}) {
+  const card = developmentCardsById[cardId];
+  if (!card) return null;
+  const points = card.prestigePoints ?? 0;
+  return (
+    <article
+      className={`card card-bg-${card.bonusColor}${compact ? " card-compact" : ""}`}
+    >
+      <div className="card-head">
+        <span
+          className={`card-points ${points === 0 ? "card-points-zero" : ""}`}
+        >
+          {points}
+        </span>
+        <CardGemBadge color={card.bonusColor} />
+      </div>
+      <div className="card-cost">
+        {COST_ORDER.map((costColor) => (
+          <CostChip
+            key={costColor}
+            color={costColor}
+            amount={card.cost?.[costColor] ?? 0}
+          />
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function PurchasedStacks({ cardIds }: { cardIds: number[] }) {
+  const grouped: Record<BonusColor, number[]> = {
+    White: [],
+    Blue: [],
+    Green: [],
+    Red: [],
+    Black: [],
+  };
+  for (const cardId of cardIds) {
+    const card = developmentCardsById[cardId];
+    const color = card?.bonusColor as BonusColor | undefined;
+    if (color && color in grouped) {
+      grouped[color].push(cardId);
+    }
+  }
+
+  return (
+    <div className="purchased-stacks">
+      {BONUS_COLOR_ORDER.map((color) => {
+        const ids = grouped[color];
+        return (
+          <div key={color} className="stack">
+            <div className={`stack-header card-bg-${color}`}>
+              <CardGemBadge color={color} size="sm" />
+              <span className="stack-count">{ids.length}</span>
+            </div>
+            {ids.map((cardId) => {
+              const card = developmentCardsById[cardId];
+              const points = card?.prestigePoints ?? 0;
+              return (
+                <div key={cardId} className={`card-band card-bg-${color}`}>
+                  <span
+                    className={`card-band-points ${points === 0 ? "card-points-zero" : ""}`}
+                  >
+                    {points}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function OptionSummary({ output }: { output: Record<string, unknown> }) {
@@ -372,40 +463,9 @@ function App() {
                       <div className="level-row" key={level}>
                         <span className="level-pill">L{level}</span>
                         <div className="cards">
-                          {cardIds.map((cardId: number) => {
-                            const card = developmentCardsById[cardId];
-                            const points = card?.prestigePoints ?? 0;
-                            return (
-                              <article className="card" key={cardId}>
-                                {card?.bonusColor ? (
-                                  <span
-                                    className={`card-bonus card-bonus-${card.bonusColor}`}
-                                  />
-                                ) : null}
-                                <div className="card-head">
-                                  <span
-                                    className={`card-points ${
-                                      points === 0 ? "card-points-zero" : ""
-                                    }`}
-                                  >
-                                    {points}
-                                  </span>
-                                  <span className="card-bonus-label">
-                                    {card?.bonusColor ?? "?"}
-                                  </span>
-                                </div>
-                                <div className="card-cost">
-                                  {COST_ORDER.map((costColor) => (
-                                    <CostChip
-                                      key={costColor}
-                                      color={costColor}
-                                      amount={card?.cost?.[costColor] ?? 0}
-                                    />
-                                  ))}
-                                </div>
-                              </article>
-                            );
-                          })}
+                          {cardIds.map((cardId: number) => (
+                            <DevelopmentCardView key={cardId} cardId={cardId} />
+                          ))}
                         </div>
                       </div>
                     ))}
@@ -424,13 +484,28 @@ function App() {
                       0,
                     )
                   : 0;
-                const reserved = Array.isArray(player?.reservedCardIds)
-                  ? `${player?.reservedCardIds.length}`
-                  : `${player?.reservedCardIds.value.count ?? 0} (hidden)`;
+                const reservedField = player?.reservedCardIds;
+                const reservedIds = Array.isArray(reservedField)
+                  ? reservedField
+                  : null;
+                const reservedCount = reservedIds
+                  ? reservedIds.length
+                  : !reservedField || Array.isArray(reservedField)
+                    ? 0
+                    : (reservedField.value.count ?? 0);
+                const isSelf = reservedIds !== null;
                 return (
-                  <div className="player" key={playerId}>
+                  <div
+                    className={`player${isSelf ? " is-self" : ""}`}
+                    key={playerId}
+                  >
                     <div className="player-head">
-                      <span className="player-name">{playerId}</span>
+                      <span className="player-name">
+                        {playerId}
+                        {isSelf ? (
+                          <span className="player-self-tag">you</span>
+                        ) : null}
+                      </span>
                       <span className="player-stats">
                         {totalTokens}/10 tokens
                       </span>
@@ -449,28 +524,60 @@ function App() {
                         );
                       })}
                     </div>
-                    <div className="player-meta">
-                      <div className="player-meta-row">
-                        <span className="player-meta-label">Cards</span>
-                        <span>{player?.purchasedCardIds.length ?? 0}</span>
-                      </div>
-                      <div className="player-meta-row">
-                        <span className="player-meta-label">Reserved</span>
-                        <span>{reserved}</span>
-                      </div>
-                      <div className="player-meta-row">
-                        <span className="player-meta-label">Nobles</span>
-                        <span>
-                          {player?.nobleIds.length
-                            ? player.nobleIds
-                                .map(
-                                  (id) => nobleTilesById[id]?.name ?? `#${id}`,
-                                )
-                                .join(", ")
-                            : "—"}
+
+                    <div className="player-section">
+                      <div className="player-section-head">
+                        <span className="player-section-label">Cards</span>
+                        <span className="player-section-count">
+                          {player?.purchasedCardIds.length ?? 0}
                         </span>
                       </div>
+                      <PurchasedStacks
+                        cardIds={player?.purchasedCardIds ?? []}
+                      />
                     </div>
+
+                    <div className="player-section">
+                      <div className="player-section-head">
+                        <span className="player-section-label">Reserved</span>
+                        <span className="player-section-count">
+                          {reservedCount}
+                        </span>
+                      </div>
+                      {reservedIds && reservedIds.length > 0 ? (
+                        <div className="reserved-cards">
+                          {reservedIds.map((cardId) => (
+                            <DevelopmentCardView
+                              key={cardId}
+                              cardId={cardId}
+                              compact
+                            />
+                          ))}
+                        </div>
+                      ) : reservedIds ? (
+                        <span className="reserved-empty">none</span>
+                      ) : (
+                        <span className="reserved-empty">hidden</span>
+                      )}
+                    </div>
+
+                    {player?.nobleIds.length ? (
+                      <div className="player-section">
+                        <div className="player-section-head">
+                          <span className="player-section-label">Nobles</span>
+                          <span className="player-section-count">
+                            {player.nobleIds.length}
+                          </span>
+                        </div>
+                        <div className="player-nobles">
+                          {player.nobleIds.map((id) => (
+                            <span key={id} className="noble-tag">
+                              {nobleTilesById[id]?.name ?? `#${id}`}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}
