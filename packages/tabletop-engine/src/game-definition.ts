@@ -30,6 +30,7 @@ type NonFunctionPropertyKeys<TObject> = {
     : K;
 }[keyof TObject];
 
+// Compile-time view of a facade state as canonical plain data, omitting methods.
 type CanonicalGameStateShape<TState> = TState extends readonly (infer TItem)[]
   ? CanonicalGameStateShape<TItem>[]
   : TState extends object
@@ -204,9 +205,7 @@ export class GameDefinitionBuilder<
     const canonicalGameStateSchema = compileCanonicalGameStateSchema(
       this.config.rootState,
     );
-    const runtimeStateSchema = compileRuntimeStateSchema(
-      stages as Record<string, AnyStageDefinition>,
-    );
+    const runtimeStateSchema = compileRuntimeStateSchema(stages);
     const defaultCanonicalGameState = createDefaultCanonicalGameState(
       this.config.rootState,
     );
