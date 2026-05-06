@@ -31,12 +31,15 @@ This is unsafe and makes the schema layer harder to reason about.
 
 ## Decision
 
-Move to an extension model:
+Move to an extension model at runtime, with a separate engine-owned type
+discriminant for static inference:
 
 - Serializable fields are real TypeBox schemas.
 - The engine attaches its own metadata directly to those schema objects.
 - `t.state(...)` remains engine-only because nested state facade references are
   not TypeBox schemas.
+- Static inference should use engine-owned metadata, not TypeBox's broad schema
+  object shape.
 
 The public lowercase authoring API can remain:
 
@@ -56,19 +59,22 @@ renaming the API to Elysia-style `t.Number()` / `t.Object()`.
 
 ## Field Model
 
-Serializable field types should extend TypeBox schema objects directly:
+Serializable field values should extend TypeBox schema objects directly:
 
 ```ts
 type NumberFieldType = TNumber & {
+  readonly [fieldKind]: "number";
   kind: "number";
 };
 
 type ArrayFieldType<TItem> = TArray<ExtractSerializableSchema<TItem>> & {
+  readonly [fieldKind]: "array";
   kind: "array";
   item: TItem;
 };
 
 type ObjectFieldType<TProperties> = TObject<...> & {
+  readonly [fieldKind]: "object";
   kind: "object";
   properties: TProperties;
 };
@@ -78,6 +84,7 @@ type ObjectFieldType<TProperties> = TObject<...> & {
 
 ```ts
 type StateFieldType = {
+  readonly [fieldKind]: "state";
   kind: "state";
   target: StateFieldTargetFactory;
 };
@@ -89,10 +96,52 @@ The full engine field union remains:
 type FieldType = SerializableFieldType | StateFieldType;
 ```
 
-`kind` is still useful. It is the engine's discriminant for facade semantics,
-default canonical state generation, projection, hydration, and for rejecting
-state fields in transport schemas. TypeBox's own schema shape is not enough
-because TypeBox does not know about decorated state facade classes.
+`kind` is still useful at runtime. It is the engine's discriminant for facade
+semantics, default canonical state generation, projection, hydration, and for
+rejecting state fields in transport schemas. TypeBox's own schema shape is not
+enough because TypeBox does not know about decorated state facade classes.
+
+The private `fieldKind` symbol is for TypeScript-only discrimination. It avoids
+using string properties such as `kind` and `item` in conditional types.
+
+## Implementation Finding
+
+An initial implementation attempt used only string metadata:
+
+```ts
+type NumberFieldType = TNumber & { kind: "number" };
+type OptionalFieldType<TItem> = TOptional<...> & {
+  kind: "optional";
+  item: TItem;
+};
+```
+
+That failed at the type level even though the runtime model was sound.
+
+TypeBox's `TSchema` includes a broad string index signature through
+`SchemaOptions`:
+
+```ts
+[prop: string]: any;
+```
+
+As a result, conditional types like this are not reliable:
+
+```ts
+TField extends { kind: "optional"; item: infer TItem } ? ... : ...
+```
+
+A plain TypeBox schema may appear to satisfy arbitrary string properties, which
+caused incorrect inference such as required object fields becoming optional or
+`undefined`. Combining TypeBox's recursive static types with the engine's
+recursive field metadata also produced `Type instantiation is excessively deep
+and possibly infinite` errors across the command factory, protocol, and test
+types.
+
+The corrected design keeps the runtime extension model, but static inference
+must discriminate on an engine-owned `unique symbol` property and avoid
+recursively deriving through full TypeBox intersections where a simpler
+engine-owned static type is enough.
 
 ## Runtime Construction
 
@@ -102,6 +151,7 @@ schema object:
 ```ts
 number(): NumberFieldType {
   return Object.assign(Type.Number(), {
+    [fieldKind]: "number" as const,
     kind: "number" as const,
   });
 }
@@ -124,6 +174,7 @@ object<TProperties extends Record<string, FieldType>>(
       { additionalProperties: false },
     ),
     {
+      [fieldKind]: "object" as const,
       kind: "object" as const,
       properties,
     },
@@ -177,12 +228,15 @@ coherent public API.
 1. Update `packages/tabletop-engine/src/schema/types.ts`.
    - Remove `readonly schema?: ...` from serializable field types.
    - Keep TypeBox intersections for serializable fields.
+   - Add a private `unique symbol` field tag for type-level discrimination.
    - Keep `StateFieldType` / `NestedStateFieldType` as engine-only metadata.
-   - Update schema extraction helpers to treat serializable fields as schemas.
+   - Update static extraction helpers to discriminate by symbol metadata, not
+     by string properties or TypeBox internals.
 
 2. Rewrite `packages/tabletop-engine/src/schema/index.ts`.
    - Remove `withSchema(...)`.
    - Construct serializable fields with `Object.assign(Type.*(...), metadata)`.
+   - Assign both runtime `kind` and symbol metadata.
    - Simplify `toTypeBoxSchema(...)`.
    - Update record key handling to use TypeBox schema objects directly.
 
@@ -190,6 +244,9 @@ coherent public API.
    - Add assertions that `t.number()` / `t.object(...)` are valid TypeBox
      schemas directly.
    - Add assertions that engine metadata still exists on those schemas.
+   - Add type-level coverage for optional object properties and command
+     discovery schemas, because this is where the first implementation attempt
+     regressed.
    - Keep existing rejection tests for nested `t.state(...)` in serializable
      transport schemas.
 
