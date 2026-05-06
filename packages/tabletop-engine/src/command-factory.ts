@@ -443,7 +443,3 @@ export function createCommandFactory<FacadeGameState extends object>() {
 
   return defineCommand;
 }
-
-export type InferCommandInputFromSchema<
-  TSchema extends CommandSchema<Record<string, unknown>>,
-> = TSchema["static"];

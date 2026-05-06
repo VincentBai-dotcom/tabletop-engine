@@ -19,8 +19,6 @@ type CommandDefinitionMap<FacadeGameState extends object = object> = Record<
   CommandDefinition<FacadeGameState>
 >;
 
-type AnyStageDefinition = StageDefinition<object>;
-
 type NonFunctionPropertyKeys<TObject> = {
   [K in keyof TObject]: TObject[K] extends (...args: never[]) => unknown
     ? never
@@ -71,8 +69,8 @@ export interface GameDefinition<
   runtimeStateSchema: TSchema;
   setupInputSchema?: ObjectFieldType<Record<string, FieldType>>;
   defaultCanonicalGameState: CanonicalGameState;
-  initialStage: AnyStageDefinition;
-  stages: Record<string, AnyStageDefinition>;
+  initialStage: StageDefinition;
+  stages: Record<string, StageDefinition>;
   setup?: (context: GameSetupContext<FacadeGameState, SetupInput>) => void;
 }
 
@@ -96,7 +94,7 @@ interface GameDefinitionBuilderState<
 > {
   name: string;
   rootState?: StateClass;
-  initialStage?: AnyStageDefinition;
+  initialStage?: StageDefinition;
   setup?: (context: GameSetupContext<FacadeGameState, SetupInput>) => void;
 }
 
@@ -158,7 +156,7 @@ export class GameDefinitionBuilder<
     >;
   }
 
-  initialStage(initialStage: AnyStageDefinition): this {
+  initialStage(initialStage: StageDefinition): this {
     this.config.initialStage = initialStage;
     return this;
   }
