@@ -36,18 +36,16 @@ type CanonicalGameStateShape<TState> = TState extends readonly (infer TItem)[]
       }
     : TState;
 
-type NoSetupInput = undefined;
-
 type SetupInputFromSchema<
   TSchema extends ObjectFieldType<Record<string, FieldType>> | undefined,
 > =
   TSchema extends ObjectFieldType<infer TProperties>
     ? ObjectSchemaStatic<TProperties>
-    : NoSetupInput;
+    : undefined;
 
 export interface GameSetupContext<
   GameState extends object = object,
-  SetupInput extends object | undefined = NoSetupInput,
+  SetupInput extends object | undefined = undefined,
 > {
   game: GameState;
   runtime: RuntimeState;
@@ -60,7 +58,7 @@ export interface GameDefinition<
   FacadeGameState extends object = CanonicalGameState,
   Commands extends CommandDefinitionMap<FacadeGameState> =
     CommandDefinitionMap<FacadeGameState>,
-  SetupInput extends object | undefined = NoSetupInput,
+  SetupInput extends object | undefined = undefined,
 > {
   name: string;
   commands: Commands;
@@ -79,7 +77,7 @@ interface GameDefinitionBuilderState<
   CanonicalGameState extends object = CanonicalGameStateShape<FacadeGameState>,
   Commands extends CommandDefinitionMap<FacadeGameState> =
     CommandDefinitionMap<FacadeGameState>,
-  SetupInput extends object | undefined = NoSetupInput,
+  SetupInput extends object | undefined = undefined,
 > extends Partial<
   Omit<
     GameDefinition<CanonicalGameState, FacadeGameState, Commands, SetupInput>,
@@ -103,7 +101,7 @@ export class GameDefinitionBuilder<
   CanonicalGameState extends object = CanonicalGameStateShape<FacadeGameState>,
   Commands extends CommandDefinitionMap<FacadeGameState> =
     CommandDefinitionMap<FacadeGameState>,
-  SetupInput extends object | undefined = NoSetupInput,
+  SetupInput extends object | undefined = undefined,
 > {
   private readonly config: GameDefinitionBuilderState<
     FacadeGameState,
