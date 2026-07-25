@@ -10,9 +10,11 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "generate:client-sdk": "tsx ../../../packages/cli/src/main.ts generate client-sdk --outDir generated"
+    "generate:client-sdk": "tsx ../../../packages/cli/src/main.ts generate client-sdk --outDir generated",
+    "tvk": "tsx --env-file=.env ../../../packages/cli/src/main.ts"
   },
   "dependencies": {
+    "@tableverse-kit/config": "workspace:*",
     "@tableverse-kit/engine": "workspace:*"
   },
   "peerDependencies": {
