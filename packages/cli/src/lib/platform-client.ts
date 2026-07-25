@@ -2,12 +2,35 @@ import type { TSchema, Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { MeResponseSchema, type MeResponse } from "./api/me.ts";
 import { OAuthTokenResponseSchema } from "./api/oauth-token.ts";
+import {
+  GameResponseSchema,
+  ListGamesResponseSchema,
+  type GameResponse,
+  type ListGamesResponse,
+} from "./api/games.ts";
+import {
+  CreateVersionResponseSchema,
+  StartBuildResponseSchema,
+  type CreateVersionResponse,
+  type PresignedUpload,
+  type StartBuildResponse,
+} from "./api/versions.ts";
+import { BuildResponseSchema, type BuildResponse } from "./api/builds.ts";
 
 export interface TokenResponse {
   accessToken: string;
   refreshToken: string;
   /** Lifetime of the access token in seconds. */
   expiresIn: number;
+}
+
+export interface CreateVersionInput {
+  accessToken: string;
+  gameId: string;
+  engineSourceSha256: string;
+  engineSourceSizeBytes: number;
+  frontendSourceSha256: string;
+  frontendSourceSizeBytes: number;
 }
 
 export interface PlatformClient {
@@ -19,9 +42,52 @@ export interface PlatformClient {
   refreshToken(input: { refreshToken: string }): Promise<TokenResponse>;
   logout(input: { refreshToken: string }): Promise<void>;
   me(input: { accessToken: string }): Promise<MeResponse>;
+  listGames(input: { accessToken: string }): Promise<ListGamesResponse>;
+  createGame(input: {
+    accessToken: string;
+    name: string;
+  }): Promise<GameResponse>;
+  getGame(input: {
+    accessToken: string;
+    gameId: string;
+  }): Promise<GameResponse>;
+  createVersion(input: CreateVersionInput): Promise<CreateVersionResponse>;
+  startBuild(input: {
+    accessToken: string;
+    versionId: string;
+  }): Promise<StartBuildResponse>;
+  getBuild(input: {
+    accessToken: string;
+    buildId: string;
+  }): Promise<BuildResponse>;
+  /**
+   * Uploads one tarball straight to its presigned target. Not a platform-api
+   * call — the URL points at object storage — so it is separate from the
+   * authenticated methods above and carries no bearer token.
+   */
+  uploadArtifact(input: {
+    target: PresignedUpload;
+    body: Uint8Array;
+  }): Promise<void>;
 }
 
 export type FetchLike = typeof fetch;
+
+/**
+ * A presigned upload was rejected by object storage. Distinct from
+ * `PlatformRequestError` (which names a platform-api endpoint): the failing
+ * request went to storage, and a 403 here typically means the upload window
+ * expired rather than that the session is bad.
+ */
+export class ArtifactUploadError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`artifact_upload_failed:${status}`);
+    this.name = "ArtifactUploadError";
+    this.status = status;
+  }
+}
 
 export class PlatformRequestError extends Error {
   readonly status: number;
@@ -154,6 +220,126 @@ export function createPlatformClient(options: {
       }
 
       return parseResponse(MeResponseSchema, await response.json(), endpoint);
+    },
+
+    async listGames({ accessToken }) {
+      const endpoint = "/games";
+      const response = await fetchImpl(`${apiBaseUrl}${endpoint}`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!response.ok) {
+        throw new PlatformRequestError(response.status, endpoint);
+      }
+
+      return parseResponse(
+        ListGamesResponseSchema,
+        await response.json(),
+        endpoint,
+      );
+    },
+
+    async createGame({ accessToken, name }) {
+      const endpoint = "/games";
+      const response = await fetchImpl(`${apiBaseUrl}${endpoint}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!response.ok) {
+        throw new PlatformRequestError(response.status, endpoint);
+      }
+
+      return parseResponse(GameResponseSchema, await response.json(), endpoint);
+    },
+
+    async getGame({ accessToken, gameId }) {
+      const endpoint = `/games/${gameId}`;
+      const response = await fetchImpl(`${apiBaseUrl}${endpoint}`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!response.ok) {
+        throw new PlatformRequestError(response.status, endpoint);
+      }
+
+      return parseResponse(GameResponseSchema, await response.json(), endpoint);
+    },
+
+    async createVersion({ accessToken, ...body }) {
+      const endpoint = "/versions";
+      const response = await fetchImpl(`${apiBaseUrl}${endpoint}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        throw new PlatformRequestError(response.status, endpoint);
+      }
+
+      return parseResponse(
+        CreateVersionResponseSchema,
+        await response.json(),
+        endpoint,
+      );
+    },
+
+    async startBuild({ accessToken, versionId }) {
+      const endpoint = `/versions/${versionId}/build`;
+      const response = await fetchImpl(`${apiBaseUrl}${endpoint}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!response.ok) {
+        throw new PlatformRequestError(response.status, endpoint);
+      }
+
+      return parseResponse(
+        StartBuildResponseSchema,
+        await response.json(),
+        endpoint,
+      );
+    },
+
+    async getBuild({ accessToken, buildId }) {
+      const endpoint = `/builds/${buildId}`;
+      const response = await fetchImpl(`${apiBaseUrl}${endpoint}`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!response.ok) {
+        throw new PlatformRequestError(response.status, endpoint);
+      }
+
+      return parseResponse(
+        BuildResponseSchema,
+        await response.json(),
+        endpoint,
+      );
+    },
+
+    async uploadArtifact({ target, body }) {
+      // Headers must be sent exactly as issued: the declared digest is bound
+      // into the signature. The body is a Buffer so fetch sets Content-Length
+      // to the exact size the presigned URL was minted for.
+      const response = await fetchImpl(target.url, {
+        method: "PUT",
+        headers: target.headers,
+        body,
+      });
+
+      if (!response.ok) {
+        throw new ArtifactUploadError(response.status);
+      }
     },
   };
 }

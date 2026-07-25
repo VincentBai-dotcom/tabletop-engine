@@ -8,6 +8,7 @@ export function createRootHelpText(): string {
     "  login",
     "  logout",
     "  whoami",
+    "  upload",
   ].join("\n");
 }
 
@@ -65,5 +66,24 @@ export function createWhoamiHelpText(): string {
     "Print the currently logged-in account.",
     "",
     ...ENVIRONMENT_HELP,
+  ].join("\n");
+}
+
+export function createUploadHelpText(): string {
+  return [
+    "tvk upload",
+    "",
+    "Package the engine and frontend source and publish a new game version.",
+    "On the first upload of an unlinked project, you are asked to create a new",
+    "game or pick an existing one; the choice is saved to .tableverse/game.json.",
+    "In a non-interactive shell, set TABLEVERSE_GAME_ID instead.",
+    "",
+    "Optional flags:",
+    "  --config <path>",
+    "",
+    ...ENVIRONMENT_HELP,
+    "  TABLEVERSE_GAME_ID                 publish to this game id, overriding the link",
+    "  TABLEVERSE_BUILD_POLL_TIMEOUT_MS   how long to wait for the build (default 30000)",
+    "  TABLEVERSE_BUILD_POLL_INTERVAL_MS  poll interval while building (default 2000)",
   ].join("\n");
 }

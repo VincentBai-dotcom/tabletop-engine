@@ -1,4 +1,5 @@
 import type { AnyGameDefinition } from "@tableverse-kit/engine";
+import type { PublishConfig } from "@tableverse-kit/config";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 interface LoadConfigOptions {
@@ -9,11 +10,13 @@ interface LoadConfigOptions {
 interface RuntimeCliConfig {
   game: AnyGameDefinition;
   outDir?: string;
+  publish?: PublishConfig;
 }
 
 export interface LoadedCliConfig {
   game: AnyGameDefinition;
   outDir?: string;
+  publish?: PublishConfig;
   configFilePath: string;
   configDirectory: string;
 }
@@ -49,10 +52,43 @@ function isCliConfig(value: unknown): value is RuntimeCliConfig {
     return false;
   }
 
+  if (
+    "outDir" in value &&
+    value.outDir !== undefined &&
+    typeof value.outDir !== "string"
+  ) {
+    return false;
+  }
+
   return (
-    !("outDir" in value) ||
-    value.outDir === undefined ||
-    typeof value.outDir === "string"
+    !("publish" in value) ||
+    value.publish === undefined ||
+    isPublishConfig(value.publish)
+  );
+}
+
+function isPublishConfig(value: unknown): value is PublishConfig {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const { engine, frontend } = value as Record<string, unknown>;
+
+  const engineOk =
+    !!engine &&
+    typeof engine === "object" &&
+    typeof (engine as Record<string, unknown>).root === "string";
+
+  if (!engineOk || !frontend || typeof frontend !== "object") {
+    return false;
+  }
+
+  const f = frontend as Record<string, unknown>;
+
+  return (
+    typeof f.root === "string" &&
+    typeof f.buildCommand === "string" &&
+    typeof f.outDir === "string"
   );
 }
 

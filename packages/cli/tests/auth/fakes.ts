@@ -56,12 +56,23 @@ export function createMemoryTokenStore(
 export function createFakeClient(
   overrides: Partial<PlatformClient> = {},
 ): PlatformClient {
+  const notStubbed = (method: string) => async () => {
+    throw new Error(`${method}_not_stubbed`);
+  };
+
   return {
     exchangeAuthorizationCode:
       overrides.exchangeAuthorizationCode ?? (async () => defaultTokens()),
     refreshToken: overrides.refreshToken ?? (async () => defaultTokens()),
     logout: overrides.logout ?? (async () => {}),
     me: overrides.me ?? (async () => defaultAccount()),
+    listGames: overrides.listGames ?? notStubbed("listGames"),
+    createGame: overrides.createGame ?? notStubbed("createGame"),
+    getGame: overrides.getGame ?? notStubbed("getGame"),
+    createVersion: overrides.createVersion ?? notStubbed("createVersion"),
+    startBuild: overrides.startBuild ?? notStubbed("startBuild"),
+    getBuild: overrides.getBuild ?? notStubbed("getBuild"),
+    uploadArtifact: overrides.uploadArtifact ?? notStubbed("uploadArtifact"),
   };
 }
 

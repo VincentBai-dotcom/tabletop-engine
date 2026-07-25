@@ -14,10 +14,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.5.2",
     "@sinclair/typebox": "^0.34.41",
-    "@tableverse-kit/engine": "workspace:*"
+    "@tableverse-kit/config": "workspace:*",
+    "@tableverse-kit/engine": "workspace:*",
+    "tar": "^7.5.21"
   },
   "devDependencies": {
+    "@inquirer/testing": "^3.3.9",
     "@types/node": "^24.13.2",
     "splendor-example": "workspace:*"
   },
