@@ -1,5 +1,5 @@
 {
-  "name": "@tableverse-kit/engine",
+  "name": "@tableverse-kit/config",
   "version": "0.0.0",
   "type": "module",
   "private": false,
@@ -10,12 +10,12 @@
   "files": [
     "src"
   ],
-  "dependencies": {
-    "@sinclair/typebox": "^0.34.41"
-  },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tableverse-kit/engine": "workspace:*"
   },
   "peerDependencies": {
     "typescript": "^5"

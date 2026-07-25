@@ -12,7 +12,7 @@ async function writeCliConfig(cwd: string): Promise<void> {
   const configFile = join(cwd, "tableverse.config.ts");
   const configSource = [
     `import { defineConfig } from ${JSON.stringify(
-      pathToFileURL(join(repoRoot, "packages", "engine", "src", "config.ts"))
+      pathToFileURL(join(repoRoot, "packages", "config", "src", "index.ts"))
         .href,
     )};`,
     `import { t } from ${JSON.stringify(

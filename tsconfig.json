@@ -5,6 +5,9 @@
       "path": "./packages/cli"
     },
     {
+      "path": "./packages/config"
+    },
+    {
       "path": "./packages/engine"
     },
     {
