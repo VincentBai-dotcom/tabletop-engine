@@ -74,3 +74,6 @@ examples/splendor/engine/nobile tiles.md
 
 # local git worktrees
 .worktrees
+
+# local design docs and plans (kept out of the published repo)
+/docs/
