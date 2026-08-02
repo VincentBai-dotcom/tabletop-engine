@@ -71,7 +71,6 @@ export function createFakeClient(
     getGame: overrides.getGame ?? notStubbed("getGame"),
     createVersion: overrides.createVersion ?? notStubbed("createVersion"),
     startBuild: overrides.startBuild ?? notStubbed("startBuild"),
-    getBuild: overrides.getBuild ?? notStubbed("getBuild"),
     uploadArtifact: overrides.uploadArtifact ?? notStubbed("uploadArtifact"),
   };
 }

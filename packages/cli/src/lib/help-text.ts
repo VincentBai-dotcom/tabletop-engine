@@ -83,7 +83,5 @@ export function createUploadHelpText(): string {
     "",
     ...ENVIRONMENT_HELP,
     "  TABLEVERSE_GAME_ID                 publish to this game id, overriding the link",
-    "  TABLEVERSE_BUILD_POLL_TIMEOUT_MS   how long to wait for the build (default 30000)",
-    "  TABLEVERSE_BUILD_POLL_INTERVAL_MS  poll interval while building (default 2000)",
   ].join("\n");
 }

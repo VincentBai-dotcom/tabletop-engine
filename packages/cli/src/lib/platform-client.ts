@@ -15,7 +15,6 @@ import {
   type PresignedUpload,
   type StartBuildResponse,
 } from "./api/versions.ts";
-import { BuildResponseSchema, type BuildResponse } from "./api/builds.ts";
 
 export interface TokenResponse {
   accessToken: string;
@@ -56,10 +55,6 @@ export interface PlatformClient {
     accessToken: string;
     versionId: string;
   }): Promise<StartBuildResponse>;
-  getBuild(input: {
-    accessToken: string;
-    buildId: string;
-  }): Promise<BuildResponse>;
   /**
    * Uploads one tarball straight to its presigned target. Not a platform-api
    * call — the URL points at object storage — so it is separate from the
@@ -305,23 +300,6 @@ export function createPlatformClient(options: {
 
       return parseResponse(
         StartBuildResponseSchema,
-        await response.json(),
-        endpoint,
-      );
-    },
-
-    async getBuild({ accessToken, buildId }) {
-      const endpoint = `/builds/${buildId}`;
-      const response = await fetchImpl(`${apiBaseUrl}${endpoint}`, {
-        headers: { authorization: `Bearer ${accessToken}` },
-      });
-
-      if (!response.ok) {
-        throw new PlatformRequestError(response.status, endpoint);
-      }
-
-      return parseResponse(
-        BuildResponseSchema,
         await response.json(),
         endpoint,
       );

@@ -13,7 +13,6 @@ import createFixtureGame from "../fixtures/game-default.ts";
 import { runUploadCommand } from "../../src/commands/upload.ts";
 import type { UploadContext } from "../../src/lib/upload/context.ts";
 import type { LoadedCliConfig } from "../../src/lib/load-config.ts";
-import type { BuildResponse } from "../../src/lib/api/builds.ts";
 import type { PresignedUpload } from "../../src/lib/api/versions.ts";
 import type { CreateVersionInput } from "../../src/lib/platform-client.ts";
 import { PlatformRequestError } from "../../src/lib/platform-client.ts";
@@ -76,10 +75,6 @@ function game() {
   };
 }
 
-function buildResponse(status: BuildResponse["status"]): BuildResponse {
-  return { buildId: "b1", status, steps: [], error: null, logsUrl: null };
-}
-
 function target(name: string): PresignedUpload {
   return {
     url: `https://sink.example/${name}`,
@@ -91,6 +86,7 @@ interface Harness {
   ctx: UploadContext;
   emitted: string[];
   uploads: { url: string; size: number }[];
+  opened: string[];
   versionInput: () => CreateVersionInput | undefined;
 }
 
@@ -103,6 +99,7 @@ function harness(
 ): Harness {
   const emitted: string[] = [];
   const uploads: { url: string; size: number }[] = [];
+  const opened: string[] = [];
   let versionInput: CreateVersionInput | undefined;
 
   const client = createFakeClient({
@@ -123,36 +120,29 @@ function harness(
       uploads.push({ url: t.url, size: body.length });
     },
     startBuild: async () => ({ buildId: "b1" }),
-    getBuild: async () => buildResponse("ready"),
     ...overrides.client,
   });
-
-  // A clock that only moves when the poll loop sleeps, so a never-terminal build
-  // reaches the timeout deterministically instead of spinning.
-  let t = FIXED_NOW.getTime();
 
   const ctx: UploadContext = {
     config: TEST_CONFIG,
     tokenStore: createMemoryTokenStore([storedCredentials()]),
     client,
-    now: () => new Date(t),
-    sleep: async (ms) => {
-      t += ms;
-    },
+    now: () => FIXED_NOW,
     cwd: root,
     env: { TABLEVERSE_GAME_ID: "game-123" },
     loadConfig: async () => loadedConfig(root),
-    pollTimeoutMs: 100,
-    pollIntervalMs: 10,
     interactive: true,
     linkPrompt: async () => {
       throw new Error("linkPrompt_not_stubbed");
+    },
+    openBrowser: async (url) => {
+      opened.push(url);
     },
     emit: (line) => emitted.push(line),
     ...overrides.context,
   };
 
-  return { ctx, emitted, uploads, versionInput: () => versionInput };
+  return { ctx, emitted, uploads, opened, versionInput: () => versionInput };
 }
 
 describe("tvk upload", () => {
@@ -163,7 +153,9 @@ describe("tvk upload", () => {
     const result = await runUploadCommand([], h.ctx);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toBe("Published Slaylike@v4");
+    expect(result.stdout).toContain(
+      "https://dev.tableverse.io/studio/games/game-123/deployments/b1?v=4",
+    );
 
     // Uploads run concurrently, so match by url rather than array order.
     expect(h.uploads).toHaveLength(2);
@@ -191,51 +183,58 @@ describe("tvk upload", () => {
     expect(h.emitted[0]).toBe("Publishing to Slaylike (game-123)");
   });
 
-  it("fails with a clear message when the build never leaves queued", async () => {
+  it("opens the deployment dashboard and exits once the build starts", async () => {
+    const root = await setupProject();
+    const h = harness(root);
+
+    const result = await runUploadCommand([], h.ctx);
+
+    const dashboardUrl =
+      "https://dev.tableverse.io/studio/games/game-123/deployments/b1?v=4";
+    expect(result.exitCode).toBe(0);
+    // The browser is opened at the same URL that is printed to stdout.
+    expect(h.opened).toEqual([dashboardUrl]);
+    expect(result.stdout).toContain(dashboardUrl);
+  });
+
+  it("prints the dashboard URL without opening a browser when non-interactive", async () => {
     const root = await setupProject();
     const h = harness(root, {
-      client: { getBuild: async () => buildResponse("queued") },
+      // Linked via the env override, so a non-interactive run still resolves a
+      // game and reaches the hand-off.
+      context: { interactive: false },
     });
 
     const result = await runUploadCommand([], h.ctx);
 
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("b1");
-    expect(result.stderr).toContain("queued");
+    expect(result.exitCode).toBe(0);
+    // No terminal to see a browser: don't spawn one, just print the URL.
+    expect(h.opened).toEqual([]);
+    expect(result.stdout).toContain(
+      "https://dev.tableverse.io/studio/games/game-123/deployments/b1?v=4",
+    );
+    expect(h.emitted).not.toContain(
+      "Build started — opening the deployment dashboard in your browser…",
+    );
   });
 
-  it("reports the failing step on a failed build", async () => {
+  it("still succeeds when the browser cannot be opened", async () => {
     const root = await setupProject();
     const h = harness(root, {
-      client: {
-        getBuild: async () => ({
-          buildId: "b1",
-          status: "failed",
-          steps: [
-            {
-              name: "install",
-              status: "ready",
-              startedAt: null,
-              finishedAt: null,
-            },
-            {
-              name: "engine",
-              status: "failed",
-              startedAt: null,
-              finishedAt: null,
-            },
-          ],
-          error: "type error in engine",
-          logsUrl: "https://logs.example/b1",
-        }),
+      context: {
+        openBrowser: async () => {
+          throw new Error("no display");
+        },
       },
     });
 
     const result = await runUploadCommand([], h.ctx);
 
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('step "engine"');
-    expect(result.stderr).toContain("https://logs.example/b1");
+    // The printed URL is the real deliverable, so a headless box is not a failure.
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain(
+      "https://dev.tableverse.io/studio/games/game-123/deployments/b1?v=4",
+    );
   });
 
   it("refuses to auto-create when unlinked and non-interactive", async () => {
@@ -283,7 +282,9 @@ describe("tvk upload", () => {
     const result = await runUploadCommand([], h.ctx);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toBe("Published Splendor@v4");
+    expect(result.stdout).toContain(
+      "https://dev.tableverse.io/studio/games/new-game/deployments/b1?v=4",
+    );
     expect(created).toEqual(["Splendor"]);
     // The choice is persisted so the next upload skips the prompt.
     const link = JSON.parse(
@@ -318,7 +319,9 @@ describe("tvk upload", () => {
     const result = await runUploadCommand([], h.ctx);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toBe("Published Older@v4");
+    expect(result.stdout).toContain(
+      "https://dev.tableverse.io/studio/games/old-game/deployments/b1?v=4",
+    );
     expect(created).toHaveLength(0);
     const link = JSON.parse(
       await readFile(join(root, ".tableverse", "game.json"), "utf8"),

@@ -11,7 +11,7 @@ import {
 } from "../lib/link/game-link.ts";
 import { findLockfile } from "../lib/packaging/lockfile.ts";
 import { packSource } from "../lib/packaging/tarball.ts";
-import { pollBuild } from "../lib/upload/poll-build.ts";
+import { buildDeploymentUrl } from "../lib/upload/deployment-url.ts";
 import {
   InaccessibleGameError,
   MissingLockfileError,
@@ -242,51 +242,31 @@ export async function runUploadCommand(
       versionId: version.versionId,
     });
 
-    const emitted = new Set<string>();
-    const outcome = await pollBuild({
-      fetch: () => ctx.client.getBuild({ accessToken, buildId }),
-      onUpdate: (build) => {
-        for (const step of build.steps) {
-          if (step.status === "ready" && !emitted.has(step.name)) {
-            emitted.add(step.name);
-            ctx.emit(`${step.name} ✓`);
-          }
-        }
-      },
-      sleep: ctx.sleep,
-      now: () => ctx.now().getTime(),
-      intervalMs: ctx.pollIntervalMs,
-      timeoutMs: ctx.pollTimeoutMs,
+    // Hand the build off to the web dashboard rather than polling here: the
+    // build runs for minutes, and the page renders live status far better than a
+    // pinned terminal. The URL carries identifiers only — the browser
+    // authenticates through its own platform-web session, never the CLI's token.
+    const dashboardUrl = buildDeploymentUrl({
+      webBaseUrl: ctx.config.webBaseUrl,
+      gameId: game.id,
+      buildId,
+      versionNumber: version.versionNumber,
     });
-
-    if (outcome.status === "ready") {
-      return success(`Published ${game.name}@v${version.versionNumber}`);
-    }
-
-    if (outcome.status === "failed") {
-      const failingStep = outcome.build.steps.find(
-        (step) => step.status === "failed",
+    // Only reach for a browser when there is a user at a terminal: in CI or a
+    // piped run there is nothing to open, and the printed URL is the hand-off.
+    if (ctx.interactive) {
+      ctx.emit(
+        "Build started — opening the deployment dashboard in your browser…",
       );
-      const lines = [
-        failingStep
-          ? `Build failed at step "${failingStep.name}".`
-          : "Build failed.",
-      ];
-      if (outcome.build.error) {
-        lines.push(outcome.build.error);
-      }
-      if (outcome.build.logsUrl) {
-        lines.push(`Logs: ${outcome.build.logsUrl}`);
-      }
-      return failure(lines.join("\n"));
+      // Best-effort: on a headless box `openBrowser` may find no handler, so the
+      // printed URL is the real deliverable and the failure is swallowed.
+      await ctx.openBrowser(dashboardUrl).catch(() => {});
     }
 
-    const seconds = Math.round(ctx.pollTimeoutMs / 1000);
-    return failure(
+    return success(
       [
-        `Build ${buildId} is still ${outcome.build.status} after ${seconds}s.`,
-        "No build runner may be configured yet. Re-run `tvk upload` or check back later;",
-        "raise TABLEVERSE_BUILD_POLL_TIMEOUT_MS to wait longer.",
+        `Build started for ${game.name} v${version.versionNumber}. Track it at:`,
+        `  ${dashboardUrl}`,
       ].join("\n"),
     );
   } catch (error) {
