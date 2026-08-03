@@ -4,8 +4,7 @@
   "type": "module",
   "private": false,
   "exports": {
-    ".": "./src/index.ts",
-    "./react": "./src/react/index.ts"
+    ".": "./src/index.ts"
   },
   "types": "./src/index.ts",
   "files": [
@@ -19,17 +18,9 @@
     "@tableverse-kit/engine": "workspace:*"
   },
   "peerDependencies": {
-    "react": "^18.0.0 || ^19.0.0",
     "typescript": "^5"
   },
-  "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    }
-  },
   "devDependencies": {
-    "@types/node": "^24.13.2",
-    "@types/react": "^19.2.14",
-    "react": "^19.2.5"
+    "@types/node": "^24.13.2"
   }
 }
