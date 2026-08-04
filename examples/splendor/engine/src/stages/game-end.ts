@@ -3,9 +3,10 @@ import type {
   StageFactory,
 } from "@tableverse-kit/engine";
 import type { SplendorGameState } from "../state.ts";
+import type { SplendorEventRegistry } from "../events.ts";
 
 interface CreateGameEndStageOptions {
-  defineStage: StageFactory<SplendorGameState>;
+  defineStage: StageFactory<SplendorGameState, SplendorEventRegistry>;
 }
 
 export function createGameEndStage({

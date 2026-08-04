@@ -1,4 +1,5 @@
-import type { GameEvent } from "@tableverse-kit/engine";
+import type { EmittableEventOf } from "@tableverse-kit/engine";
+import type { SplendorEventRegistry } from "../events.ts";
 import { defineGameState, t } from "@tableverse-kit/engine";
 import { developmentCardsById } from "../data/cards.ts";
 import { nobleTilesById } from "../data/nobles.ts";
@@ -153,7 +154,10 @@ export class SplendorGameState {
     return chosenNoble.id;
   }
 
-  resolveTurnEnd(actorId: string, emitEvent: (event: GameEvent) => void): void {
+  resolveTurnEnd(
+    actorId: string,
+    emitEvent: (event: EmittableEventOf<SplendorEventRegistry>) => void,
+  ): void {
     const player = this.getPlayer(actorId);
 
     if (!this.endGame && player.getScore() >= 15) {
@@ -163,7 +167,6 @@ export class SplendorGameState {
       );
 
       emitEvent({
-        category: "runtime",
         type: "end_game_triggered",
         payload: {
           actorId,
@@ -175,7 +178,6 @@ export class SplendorGameState {
     if (this.endGame && actorId === this.endGame.endsAfterPlayerId) {
       this.finalizeWinners();
       emitEvent({
-        category: "runtime",
         type: "game_finished",
         payload: {
           winnerIds: this.winnerIds,

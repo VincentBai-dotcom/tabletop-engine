@@ -107,7 +107,6 @@ const reserveDeckCardCommand = defineSplendorCommand({
     player.reserveCard(reservedCardId);
     const receivedGold = player.gainGoldFrom(game.bank);
     emitEvent({
-      category: "domain",
       type: "card_reserved",
       payload: {
         actorId,

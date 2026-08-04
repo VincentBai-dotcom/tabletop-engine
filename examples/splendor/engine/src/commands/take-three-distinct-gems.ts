@@ -124,7 +124,6 @@ const takeThreeDistinctGemsCommand = defineSplendorCommand({
     }
 
     emitEvent({
-      category: "domain",
       type: "gems_taken",
       payload: {
         actorId,

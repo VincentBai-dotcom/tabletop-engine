@@ -124,7 +124,6 @@ const reserveFaceUpCardCommand = defineSplendorCommand({
 
     const receivedGold = player.gainGoldFrom(game.bank);
     emitEvent({
-      category: "domain",
       type: "card_reserved",
       payload: {
         actorId,

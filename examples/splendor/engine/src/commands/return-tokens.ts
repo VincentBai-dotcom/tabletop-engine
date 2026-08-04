@@ -80,7 +80,6 @@ const returnTokensCommand = defineSplendorCommand({
 
     player.returnTokensTo(game.bank, command.input.returnTokens);
     emitEvent({
-      category: "domain",
       type: "tokens_returned",
       payload: {
         actorId: command.actorId,

@@ -95,7 +95,6 @@ const takeTwoSameGemsCommand = defineSplendorCommand({
     game.bank.adjustColor(color, -2);
     player.tokens.adjustColor(color, 2);
     emitEvent({
-      category: "domain",
       type: "double_gem_taken",
       payload: {
         actorId,
