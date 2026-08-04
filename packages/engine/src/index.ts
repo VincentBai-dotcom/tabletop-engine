@@ -16,6 +16,7 @@ export {
 } from "./replay/history";
 export { createSnapshot, restoreSnapshot } from "./snapshot/snapshot";
 export { runScenario } from "./testing/harness";
+export { defineEvents } from "./events/registry";
 
 export type {
   AnyGameDefinition,
@@ -37,6 +38,7 @@ export type {
 export type {
   ArraySchemaStatic,
   ArrayFieldType,
+  BooleanFieldType,
   FieldType,
   NumberFieldType,
   ObjectSchemaStatic,
@@ -77,7 +79,18 @@ export type {
   SingleActivePlayerStageBuilder,
   StageFactory,
 } from "./stage-factory";
-export type { GameEvent } from "./types/event";
+export type {
+  GameEvent,
+  GameEventCategory,
+  RuntimeEvent,
+  StageLifecyclePayload,
+} from "./types/event";
+export type {
+  DomainEventsOf,
+  EmittableEventOf,
+  EmptyEventRegistry,
+  EventRegistry,
+} from "./events/registry";
 export type {
   ExecutionFailure,
   ExecutionResult,

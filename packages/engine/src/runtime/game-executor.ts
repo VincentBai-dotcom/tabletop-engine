@@ -22,7 +22,8 @@ import type {
   Discovery,
   DiscoveryStepOption,
 } from "../types/command";
-import type { GameEvent } from "../types/event";
+import type { EmittableEvent, GameEvent } from "../types/event";
+import type { EventRegistry, EmptyEventRegistry } from "../events/registry";
 import type {
   MultiActivePlayerStageState,
   SingleActivePlayerStageState,
@@ -55,11 +56,13 @@ export interface GameExecutor<
   RootState extends AnyGameStateDefinition,
   SetupInput extends object | undefined = undefined,
   TCommandDefinition = never,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
   createInitialState: CreateInitialStateFn<
     CanonicalStateOf<RootState>,
     SetupInput
   >;
+  readonly __eventDefinitions: TEventRegistry;
   getView(
     state: CanonicalState<CanonicalStateOf<RootState>>,
     viewer: Viewer,
@@ -78,6 +81,27 @@ export interface GameExecutor<
     state: CanonicalState<CanonicalStateOf<RootState>>,
     command: Command,
   ): ExecutionResult<CanonicalState<CanonicalStateOf<RootState>>>;
+}
+
+/**
+ * Wraps the raw event collector with the author-facing `emitEvent`: it stamps
+ * `category: "domain"` and validates the type/payload against the game's event
+ * registry. Every emitted event must be declared; an undeclared `type` throws.
+ * This backs the compile-time contract at runtime (defense against untrusted
+ * bundled code that bypasses the types).
+ */
+function createDomainEmit(
+  rawEmit: (event: GameEvent) => void,
+  eventDefinitions: EventRegistry,
+): (event: EmittableEvent) => void {
+  return ({ type, payload }) => {
+    const schema = eventDefinitions[type];
+    if (!schema) {
+      throw new Error(`unknown_event_type:${type}`);
+    }
+    assertSchemaValue(schema, payload);
+    rawEmit({ category: "domain", type, payload });
+  };
 }
 
 function createCommandGameView<
@@ -306,7 +330,8 @@ function advanceStageMachine<
   game: AnyGameDefinition<RootState, TCommandDefinition>,
   nextStage: StageDefinition<StateClassOf<RootState>>,
   rng: ReturnType<typeof createRNGService>,
-  emitEvent: (event: GameEvent) => void,
+  rawEmit: (event: GameEvent) => void,
+  domainEmit: (event: EmittableEvent) => void,
 ): void {
   let currentStage: StageDefinition<StateClassOf<RootState>> | undefined =
     nextStage;
@@ -322,7 +347,7 @@ function advanceStageMachine<
         }),
       };
       state.runtime.progression.currentStage = stageState;
-      emitEvent(createStageEnteredEvent(stageState));
+      rawEmit(createStageEnteredEvent(stageState));
       return;
     }
 
@@ -339,7 +364,7 @@ function advanceStageMachine<
         memory,
       };
       state.runtime.progression.currentStage = stageState;
-      emitEvent(createStageEnteredEvent(stageState));
+      rawEmit(createStageEnteredEvent(stageState));
       return;
     }
 
@@ -348,20 +373,20 @@ function advanceStageMachine<
       kind: "automatic",
     };
     state.runtime.progression.currentStage = stageState;
-    emitEvent(createStageEnteredEvent(stageState));
+    rawEmit(createStageEnteredEvent(stageState));
 
     currentStage.run?.({
       game: createCommandGameView(game, state, { allowDirectMutation: true }),
       runtime: state.runtime,
       rng,
-      emitEvent,
+      emitEvent: domainEmit,
     });
 
     if (!currentStage.transition) {
       return;
     }
 
-    emitEvent(createStageExitedEvent(stageState));
+    rawEmit(createStageExitedEvent(stageState));
     currentStage = currentStage.transition({
       game: createCommandGameView(game, state, { readonly: true }),
       runtime: state.runtime,
@@ -374,21 +399,33 @@ export function createGameExecutor<
   RootState extends AnyGameStateDefinition,
   SetupInput extends object,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  game: GameDefinitionWithSetupInput<RootState, SetupInput, TCommandDefinition>,
-): GameExecutor<RootState, SetupInput, TCommandDefinition>;
+  game: GameDefinitionWithSetupInput<
+    RootState,
+    SetupInput,
+    TCommandDefinition,
+    TEventRegistry
+  >,
+): GameExecutor<RootState, SetupInput, TCommandDefinition, TEventRegistry>;
 
 export function createGameExecutor<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  game: GameDefinitionWithoutSetupInput<RootState, TCommandDefinition>,
-): GameExecutor<RootState, undefined, TCommandDefinition>;
+  game: GameDefinitionWithoutSetupInput<
+    RootState,
+    TCommandDefinition,
+    TEventRegistry
+  >,
+): GameExecutor<RootState, undefined, TCommandDefinition, TEventRegistry>;
 
 export function createGameExecutor<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
->(game: AnyGameDefinition<RootState, TCommandDefinition>) {
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
+>(game: AnyGameDefinition<RootState, TCommandDefinition, TEventRegistry>) {
   if (game.setupInputSchema) {
     return createGameExecutorWithSetup(game);
   }
@@ -401,9 +438,15 @@ export function createGameExecutor<
 function createGameExecutorWithSetup<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  game: GameDefinitionWithSetupInput<RootState, object, TCommandDefinition>,
-): GameExecutor<RootState, object, TCommandDefinition> {
+  game: GameDefinitionWithSetupInput<
+    RootState,
+    object,
+    TCommandDefinition,
+    TEventRegistry
+  >,
+): GameExecutor<RootState, object, TCommandDefinition, TEventRegistry> {
   return {
     createInitialState(input, rngSeed) {
       return initializeGameState(game, input, rngSeed);
@@ -415,9 +458,14 @@ function createGameExecutorWithSetup<
 function createGameExecutorWithoutSetup<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  game: GameDefinitionWithoutSetupInput<RootState, TCommandDefinition>,
-): GameExecutor<RootState, undefined, TCommandDefinition> {
+  game: GameDefinitionWithoutSetupInput<
+    RootState,
+    TCommandDefinition,
+    TEventRegistry
+  >,
+): GameExecutor<RootState, undefined, TCommandDefinition, TEventRegistry> {
   return {
     createInitialState(rngSeed) {
       return initializeGameState(game, undefined, rngSeed);
@@ -429,13 +477,16 @@ function createGameExecutorWithoutSetup<
 function createExecutorMethods<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
+  game: AnyGameDefinition<RootState, TCommandDefinition, TEventRegistry>,
 ): Omit<
-  GameExecutor<RootState, never, TCommandDefinition>,
+  GameExecutor<RootState, never, TCommandDefinition, TEventRegistry>,
   "createInitialState"
 > {
   return {
+    __eventDefinitions: game.__eventDefinitions,
+
     getView(state, viewer) {
       validateCanonicalState(game, state);
       return getVisibleStateView<
@@ -777,6 +828,10 @@ function createExecutorMethods<
 
       const workingState = structuredClone(state);
       const collector = createEventCollector();
+      const domainEmit = createDomainEmit(
+        collector.emit,
+        game.eventDefinitions,
+      );
       const rng = createRNGService(workingState.runtime.rng);
 
       if (
@@ -789,7 +844,7 @@ function createExecutorMethods<
           definition,
           command,
           rng,
-          collector.emit,
+          domainEmit,
         );
         workingState.runtime.progression.lastActingStage = {
           id: currentStageState.id,
@@ -822,6 +877,7 @@ function createExecutorMethods<
           }),
           rng,
           collector.emit,
+          domainEmit,
         );
       } else if (
         currentStage.kind === "multiActivePlayer" &&
@@ -854,7 +910,7 @@ function createExecutorMethods<
               submittedDefinition,
               submittedCommand,
               rng,
-              collector.emit,
+              domainEmit,
             );
           },
         });
@@ -905,6 +961,7 @@ function createExecutorMethods<
             }),
             rng,
             collector.emit,
+            domainEmit,
           );
         }
       }
@@ -948,7 +1005,7 @@ function executeCommandAgainstState<
   definition: RuntimeCommandDefinition<StateClassOf<RootState>>,
   command: Command,
   rng: ReturnType<typeof createRNGService>,
-  emitEvent: (event: GameEvent) => void,
+  emitEvent: (event: EmittableEvent) => void,
 ): void {
   definition.execute(
     createExecuteContext(

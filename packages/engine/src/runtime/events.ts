@@ -1,4 +1,4 @@
-import type { GameEvent } from "../types/event";
+import type { GameEvent, StageLifecyclePayload } from "../types/event";
 import type { StageState } from "../types/progression";
 
 export interface EventCollector<Event extends GameEvent = GameEvent> {
@@ -23,7 +23,7 @@ export function createEventCollector<
 
 export function createStageExitedEvent(
   stage: StageState,
-): GameEvent<"runtime", "stage_exited", Record<string, unknown>> {
+): GameEvent<"runtime", "stage_exited", StageLifecyclePayload> {
   return {
     category: "runtime",
     type: "stage_exited",
@@ -40,7 +40,7 @@ export function createStageExitedEvent(
 
 export function createStageEnteredEvent(
   stage: StageState,
-): GameEvent<"runtime", "stage_entered", Record<string, unknown>> {
+): GameEvent<"runtime", "stage_entered", StageLifecyclePayload> {
   return {
     category: "runtime",
     type: "stage_entered",
