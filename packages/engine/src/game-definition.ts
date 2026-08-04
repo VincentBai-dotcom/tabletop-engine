@@ -29,6 +29,7 @@ import type {
   StateClassOf,
 } from "./state/game-state";
 import type { FieldType, ObjectFieldType, ObjectSchemaStatic } from "./schema";
+import type { EventRegistry, EmptyEventRegistry } from "./events/registry";
 import type { TSchema } from "@sinclair/typebox";
 
 type CommandDefinitionMap<HydratedState extends object> = Record<
@@ -62,6 +63,7 @@ export interface GameSetupContextWithInput<
 interface BaseGameDefinition<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
   name: string;
   rootState: RootState;
@@ -73,13 +75,16 @@ interface BaseGameDefinition<
   defaultCanonicalGameState: CanonicalStateOf<RootState>;
   initialStage: StageDefinition<StateClassOf<RootState>>;
   stages: Record<string, StageDefinition<StateClassOf<RootState>>>;
+  eventDefinitions: EventRegistry;
   readonly __commandDefinitions: TCommandDefinition;
+  readonly __eventDefinitions: TEventRegistry;
 }
 
 export interface GameDefinitionWithoutSetupInput<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
-> extends BaseGameDefinition<RootState, TCommandDefinition> {
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
+> extends BaseGameDefinition<RootState, TCommandDefinition, TEventRegistry> {
   setupInputSchema?: undefined;
   setup?: (
     context: GameSetupContextWithoutInput<StateClassOf<RootState>>,
@@ -90,7 +95,8 @@ export interface GameDefinitionWithSetupInput<
   RootState extends AnyGameStateDefinition,
   SetupInput extends object,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
-> extends BaseGameDefinition<RootState, TCommandDefinition> {
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
+> extends BaseGameDefinition<RootState, TCommandDefinition, TEventRegistry> {
   setupInputSchema: ObjectFieldType<Record<string, FieldType>>;
   setup?: (
     context: GameSetupContextWithInput<StateClassOf<RootState>, SetupInput>,
@@ -102,29 +108,47 @@ export type GameDefinition<
   SetupInput extends object | undefined = object | undefined,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>> =
     CommandDefinition<StateClassOf<RootState>>,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > = [SetupInput] extends [undefined]
-  ? GameDefinitionWithoutSetupInput<RootState, TCommandDefinition>
+  ? GameDefinitionWithoutSetupInput<
+      RootState,
+      TCommandDefinition,
+      TEventRegistry
+    >
   : GameDefinitionWithSetupInput<
       RootState,
       Extract<SetupInput, object>,
-      TCommandDefinition
+      TCommandDefinition,
+      TEventRegistry
     >;
 
 export type AnyGameDefinition<
   RootState extends AnyGameStateDefinition = AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>> =
     CommandDefinition<StateClassOf<RootState>>,
+  TEventRegistry extends EventRegistry = EventRegistry,
 > =
-  | GameDefinitionWithoutSetupInput<RootState, TCommandDefinition>
-  | GameDefinitionWithSetupInput<RootState, object, TCommandDefinition>;
+  | GameDefinitionWithoutSetupInput<
+      RootState,
+      TCommandDefinition,
+      TEventRegistry
+    >
+  | GameDefinitionWithSetupInput<
+      RootState,
+      object,
+      TCommandDefinition,
+      TEventRegistry
+    >;
 
 export class GameDefinitionBuilder<
   RootState extends AnyGameStateDefinition = AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>> = never,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
   private readonly name: string;
   private rootStateDefinition?: RootState;
   private initialStageDefinition?: StageDefinition<StateClassOf<RootState>>;
+  private eventDefinitionsRegistry: EventRegistry = {};
 
   constructor(name: string) {
     this.name = name;
@@ -132,21 +156,38 @@ export class GameDefinitionBuilder<
 
   state<NextRootState extends AnyGameStateDefinition>(
     rootState: NextRootState,
-  ): GameDefinitionBuilder<NextRootState, never> {
+  ): GameDefinitionBuilder<NextRootState, never, TEventRegistry> {
     this.rootStateDefinition = rootState as unknown as RootState;
-    return this as unknown as GameDefinitionBuilder<NextRootState, never>;
+    return this as unknown as GameDefinitionBuilder<
+      NextRootState,
+      never,
+      TEventRegistry
+    >;
+  }
+
+  events<NextRegistry extends EventRegistry>(
+    registry: NextRegistry,
+  ): GameDefinitionBuilder<RootState, TCommandDefinition, NextRegistry> {
+    this.eventDefinitionsRegistry = registry;
+    return this as unknown as GameDefinitionBuilder<
+      RootState,
+      TCommandDefinition,
+      NextRegistry
+    >;
   }
 
   initialStage<InitialStage extends StageDefinition<StateClassOf<RootState>>>(
     initialStage: InitialStage,
   ): GameDefinitionBuilder<
     RootState,
-    CommandDefinitionsFromStageDefinition<InitialStage>
+    CommandDefinitionsFromStageDefinition<InitialStage>,
+    TEventRegistry
   > {
     this.initialStageDefinition = initialStage;
     return this as unknown as GameDefinitionBuilder<
       RootState,
-      CommandDefinitionsFromStageDefinition<InitialStage>
+      CommandDefinitionsFromStageDefinition<InitialStage>,
+      TEventRegistry
     >;
   }
 
@@ -155,7 +196,8 @@ export class GameDefinitionBuilder<
   ): GameDefinitionBuilderWithSetupInput<
     RootState,
     Extract<SetupInputFromSchema<TSchema>, object>,
-    TCommandDefinition
+    TCommandDefinition,
+    TEventRegistry
   > {
     if (schema.kind !== "object") {
       throw new Error("setup_input_schema_must_be_object");
@@ -167,6 +209,7 @@ export class GameDefinitionBuilder<
       this.rootStateDefinition,
       this.initialStageDefinition,
       undefined,
+      this.eventDefinitionsRegistry,
     );
   }
 
@@ -174,20 +217,34 @@ export class GameDefinitionBuilder<
     setup: (
       context: GameSetupContextWithoutInput<StateClassOf<RootState>>,
     ) => void,
-  ): GameDefinitionBuilderWithoutSetupInput<RootState, TCommandDefinition> {
+  ): GameDefinitionBuilderWithoutSetupInput<
+    RootState,
+    TCommandDefinition,
+    TEventRegistry
+  > {
     return new GameDefinitionBuilderWithoutSetupInput(
       this.name,
       this.rootStateDefinition,
       this.initialStageDefinition,
       setup,
+      this.eventDefinitionsRegistry,
     );
   }
 
-  build(): GameDefinitionWithoutSetupInput<RootState, TCommandDefinition> {
-    const base = assembleBaseDefinition<RootState, TCommandDefinition>(
+  build(): GameDefinitionWithoutSetupInput<
+    RootState,
+    TCommandDefinition,
+    TEventRegistry
+  > {
+    const base = assembleBaseDefinition<
+      RootState,
+      TCommandDefinition,
+      TEventRegistry
+    >(
       this.name,
       this.rootStateDefinition,
       this.initialStageDefinition,
+      this.eventDefinitionsRegistry,
     );
     return {
       ...base,
@@ -200,6 +257,7 @@ export class GameDefinitionBuilder<
 export class GameDefinitionBuilderWithoutSetupInput<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>> = never,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
   private readonly name: string;
   private rootStateDefinition?: RootState;
@@ -207,6 +265,7 @@ export class GameDefinitionBuilderWithoutSetupInput<
   private setupCallback?: (
     context: GameSetupContextWithoutInput<StateClassOf<RootState>>,
   ) => void;
+  private eventDefinitionsRegistry: EventRegistry;
 
   constructor(
     name: string,
@@ -217,20 +276,42 @@ export class GameDefinitionBuilderWithoutSetupInput<
           context: GameSetupContextWithoutInput<StateClassOf<RootState>>,
         ) => void)
       | undefined,
+    eventDefinitions: EventRegistry = {},
   ) {
     this.name = name;
     this.rootStateDefinition = rootState;
     this.initialStageDefinition = initialStage;
     this.setupCallback = setup;
+    this.eventDefinitionsRegistry = eventDefinitions;
   }
 
   state<NextRootState extends AnyGameStateDefinition>(
     rootState: NextRootState,
-  ): GameDefinitionBuilderWithoutSetupInput<NextRootState, never> {
+  ): GameDefinitionBuilderWithoutSetupInput<
+    NextRootState,
+    never,
+    TEventRegistry
+  > {
     this.rootStateDefinition = rootState as unknown as RootState;
     return this as unknown as GameDefinitionBuilderWithoutSetupInput<
       NextRootState,
-      never
+      never,
+      TEventRegistry
+    >;
+  }
+
+  events<NextRegistry extends EventRegistry>(
+    registry: NextRegistry,
+  ): GameDefinitionBuilderWithoutSetupInput<
+    RootState,
+    TCommandDefinition,
+    NextRegistry
+  > {
+    this.eventDefinitionsRegistry = registry;
+    return this as unknown as GameDefinitionBuilderWithoutSetupInput<
+      RootState,
+      TCommandDefinition,
+      NextRegistry
     >;
   }
 
@@ -238,12 +319,14 @@ export class GameDefinitionBuilderWithoutSetupInput<
     initialStage: InitialStage,
   ): GameDefinitionBuilderWithoutSetupInput<
     RootState,
-    CommandDefinitionsFromStageDefinition<InitialStage>
+    CommandDefinitionsFromStageDefinition<InitialStage>,
+    TEventRegistry
   > {
     this.initialStageDefinition = initialStage;
     return this as unknown as GameDefinitionBuilderWithoutSetupInput<
       RootState,
-      CommandDefinitionsFromStageDefinition<InitialStage>
+      CommandDefinitionsFromStageDefinition<InitialStage>,
+      TEventRegistry
     >;
   }
 
@@ -256,11 +339,20 @@ export class GameDefinitionBuilderWithoutSetupInput<
     return this;
   }
 
-  build(): GameDefinitionWithoutSetupInput<RootState, TCommandDefinition> {
-    const base = assembleBaseDefinition<RootState, TCommandDefinition>(
+  build(): GameDefinitionWithoutSetupInput<
+    RootState,
+    TCommandDefinition,
+    TEventRegistry
+  > {
+    const base = assembleBaseDefinition<
+      RootState,
+      TCommandDefinition,
+      TEventRegistry
+    >(
       this.name,
       this.rootStateDefinition,
       this.initialStageDefinition,
+      this.eventDefinitionsRegistry,
     );
     return {
       ...base,
@@ -274,6 +366,7 @@ export class GameDefinitionBuilderWithSetupInput<
   RootState extends AnyGameStateDefinition,
   SetupInput extends object,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>> = never,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
   private readonly name: string;
   private readonly setupInputSchema: ObjectFieldType<Record<string, FieldType>>;
@@ -282,6 +375,7 @@ export class GameDefinitionBuilderWithSetupInput<
   private setupCallback?: (
     context: GameSetupContextWithInput<StateClassOf<RootState>, SetupInput>,
   ) => void;
+  private eventDefinitionsRegistry: EventRegistry;
 
   constructor(
     name: string,
@@ -296,22 +390,47 @@ export class GameDefinitionBuilderWithSetupInput<
           >,
         ) => void)
       | undefined,
+    eventDefinitions: EventRegistry = {},
   ) {
     this.name = name;
     this.setupInputSchema = setupInputSchema;
     this.rootStateDefinition = rootState;
     this.initialStageDefinition = initialStage;
     this.setupCallback = setup;
+    this.eventDefinitionsRegistry = eventDefinitions;
   }
 
   state<NextRootState extends AnyGameStateDefinition>(
     rootState: NextRootState,
-  ): GameDefinitionBuilderWithSetupInput<NextRootState, SetupInput, never> {
+  ): GameDefinitionBuilderWithSetupInput<
+    NextRootState,
+    SetupInput,
+    never,
+    TEventRegistry
+  > {
     this.rootStateDefinition = rootState as unknown as RootState;
     return this as unknown as GameDefinitionBuilderWithSetupInput<
       NextRootState,
       SetupInput,
-      never
+      never,
+      TEventRegistry
+    >;
+  }
+
+  events<NextRegistry extends EventRegistry>(
+    registry: NextRegistry,
+  ): GameDefinitionBuilderWithSetupInput<
+    RootState,
+    SetupInput,
+    TCommandDefinition,
+    NextRegistry
+  > {
+    this.eventDefinitionsRegistry = registry;
+    return this as unknown as GameDefinitionBuilderWithSetupInput<
+      RootState,
+      SetupInput,
+      TCommandDefinition,
+      NextRegistry
     >;
   }
 
@@ -320,13 +439,15 @@ export class GameDefinitionBuilderWithSetupInput<
   ): GameDefinitionBuilderWithSetupInput<
     RootState,
     SetupInput,
-    CommandDefinitionsFromStageDefinition<InitialStage>
+    CommandDefinitionsFromStageDefinition<InitialStage>,
+    TEventRegistry
   > {
     this.initialStageDefinition = initialStage;
     return this as unknown as GameDefinitionBuilderWithSetupInput<
       RootState,
       SetupInput,
-      CommandDefinitionsFromStageDefinition<InitialStage>
+      CommandDefinitionsFromStageDefinition<InitialStage>,
+      TEventRegistry
     >;
   }
 
@@ -342,12 +463,18 @@ export class GameDefinitionBuilderWithSetupInput<
   build(): GameDefinitionWithSetupInput<
     RootState,
     SetupInput,
-    TCommandDefinition
+    TCommandDefinition,
+    TEventRegistry
   > {
-    const base = assembleBaseDefinition<RootState, TCommandDefinition>(
+    const base = assembleBaseDefinition<
+      RootState,
+      TCommandDefinition,
+      TEventRegistry
+    >(
       this.name,
       this.rootStateDefinition,
       this.initialStageDefinition,
+      this.eventDefinitionsRegistry,
     );
     return {
       ...base,
@@ -360,11 +487,13 @@ export class GameDefinitionBuilderWithSetupInput<
 function assembleBaseDefinition<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
   name: string,
   rootState: RootState | undefined,
   initialStage: StageDefinition<StateClassOf<RootState>> | undefined,
-): BaseGameDefinition<RootState, TCommandDefinition> {
+  eventDefinitions: EventRegistry,
+): BaseGameDefinition<RootState, TCommandDefinition, TEventRegistry> {
   if (!rootState) {
     throw new Error("root_state_required");
   }
@@ -397,7 +526,9 @@ function assembleBaseDefinition<
     defaultCanonicalGameState,
     initialStage,
     stages,
+    eventDefinitions,
     __commandDefinitions: undefined as unknown as TCommandDefinition,
+    __eventDefinitions: undefined as unknown as TEventRegistry,
   };
 }
 

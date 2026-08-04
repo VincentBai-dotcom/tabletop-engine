@@ -22,11 +22,25 @@ import type {
 } from "./types/command";
 import { commandDefinitionBrand as brand } from "./types/command";
 import { assertSerializableSchema } from "./schema";
+import type { EventRegistry, EmptyEventRegistry } from "./events/registry";
 
-export interface CommandFactory<HydratedState extends object> {
+export interface CommandFactory<
+  HydratedState extends object,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
+> {
   <TCommandInput extends Record<string, unknown>>(
     config: CommandBuilderBaseConfig<TCommandInput>,
-  ): CommandBuilder<HydratedState, TCommandInput>;
+  ): CommandBuilder<
+    HydratedState,
+    TCommandInput,
+    never,
+    readonly AnyDiscoveryStepDefinition[],
+    false,
+    false,
+    false,
+    false,
+    TEventRegistry
+  >;
 }
 
 type DiscoveryStepAccumulator = {
@@ -193,7 +207,10 @@ function createDiscoveryStepBuilder<
   return createStepBuilder();
 }
 
-export function createCommandFactory<HydratedState extends object>() {
+export function createCommandFactory<
+  HydratedState extends object,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
+>() {
   function brandCommandDefinition<
     TCommandInput extends Record<string, unknown>,
     TDiscoveryInput extends Record<string, unknown> = TCommandInput,
@@ -285,7 +302,8 @@ export function createCommandFactory<HydratedState extends object>() {
     THasDiscovery,
     THasAvailability,
     THasValidate,
-    THasExecute
+    THasExecute,
+    TEventRegistry
   > {
     return {
       discoverable<
@@ -436,13 +454,24 @@ export function createCommandFactory<HydratedState extends object>() {
       THasDiscovery,
       THasAvailability,
       THasValidate,
-      THasExecute
+      THasExecute,
+      TEventRegistry
     >;
   }
 
   function defineCommand<TCommandInput extends Record<string, unknown>>(
     config: CommandBuilderBaseConfig<TCommandInput>,
-  ): CommandBuilder<HydratedState, TCommandInput> {
+  ): CommandBuilder<
+    HydratedState,
+    TCommandInput,
+    never,
+    readonly AnyDiscoveryStepDefinition[],
+    false,
+    false,
+    false,
+    false,
+    TEventRegistry
+  > {
     assertSerializableSchema(config.commandSchema);
 
     return createBuilder({

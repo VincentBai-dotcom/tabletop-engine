@@ -17,6 +17,7 @@ import {
 } from "./types/progression";
 import { assertSerializableSchema } from "./schema";
 import type { FieldType, ObjectFieldType } from "./schema";
+import type { EventRegistry, EmptyEventRegistry } from "./events/registry";
 
 type NoBuilderMethod = Record<never, never>;
 type NoNextStages = Record<string, never>;
@@ -158,18 +159,21 @@ export type SingleActivePlayerStageBuilder<
 export type AutomaticStageBuilder<
   HydratedState extends object,
   NextStages extends StageDefinitionMap<HydratedState> = NoNextStages,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > = {
   run(
-    run: (context: AutomaticStageRunContext<HydratedState>) => void,
-  ): AutomaticStageBuilder<HydratedState, NextStages>;
+    run: (
+      context: AutomaticStageRunContext<HydratedState, TEventRegistry>,
+    ) => void,
+  ): AutomaticStageBuilder<HydratedState, NextStages, TEventRegistry>;
   nextStages<TNextStages extends StageDefinitionMap<HydratedState>>(
     nextStages: StageDefinitionResolver<HydratedState, TNextStages>,
-  ): AutomaticStageBuilder<HydratedState, TNextStages>;
+  ): AutomaticStageBuilder<HydratedState, TNextStages, TEventRegistry>;
   transition(
     transition: (
       context: AutomaticStageTransitionContext<HydratedState, NextStages>,
     ) => AutomaticStageDefinition<HydratedState> | NextStages[keyof NextStages],
-  ): AutomaticStageBuilder<HydratedState, NextStages>;
+  ): AutomaticStageBuilder<HydratedState, NextStages, TEventRegistry>;
 } & AutomaticBuildMethod<HydratedState, NextStages>;
 
 export type MultiActivePlayerStageBuilder<
@@ -324,10 +328,17 @@ export type MultiActivePlayerStageBuilder<
   HasTransition
 >;
 
-export interface StageFactory<HydratedState extends object> {
+export interface StageFactory<
+  HydratedState extends object,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
+> {
   (id: string): {
     singleActivePlayer(): SingleActivePlayerStageBuilder<HydratedState>;
-    automatic(): AutomaticStageBuilder<HydratedState>;
+    automatic(): AutomaticStageBuilder<
+      HydratedState,
+      NoNextStages,
+      TEventRegistry
+    >;
     multiActivePlayer(): MultiActivePlayerStageBuilder<HydratedState>;
   };
 }
@@ -358,10 +369,13 @@ type SingleActivePlayerAccumulator<
 type AutomaticAccumulator<
   HydratedState extends object,
   NextStages extends StageDefinitionMap<HydratedState>,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > = {
   id: string;
   kind: "automatic";
-  run?: (context: AutomaticStageRunContext<HydratedState>) => void;
+  run?: (
+    context: AutomaticStageRunContext<HydratedState, TEventRegistry>,
+  ) => void;
   nextStages?: StageDefinitionResolver<HydratedState, NextStages>;
   transition?: (
     context: AutomaticStageTransitionContext<HydratedState, NextStages>,
@@ -406,7 +420,8 @@ type MultiActivePlayerAccumulator<
 
 export function createStageFactory<
   HydratedState extends object,
->(): StageFactory<HydratedState> {
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
+>(): StageFactory<HydratedState, TEventRegistry> {
   return (id: string) => {
     return {
       singleActivePlayer() {
@@ -420,7 +435,11 @@ export function createStageFactory<
         });
       },
       automatic() {
-        return createAutomaticBuilder<HydratedState, NoNextStages>({
+        return createAutomaticBuilder<
+          HydratedState,
+          NoNextStages,
+          TEventRegistry
+        >({
           id,
           kind: "automatic",
         });
@@ -549,12 +568,13 @@ function createSingleActivePlayerBuilder<
 function createAutomaticBuilder<
   HydratedState extends object,
   NextStages extends StageDefinitionMap<HydratedState>,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  accumulator: AutomaticAccumulator<HydratedState, NextStages>,
-): AutomaticStageBuilder<HydratedState, NextStages> {
+  accumulator: AutomaticAccumulator<HydratedState, NextStages, TEventRegistry>,
+): AutomaticStageBuilder<HydratedState, NextStages, TEventRegistry> {
   return {
     run(run) {
-      return createAutomaticBuilder({
+      return createAutomaticBuilder<HydratedState, NextStages, TEventRegistry>({
         ...accumulator,
         run,
       });
@@ -562,22 +582,27 @@ function createAutomaticBuilder<
     nextStages(nextStages) {
       return createAutomaticBuilder<
         HydratedState,
-        TExtractNextStages<typeof nextStages>
+        TExtractNextStages<typeof nextStages>,
+        TEventRegistry
       >({
         ...accumulator,
         nextStages,
       } as unknown as AutomaticAccumulator<
         HydratedState,
-        TExtractNextStages<typeof nextStages>
+        TExtractNextStages<typeof nextStages>,
+        TEventRegistry
       >);
     },
     transition(transition) {
-      return createAutomaticBuilder({
+      return createAutomaticBuilder<HydratedState, NextStages, TEventRegistry>({
         ...accumulator,
         transition,
       });
     },
     build() {
+      // The built definition keeps a loose `run` context — the engine drives it
+      // with the domain-emit wrapper, so the registry only needs to narrow the
+      // authoring-time builder, not the stored definition.
       return {
         id: accumulator.id,
         kind: "automatic",
@@ -585,7 +610,7 @@ function createAutomaticBuilder<
         nextStages: accumulator.nextStages,
         transition: accumulator.transition,
         [stageDefinitionBrand]: true,
-      };
+      } as AutomaticStageDefinition<HydratedState, NextStages>;
     },
   };
 }

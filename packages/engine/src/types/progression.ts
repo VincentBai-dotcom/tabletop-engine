@@ -1,5 +1,7 @@
 import type { Command, DefinedCommand } from "./command";
-import type { GameEvent } from "./event";
+import type { EmitEventCapability } from "./command";
+import type { EmittableEvent } from "./event";
+import type { EventRegistry, EmptyEventRegistry } from "../events/registry";
 import type { RNGApi } from "./rng";
 import type { FieldType, ObjectFieldType } from "../schema";
 import type { RuntimeState } from "./state";
@@ -105,11 +107,25 @@ export interface SingleActivePlayerTransitionContext<
   nextStages: Readonly<NextStages>;
 }
 
-export interface AutomaticStageRunContext<HydratedState extends object> {
+export type AutomaticStageRunContext<
+  HydratedState extends object,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
+> = {
   game: HydratedState;
   runtime: Readonly<RuntimeState>;
   rng: RNGApi;
-  emitEvent(event: GameEvent): void;
+} & EmitEventCapability<TEventRegistry>;
+
+/**
+ * The run context the engine constructs at execution time. Unlike the
+ * author-facing `AutomaticStageRunContext`, it always carries `emitEvent` — the
+ * engine supplies the domain-emit wrapper regardless of the game's registry.
+ */
+export interface AutomaticStageRunRuntimeContext<HydratedState extends object> {
+  game: HydratedState;
+  runtime: Readonly<RuntimeState>;
+  rng: RNGApi;
+  emitEvent(event: EmittableEvent): void;
 }
 
 export interface AutomaticStageTransitionContext<
@@ -181,7 +197,10 @@ export interface AutomaticStageDefinition<
 > extends StageDefinitionBrand {
   id: string;
   kind: "automatic";
-  run?(context: AutomaticStageRunContext<HydratedState>): void;
+  // The stored/engine-facing run context always carries `emitEvent` (the engine
+  // drives it with the domain-emit wrapper). The author-facing builder context
+  // (`AutomaticStageRunContext`) narrows or omits it per the event registry.
+  run?(context: AutomaticStageRunRuntimeContext<HydratedState>): void;
   nextStages?: StageDefinitionResolver<HydratedState, NextStages>;
   transition?(
     context: AutomaticStageTransitionContext<HydratedState, NextStages>,

@@ -6,7 +6,7 @@ import type {
   InternalExecuteContext,
   InternalValidationContext,
 } from "../types/command";
-import type { GameEvent } from "../types/event";
+import type { EmittableEvent } from "../types/event";
 import type { CanonicalState } from "../types/state";
 import type { RNGApi } from "../types/rng";
 
@@ -79,7 +79,7 @@ export function createExecuteContext<
   game: HydratedState,
   command: TCommandInput,
   rng: RNGApi,
-  emitEvent: (event: GameEvent) => void,
+  emitEvent: (event: EmittableEvent) => void,
 ): InternalExecuteContext<HydratedState, TCommandInput, CanonicalGameState> {
   return {
     state,

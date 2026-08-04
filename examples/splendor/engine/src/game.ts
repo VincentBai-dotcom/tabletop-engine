@@ -6,12 +6,14 @@ import {
 import { setupSplendorGame } from "./setup.ts";
 import { SplendorGame as SplendorRootState } from "./state.ts";
 import { createSplendorStages } from "./stages/index.ts";
+import { splendorEvents } from "./events.ts";
 
 export function createSplendorGame() {
   const { initialStage } = createSplendorStages();
 
   return new GameDefinitionBuilder("splendor")
     .state(SplendorRootState)
+    .events(splendorEvents)
     .setupInput(
       t.object({
         playerIds: t.array(t.string()),

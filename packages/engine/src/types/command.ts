@@ -1,6 +1,11 @@
 import type { FieldType, ObjectFieldType } from "../schema";
 import type { CanonicalGameState } from "../state-facade/canonical";
-import type { GameEvent } from "./event";
+import type { EmittableEvent } from "./event";
+import type {
+  EmittableEventOf,
+  EmptyEventRegistry,
+  EventRegistry,
+} from "../events/registry";
 import type { RNGApi } from "./rng";
 import type { ValidationOutcome } from "./result";
 import type { CanonicalState, RuntimeState } from "./state";
@@ -476,6 +481,7 @@ export type CommandBuilder<
   THasAvailability extends boolean = false,
   THasValidate extends boolean = false,
   THasExecute extends boolean = false,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > = OptionalBuilderMethod<
   THasDiscovery,
   {
@@ -496,7 +502,8 @@ export type CommandBuilder<
       true,
       THasAvailability,
       THasValidate,
-      THasExecute
+      THasExecute,
+      TEventRegistry
     >;
   }
 > &
@@ -515,7 +522,8 @@ export type CommandBuilder<
         THasDiscovery,
         true,
         THasValidate,
-        THasExecute
+        THasExecute,
+        TEventRegistry
       >;
     }
   > &
@@ -537,7 +545,8 @@ export type CommandBuilder<
         THasDiscovery,
         THasAvailability,
         true,
-        THasExecute
+        THasExecute,
+        TEventRegistry
       >;
     }
   > &
@@ -548,7 +557,8 @@ export type CommandBuilder<
         execute: (
           context: ExecuteContext<
             HydratedState,
-            CommandFromSchema<TCommandInput>
+            CommandFromSchema<TCommandInput>,
+            TEventRegistry
           >,
         ) => void,
       ): CommandBuilder<
@@ -559,7 +569,8 @@ export type CommandBuilder<
         THasDiscovery,
         THasAvailability,
         THasValidate,
-        true
+        true,
+        TEventRegistry
       >;
     }
   > &
@@ -701,19 +712,32 @@ export interface InternalExecuteContext<
   game: HydratedState;
   runtime: Readonly<RuntimeState>;
   rng: RNGApi;
-  emitEvent(event: GameEvent): void;
+  emitEvent(event: EmittableEvent): void;
 }
+
+/**
+ * The `emitEvent` capability. A game that declared events (non-empty registry)
+ * gets `emitEvent` typed to that event union; a game with no registry gets no
+ * `emitEvent` at all — there is nothing it could validly emit, so the method is
+ * absent from the context rather than present-but-uncallable. `unknown`
+ * contributes nothing to the intersection (`T & unknown = T`).
+ */
+export type EmitEventCapability<TEventRegistry extends EventRegistry> = [
+  keyof TEventRegistry,
+] extends [never]
+  ? unknown
+  : { emitEvent(event: EmittableEventOf<TEventRegistry>): void };
 
 export type ExecuteContext<
   HydratedState extends object,
   TCommand extends Command = Command,
+  TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > = {
   game: HydratedState;
   runtime: Readonly<RuntimeState>;
   command: TCommand;
   rng: RNGApi;
-  emitEvent(event: GameEvent): void;
-};
+} & EmitEventCapability<TEventRegistry>;
 
 export interface InternalCommandDefinition<
   HydratedState extends object,

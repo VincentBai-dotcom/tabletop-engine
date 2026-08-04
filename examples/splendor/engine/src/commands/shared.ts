@@ -11,9 +11,12 @@ import {
   type GemTokenColor,
   type SplendorGameState,
 } from "../state.ts";
+import type { SplendorEventRegistry } from "../events.ts";
 
-export const defineSplendorCommand: CommandFactory<SplendorGameState> =
-  createCommandFactory<SplendorGameState>();
+export const defineSplendorCommand: CommandFactory<
+  SplendorGameState,
+  SplendorEventRegistry
+> = createCommandFactory<SplendorGameState, SplendorEventRegistry>();
 
 export type SplendorCommand = DefinedCommand<SplendorGameState>;
 

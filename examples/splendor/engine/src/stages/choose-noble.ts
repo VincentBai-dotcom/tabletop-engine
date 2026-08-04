@@ -5,10 +5,11 @@ import type {
 } from "@tableverse-kit/engine";
 import { chooseNobleCommand } from "../commands/index.ts";
 import type { SplendorGameState } from "../state.ts";
+import type { SplendorEventRegistry } from "../events.ts";
 import { getLastActingPlayerId } from "./shared.ts";
 
 interface CreateChooseNobleStageOptions {
-  defineStage: StageFactory<SplendorGameState>;
+  defineStage: StageFactory<SplendorGameState, SplendorEventRegistry>;
   getCheckVictoryConditionStage: () => AutomaticStageDefinition<SplendorGameState>;
 }
 

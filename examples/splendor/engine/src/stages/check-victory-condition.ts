@@ -4,10 +4,11 @@ import type {
   StageFactory,
 } from "@tableverse-kit/engine";
 import type { SplendorGameState } from "../state.ts";
+import type { SplendorEventRegistry } from "../events.ts";
 import { getLastActingPlayerId } from "./shared.ts";
 
 interface CreateCheckVictoryConditionStageOptions {
-  defineStage: StageFactory<SplendorGameState>;
+  defineStage: StageFactory<SplendorGameState, SplendorEventRegistry>;
   getGameEndStage: () => AutomaticStageDefinition<SplendorGameState>;
   getPlayerTurnStage: () => SingleActivePlayerStageDefinition<SplendorGameState>;
 }

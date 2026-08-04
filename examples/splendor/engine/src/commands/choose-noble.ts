@@ -91,7 +91,6 @@ const chooseNobleCommand = defineSplendorCommand({
     }
 
     emitEvent({
-      category: "domain",
       type: "noble_claimed",
       payload: {
         actorId,

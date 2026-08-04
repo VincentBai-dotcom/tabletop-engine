@@ -4,10 +4,11 @@ import type {
   StageFactory,
 } from "@tableverse-kit/engine";
 import type { SplendorGameState } from "../state.ts";
+import type { SplendorEventRegistry } from "../events.ts";
 import { getLastActingPlayerId } from "./shared.ts";
 
 interface CreateResolveNobleStageOptions {
-  defineStage: StageFactory<SplendorGameState>;
+  defineStage: StageFactory<SplendorGameState, SplendorEventRegistry>;
   getChooseNobleStage: () => SingleActivePlayerStageDefinition<SplendorGameState>;
   getCheckVictoryConditionStage: () => AutomaticStageDefinition<SplendorGameState>;
 }
@@ -35,7 +36,6 @@ export function createResolveNobleStage({
       }
 
       emitEvent({
-        category: "domain",
         type: "noble_claimed",
         payload: {
           actorId,

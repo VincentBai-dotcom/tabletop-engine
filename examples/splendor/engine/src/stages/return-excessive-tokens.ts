@@ -5,10 +5,11 @@ import type {
 } from "@tableverse-kit/engine";
 import { returnTokensCommand } from "../commands/index.ts";
 import type { SplendorGameState } from "../state.ts";
+import type { SplendorEventRegistry } from "../events.ts";
 import { getLastActingPlayerId } from "./shared.ts";
 
 interface CreateReturnExcessiveTokensStageOptions {
-  defineStage: StageFactory<SplendorGameState>;
+  defineStage: StageFactory<SplendorGameState, SplendorEventRegistry>;
   getCheckVictoryConditionStage: () => AutomaticStageDefinition<SplendorGameState>;
 }
 

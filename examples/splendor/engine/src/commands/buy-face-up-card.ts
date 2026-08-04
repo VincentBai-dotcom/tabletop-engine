@@ -145,14 +145,13 @@ const buyFaceUpCardCommand = defineSplendorCommand({
     game.board.removeFaceUpCard(level, card.id);
     game.board.replenishFaceUpCard(level);
     emitEvent({
-      category: "domain",
       type: "card_purchased",
       payload: {
         actorId,
         source: "face_up",
         level,
         cardId: card.id,
-        payment,
+        payment: { ...payment },
       },
     });
   })

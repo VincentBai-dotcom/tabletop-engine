@@ -118,13 +118,12 @@ const buyReservedCardCommand = defineSplendorCommand({
     player.removeReservedCard(card.id);
     player.buyCard(card.id);
     emitEvent({
-      category: "domain",
       type: "card_purchased",
       payload: {
         actorId,
         source: "reserved",
         cardId: card.id,
-        payment,
+        payment: { ...payment },
       },
     });
   })

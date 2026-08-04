@@ -1,6 +1,7 @@
 import { createStageFactory } from "@tableverse-kit/engine";
 import { createCommands } from "../commands/index.ts";
 import type { SplendorGameState } from "../state.ts";
+import type { SplendorEventRegistry } from "../events.ts";
 import { createCheckVictoryConditionStage } from "./check-victory-condition.ts";
 import { createChooseNobleStage } from "./choose-noble.ts";
 import { createGameEndStage } from "./game-end.ts";
@@ -9,7 +10,10 @@ import { createResolveNobleStage } from "./resolve-noble.ts";
 import { createReturnExcessiveTokensStage } from "./return-excessive-tokens.ts";
 
 export function createSplendorStages() {
-  const defineStage = createStageFactory<SplendorGameState>();
+  const defineStage = createStageFactory<
+    SplendorGameState,
+    SplendorEventRegistry
+  >();
   const commands = createCommands();
 
   const gameEndStage = createGameEndStage({
