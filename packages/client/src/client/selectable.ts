@@ -2,7 +2,7 @@ import type {
   DiscoveryStateSnapshot,
   PickOptionOf,
 } from "./discovery-state.ts";
-import type { TableverseGame } from "./types.ts";
+import type { AnyGameExecutor } from "./game-shape.ts";
 
 /**
  * Selection state of a candidate option within the current discovery flow.
@@ -15,10 +15,10 @@ export type SelectableState =
   | "selected"
   | "unselectable";
 
-export interface SelectableResult<G extends TableverseGame> {
+export interface SelectableResult<E extends AnyGameExecutor> {
   readonly state: SelectableState;
   /** The matching open option when `state === "selectable"`, otherwise null. */
-  readonly option: PickOptionOf<G> | null;
+  readonly option: PickOptionOf<E> | null;
 }
 
 /**
@@ -32,11 +32,11 @@ export interface SelectableResult<G extends TableverseGame> {
  * keypress. This is the framework-neutral core the React `useSelectable` hook
  * projects onto React's render model.
  */
-export function selectable<G extends TableverseGame>(
-  snapshot: DiscoveryStateSnapshot<G>,
+export function selectable<E extends AnyGameExecutor>(
+  snapshot: DiscoveryStateSnapshot<E>,
   discoveryStep: string,
-  isTarget: (option: PickOptionOf<G>) => boolean,
-): SelectableResult<G> {
+  isTarget: (option: PickOptionOf<E>) => boolean,
+): SelectableResult<E> {
   if (snapshot.trail.some(isTarget)) {
     return { state: "selected", option: null };
   }

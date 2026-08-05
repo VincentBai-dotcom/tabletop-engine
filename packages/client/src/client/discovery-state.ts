@@ -1,8 +1,9 @@
 import type { DiscoveryStepOption } from "@tableverse-kit/engine";
+import type { AnyGameExecutor, GameShapeOf } from "./game-shape.ts";
 import type {
   CommandPayload,
+  DiscoveryPayload,
   TableverseClient,
-  TableverseGame,
 } from "./types.ts";
 
 export type DiscoveryStatus =
@@ -12,47 +13,47 @@ export type DiscoveryStatus =
   | "executing"
   | "error";
 
-export type OpenResultOf<G extends TableverseGame> = Extract<
-  G["discovery"]["result"],
+export type OpenResultOf<E extends AnyGameExecutor> = Extract<
+  GameShapeOf<E>["discovery"]["result"],
   { complete: false }
 >;
 
-export type CompleteResultOf<G extends TableverseGame> = Extract<
-  G["discovery"]["result"],
+export type CompleteResultOf<E extends AnyGameExecutor> = Extract<
+  GameShapeOf<E>["discovery"]["result"],
   { complete: true }
 >;
 
 /**
- * Per-G pick-option type. Intersected with the engine's
+ * Per-shape pick-option type. Intersected with the engine's
  * `DiscoveryStepOption` so consumers can rely on `id`/`output`/
  * `nextInput`/`nextStep` even when TS can't fully resolve the
  * `Extract<...>` in a generic context.
  */
-export type PickOptionOf<G extends TableverseGame> = (OpenResultOf<G> extends {
+export type PickOptionOf<E extends AnyGameExecutor> = (OpenResultOf<E> extends {
   options: ReadonlyArray<infer O>;
 }
   ? O
   : never) &
   DiscoveryStepOption;
 
-export type CommandInputOf<G extends TableverseGame> =
-  CompleteResultOf<G>["input"];
+export type CommandInputOf<E extends AnyGameExecutor> =
+  CompleteResultOf<E>["input"];
 
 /**
- * `open` carries a `step: string` and a `ReadonlyArray<PickOptionOf<G>>`
+ * `open` carries a `step: string` and a `ReadonlyArray<PickOptionOf<E>>`
  * of next options. We rebuild the shape via `Omit` rather than
- * intersecting so the `options` field is the per-G option type (not the
- * engine base) even in a generic-G context.
+ * intersecting so the `options` field is the per-shape option type (not the
+ * engine base) even in a generic-shape context.
  */
-export type OpenSnapshotResult<G extends TableverseGame> = Omit<
-  OpenResultOf<G>,
+export type OpenSnapshotResult<E extends AnyGameExecutor> = Omit<
+  OpenResultOf<E>,
   "options"
 > & {
   step: string;
-  options: Array<PickOptionOf<G>>;
+  options: Array<PickOptionOf<E>>;
 };
 
-export interface DiscoveryStateSnapshot<G extends TableverseGame> {
+export interface DiscoveryStateSnapshot<E extends AnyGameExecutor> {
   /** Command type id being discovered (e.g. "take_three_gems"). Null when idle. */
   readonly activeCommandType: string | null;
   /**
@@ -60,21 +61,21 @@ export interface DiscoveryStateSnapshot<G extends TableverseGame> {
    * result waiting on the next pick. Null between flows, once the picked
    * input is assembled (pendingInput populated), or while executing.
    */
-  readonly open: OpenSnapshotResult<G> | null;
+  readonly open: OpenSnapshotResult<E> | null;
   /** Options picked so far in this flow, in pick order. */
-  readonly trail: ReadonlyArray<PickOptionOf<G>>;
+  readonly trail: ReadonlyArray<PickOptionOf<E>>;
   /**
    * Assembled command input ready to send to `execute()`. Populated when
    * discovery returns `{ complete: true }`; null before then.
    */
-  readonly pendingInput: CommandInputOf<G> | null;
+  readonly pendingInput: CommandInputOf<E> | null;
   readonly status: DiscoveryStatus;
   readonly error: string | null;
 }
 
 function createIdleSnapshot<
-  G extends TableverseGame,
->(): DiscoveryStateSnapshot<G> {
+  E extends AnyGameExecutor,
+>(): DiscoveryStateSnapshot<E> {
   return {
     activeCommandType: null,
     open: null,
@@ -88,24 +89,23 @@ function createIdleSnapshot<
 /**
  * Pure (non-React) discovery state machine.
  *
- * Owns the "active command + accumulated picks + pending input" flow that
- * useDiscovery exposes. Drives client.discover and client.execute, surfaces
- * results through a single `subscribe`-style observer interface so the
- * React hook can plug it into useSyncExternalStore.
+ * Owns the "active command + accumulated picks + pending input" flow. Drives
+ * client.discover and client.execute, surfacing results through a single
+ * `subscribe`-style observer interface a renderer can poll.
  *
- * `G` must be passed explicitly — the factory binds it to the bundle's
- * game shape; tests use `<TableverseGame>` for the structural-default case.
+ * Keyed on the game's executor type `E` (inferred from the client passed to the
+ * constructor), the same surface `TableverseClient<E>` uses.
  */
-export class DiscoveryState<G extends TableverseGame> {
-  private snapshot: DiscoveryStateSnapshot<G> = createIdleSnapshot<G>();
+export class DiscoveryState<E extends AnyGameExecutor> {
+  private snapshot: DiscoveryStateSnapshot<E> = createIdleSnapshot<E>();
   private readonly listeners = new Set<() => void>();
   private flowId = 0;
 
   constructor(
-    private readonly client: Pick<TableverseClient<G>, "discover" | "execute">,
+    private readonly client: Pick<TableverseClient<E>, "discover" | "execute">,
   ) {}
 
-  getSnapshot(): DiscoveryStateSnapshot<G> {
+  getSnapshot(): DiscoveryStateSnapshot<E> {
     return this.snapshot;
   }
 
@@ -116,7 +116,7 @@ export class DiscoveryState<G extends TableverseGame> {
     };
   }
 
-  start(payload: G["discovery"]["payload"]): void {
+  start(payload: GameShapeOf<E>["discovery"]["payload"]): void {
     const flow = ++this.flowId;
     this.setSnapshot({
       activeCommandType: payload.type,
@@ -129,7 +129,7 @@ export class DiscoveryState<G extends TableverseGame> {
     void this.runDiscover(flow, payload);
   }
 
-  pick(option: PickOptionOf<G>): void {
+  pick(option: PickOptionOf<E>): void {
     const current = this.snapshot;
     if (
       current.status !== "discovering" ||
@@ -145,7 +145,7 @@ export class DiscoveryState<G extends TableverseGame> {
     });
     // The engine guarantees that picking an option from an open result
     // produces a valid next-step payload; TS can't see the constructed
-    // shape extends G["discovery"]["payload"] in a generic context.
+    // shape extends GameShapeOf<E>["discovery"]["payload"] in a generic context.
     void this.runDiscover(flow, {
       type: current.activeCommandType,
       step: option.nextStep,
@@ -173,15 +173,20 @@ export class DiscoveryState<G extends TableverseGame> {
 
   cancel(): void {
     this.flowId++;
-    this.setSnapshot(createIdleSnapshot<G>());
+    this.setSnapshot(createIdleSnapshot<E>());
   }
 
   private async runDiscover(
     flow: number,
-    payload: G["discovery"]["payload"],
+    payload: DiscoveryPayload,
   ): Promise<void> {
     try {
-      const result = await this.client.discover(payload);
+      // The state machine works in loose payloads; the engine guarantees a
+      // valid step/input pair, so narrowing to the game's precise payload at
+      // the client boundary is sound.
+      const result = await this.client.discover(
+        payload as GameShapeOf<E>["discovery"]["payload"],
+      );
       if (this.flowId !== flow) return;
 
       if (result.complete) {
@@ -191,10 +196,13 @@ export class DiscoveryState<G extends TableverseGame> {
           pendingInput: result.input,
           status: "ready_to_confirm",
         });
-      } else if (isOpenResult<G>(result)) {
+      } else {
         this.setSnapshot({
           ...this.snapshot,
-          open: result,
+          // `complete` is false here, so this is the open result; the deferred
+          // discovery-result type doesn't narrow on `complete`, so assert the
+          // open shape through `unknown`.
+          open: result as unknown as OpenSnapshotResult<E>,
           status: "discovering",
         });
       }
@@ -213,11 +221,13 @@ export class DiscoveryState<G extends TableverseGame> {
     command: CommandPayload,
   ): Promise<void> {
     try {
-      const result = await this.client.execute(command);
+      const result = await this.client.execute(
+        command as GameShapeOf<E>["command"],
+      );
       if (this.flowId !== flow) return;
 
       if (result.accepted) {
-        this.setSnapshot(createIdleSnapshot<G>());
+        this.setSnapshot(createIdleSnapshot<E>());
       } else {
         this.setSnapshot({
           ...this.snapshot,
@@ -235,22 +245,12 @@ export class DiscoveryState<G extends TableverseGame> {
     }
   }
 
-  private setSnapshot(next: DiscoveryStateSnapshot<G>): void {
+  private setSnapshot(next: DiscoveryStateSnapshot<E>): void {
     this.snapshot = next;
     for (const listener of this.listeners) {
       listener();
     }
   }
-}
-
-// Replaces TS's inline discriminated-union narrowing on result.complete,
-// which fails to unify with OpenSnapshotResult<G> because of the
-// conditional-on-generic-indexed-access inside it. The predicate just
-// declares the narrowed type; the runtime check is the same.
-function isOpenResult<G extends TableverseGame>(
-  result: G["discovery"]["result"],
-): result is OpenSnapshotResult<G> {
-  return result.complete === false;
 }
 
 function errorMessage(error: unknown): string {
