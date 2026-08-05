@@ -28,8 +28,8 @@ export interface CommandFactory<
   HydratedState extends object,
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
-  <TCommandInput extends Record<string, unknown>>(
-    config: CommandBuilderBaseConfig<TCommandInput>,
+  <TCommandId extends string, TCommandInput extends Record<string, unknown>>(
+    config: CommandBuilderBaseConfig<TCommandId, TCommandInput>,
   ): CommandBuilder<
     HydratedState,
     TCommandInput,
@@ -39,7 +39,8 @@ export interface CommandFactory<
     false,
     false,
     false,
-    TEventRegistry
+    TEventRegistry,
+    TCommandId
   >;
 }
 
@@ -216,22 +217,40 @@ export function createCommandFactory<
     TDiscoveryInput extends Record<string, unknown> = TCommandInput,
     TSteps extends readonly AnyDiscoveryStepDefinition[] =
       readonly AnyDiscoveryStepDefinition[],
+    TCommandId extends string = string,
   >(
     definition:
-      | NonDiscoverableCommandDefinition<HydratedState, TCommandInput>
+      | NonDiscoverableCommandDefinition<
+          HydratedState,
+          TCommandInput,
+          TCommandId
+        >
       | DiscoverableCommandDefinition<
           HydratedState,
           TCommandInput,
           TDiscoveryInput,
-          TSteps
+          TSteps,
+          TCommandId
         >,
-  ): DefinedCommand<HydratedState, TCommandInput, TDiscoveryInput, TSteps> {
+  ): DefinedCommand<
+    HydratedState,
+    TCommandInput,
+    TDiscoveryInput,
+    TSteps,
+    TCommandId
+  > {
     return Object.defineProperty(definition, brand, {
       value: true,
       enumerable: false,
       configurable: false,
       writable: false,
-    }) as DefinedCommand<HydratedState, TCommandInput, TDiscoveryInput, TSteps>;
+    }) as DefinedCommand<
+      HydratedState,
+      TCommandInput,
+      TDiscoveryInput,
+      TSteps,
+      TCommandId
+    >;
   }
 
   function finalizeDiscoveryDefinition<
@@ -286,13 +305,15 @@ export function createCommandFactory<
     THasAvailability extends boolean = false,
     THasValidate extends boolean = false,
     THasExecute extends boolean = false,
+    TCommandId extends string = string,
   >(
     accumulator: CommandBuilderAccumulator<
       HydratedState,
       TCommandInput,
       TDiscoveryInput,
       THasDiscovery,
-      TSteps
+      TSteps,
+      TCommandId
     >,
   ): CommandBuilder<
     HydratedState,
@@ -303,7 +324,8 @@ export function createCommandFactory<
     THasAvailability,
     THasValidate,
     THasExecute,
-    TEventRegistry
+    TEventRegistry,
+    TCommandId
   > {
     return {
       discoverable<
@@ -341,7 +363,8 @@ export function createCommandFactory<
           HydratedState,
           TCommandInput,
           DiscoveryInitialInput<TNextSteps>,
-          TNextSteps
+          TNextSteps,
+          TCommandId
         >;
 
         return createBuilder<
@@ -351,7 +374,8 @@ export function createCommandFactory<
           true,
           THasAvailability,
           THasValidate,
-          THasExecute
+          THasExecute,
+          TCommandId
         >(nextAccumulator);
       },
 
@@ -364,7 +388,8 @@ export function createCommandFactory<
           TCommandInput,
           TDiscoveryInput,
           THasDiscovery,
-          TSteps
+          TSteps,
+          TCommandId
         >;
 
         return createBuilder<
@@ -374,7 +399,8 @@ export function createCommandFactory<
           THasDiscovery,
           true,
           THasValidate,
-          THasExecute
+          THasExecute,
+          TCommandId
         >(nextAccumulator);
       },
 
@@ -387,7 +413,8 @@ export function createCommandFactory<
           TCommandInput,
           TDiscoveryInput,
           THasDiscovery,
-          TSteps
+          TSteps,
+          TCommandId
         >;
 
         return createBuilder<
@@ -397,7 +424,8 @@ export function createCommandFactory<
           THasDiscovery,
           THasAvailability,
           true,
-          THasExecute
+          THasExecute,
+          TCommandId
         >(nextAccumulator);
       },
 
@@ -410,7 +438,8 @@ export function createCommandFactory<
           TCommandInput,
           TDiscoveryInput,
           THasDiscovery,
-          TSteps
+          TSteps,
+          TCommandId
         >;
 
         return createBuilder<
@@ -420,7 +449,8 @@ export function createCommandFactory<
           THasDiscovery,
           THasAvailability,
           THasValidate,
-          true
+          true,
+          TCommandId
         >(nextAccumulator);
       },
 
@@ -438,12 +468,17 @@ export function createCommandFactory<
           validate: accumulator.validate,
           execute: accumulator.execute,
         } as
-          | NonDiscoverableCommandDefinition<HydratedState, TCommandInput>
+          | NonDiscoverableCommandDefinition<
+              HydratedState,
+              TCommandInput,
+              TCommandId
+            >
           | DiscoverableCommandDefinition<
               HydratedState,
               TCommandInput,
               TDiscoveryInput,
-              TSteps
+              TSteps,
+              TCommandId
             >);
       },
     } as CommandBuilder<
@@ -455,12 +490,16 @@ export function createCommandFactory<
       THasAvailability,
       THasValidate,
       THasExecute,
-      TEventRegistry
+      TEventRegistry,
+      TCommandId
     >;
   }
 
-  function defineCommand<TCommandInput extends Record<string, unknown>>(
-    config: CommandBuilderBaseConfig<TCommandInput>,
+  function defineCommand<
+    TCommandId extends string,
+    TCommandInput extends Record<string, unknown>,
+  >(
+    config: CommandBuilderBaseConfig<TCommandId, TCommandInput>,
   ): CommandBuilder<
     HydratedState,
     TCommandInput,
@@ -470,7 +509,8 @@ export function createCommandFactory<
     false,
     false,
     false,
-    TEventRegistry
+    TEventRegistry,
+    TCommandId
   > {
     assertSerializableSchema(config.commandSchema);
 
@@ -479,7 +519,8 @@ export function createCommandFactory<
       commandSchema: config.commandSchema,
     } satisfies NonDiscoverableCommandAccumulator<
       HydratedState,
-      TCommandInput
+      TCommandInput,
+      TCommandId
     >);
   }
 

@@ -41,9 +41,10 @@ export type CommandSchema<TInput extends CommandData = CommandData> =
   };
 
 export type CommandBuilderBaseConfig<
+  TCommandId extends string = string,
   TCommandInput extends CommandData = CommandData,
 > = {
-  commandId: string;
+  commandId: TCommandId;
   commandSchema: CommandSchema<TCommandInput>;
 };
 
@@ -320,8 +321,9 @@ export type DiscoverableCommandDefinition<
   TDiscoveryInput extends DiscoveryData = DiscoveryData,
   TSteps extends readonly AnyDiscoveryStepDefinition[] =
     readonly AnyDiscoveryStepDefinition[],
+  TCommandId extends string = string,
 > = {
-  commandId: string;
+  commandId: TCommandId;
   commandSchema: CommandSchema<TCommandInput>;
   discovery: DiscoveryDefinition<TSteps>;
   _discoveryInput?: TDiscoveryInput;
@@ -330,8 +332,9 @@ export type DiscoverableCommandDefinition<
 export type NonDiscoverableCommandDefinition<
   HydratedState extends object,
   TCommandInput extends CommandData = CommandData,
+  TCommandId extends string = string,
 > = {
-  commandId: string;
+  commandId: TCommandId;
   commandSchema: CommandSchema<TCommandInput>;
   discovery?: never;
 } & CommandLifecycleMethods<HydratedState, TCommandInput>;
@@ -342,8 +345,15 @@ export type DefinedCommand<
   TDiscoveryInput extends DiscoveryData = TCommandInput,
   TSteps extends readonly AnyDiscoveryStepDefinition[] =
     readonly AnyDiscoveryStepDefinition[],
+  TCommandId extends string = string,
 > = CommandDefinitionBrand &
-  CommandDefinition<HydratedState, TCommandInput, TDiscoveryInput, TSteps>;
+  CommandDefinition<
+    HydratedState,
+    TCommandInput,
+    TDiscoveryInput,
+    TSteps,
+    TCommandId
+  >;
 
 export type CommandDefinition<
   HydratedState extends object,
@@ -351,14 +361,16 @@ export type CommandDefinition<
   TDiscoveryInput extends DiscoveryData = TCommandInput,
   TSteps extends readonly AnyDiscoveryStepDefinition[] =
     readonly AnyDiscoveryStepDefinition[],
+  TCommandId extends string = string,
 > =
   | DiscoverableCommandDefinition<
       HydratedState,
       TCommandInput,
       TDiscoveryInput,
-      TSteps
+      TSteps,
+      TCommandId
     >
-  | NonDiscoverableCommandDefinition<HydratedState, TCommandInput>;
+  | NonDiscoverableCommandDefinition<HydratedState, TCommandInput, TCommandId>;
 
 export type RuntimeCommandDefinition<HydratedState extends object> = {
   commandId: string;
@@ -374,13 +386,18 @@ export type RuntimeCommandDefinition<HydratedState extends object> = {
 export type NonDiscoverableCommandAccumulator<
   HydratedState extends object = object,
   TCommandInput extends CommandData = CommandData,
+  TCommandId extends string = string,
 > = Pick<
-  NonDiscoverableCommandDefinition<HydratedState, TCommandInput>,
+  NonDiscoverableCommandDefinition<HydratedState, TCommandInput, TCommandId>,
   "commandId" | "commandSchema"
 > &
   Partial<
     Pick<
-      NonDiscoverableCommandDefinition<HydratedState, TCommandInput>,
+      NonDiscoverableCommandDefinition<
+        HydratedState,
+        TCommandInput,
+        TCommandId
+      >,
       "isAvailable" | "validate" | "execute"
     >
   >;
@@ -391,12 +408,14 @@ export type DiscoverableCommandAccumulator<
   TDiscoveryInput extends DiscoveryData = TCommandInput,
   TSteps extends readonly AnyDiscoveryStepDefinition[] =
     readonly AnyDiscoveryStepDefinition[],
+  TCommandId extends string = string,
 > = Pick<
   DiscoverableCommandDefinition<
     HydratedState,
     TCommandInput,
     TDiscoveryInput,
-    TSteps
+    TSteps,
+    TCommandId
   >,
   "commandId" | "commandSchema" | "discovery"
 > &
@@ -406,7 +425,8 @@ export type DiscoverableCommandAccumulator<
         HydratedState,
         TCommandInput,
         TDiscoveryInput,
-        TSteps
+        TSteps,
+        TCommandId
       >,
       "isAvailable" | "validate" | "execute"
     >
@@ -419,14 +439,16 @@ export type CommandBuilderAccumulator<
   THasDiscovery extends boolean = false,
   TSteps extends readonly AnyDiscoveryStepDefinition[] =
     readonly AnyDiscoveryStepDefinition[],
+  TCommandId extends string = string,
 > = THasDiscovery extends true
   ? DiscoverableCommandAccumulator<
       HydratedState,
       TCommandInput,
       TDiscoveryInput,
-      TSteps
+      TSteps,
+      TCommandId
     >
-  : NonDiscoverableCommandAccumulator<HydratedState, TCommandInput>;
+  : NonDiscoverableCommandAccumulator<HydratedState, TCommandInput, TCommandId>;
 
 type NoBuilderMethod = Record<never, never>;
 
@@ -458,6 +480,7 @@ type BuildBuilderMethod<
   THasValidate extends boolean,
   THasExecute extends boolean,
   TSteps extends readonly AnyDiscoveryStepDefinition[],
+  TCommandId extends string = string,
 > = THasValidate extends true
   ? THasExecute extends true
     ? {
@@ -465,7 +488,8 @@ type BuildBuilderMethod<
           HydratedState,
           TCommandInput,
           BuildCommandInput<TCommandInput, TDiscoveryInput, THasDiscovery>,
-          TSteps
+          TSteps,
+          TCommandId
         >;
       }
     : NoBuilderMethod
@@ -482,6 +506,7 @@ export type CommandBuilder<
   THasValidate extends boolean = false,
   THasExecute extends boolean = false,
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
+  TCommandId extends string = string,
 > = OptionalBuilderMethod<
   THasDiscovery,
   {
@@ -503,7 +528,8 @@ export type CommandBuilder<
       THasAvailability,
       THasValidate,
       THasExecute,
-      TEventRegistry
+      TEventRegistry,
+      TCommandId
     >;
   }
 > &
@@ -523,7 +549,8 @@ export type CommandBuilder<
         true,
         THasValidate,
         THasExecute,
-        TEventRegistry
+        TEventRegistry,
+        TCommandId
       >;
     }
   > &
@@ -546,7 +573,8 @@ export type CommandBuilder<
         THasAvailability,
         true,
         THasExecute,
-        TEventRegistry
+        TEventRegistry,
+        TCommandId
       >;
     }
   > &
@@ -570,7 +598,8 @@ export type CommandBuilder<
         THasAvailability,
         THasValidate,
         true,
-        TEventRegistry
+        TEventRegistry,
+        TCommandId
       >;
     }
   > &
@@ -581,7 +610,8 @@ export type CommandBuilder<
     THasDiscovery,
     THasValidate,
     THasExecute,
-    TSteps
+    TSteps,
+    TCommandId
   >;
 
 export interface InternalValidationContext<
