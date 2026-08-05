@@ -1,22 +1,5 @@
-import type {
-  AnyCommandDiscoveryResult,
-  Command,
-  Discovery,
-} from "@tableverse-kit/engine";
+import type { AnyCommandDiscoveryResult } from "@tableverse-kit/engine";
 import type { AnyGameExecutor, GameShapeOf } from "./game-shape.ts";
-
-/**
- * Client-side command payload. The engine's `Command` carries `actorId`,
- * which the adapter fills in from the active viewer — UI consumers must
- * not author it. Loose, actorId-stripped shape; a game's precise per-command
- * payload is `GameShapeOf<E>["command"]`.
- */
-export type CommandPayload = Omit<Command, "actorId">;
-
-/**
- * Client-side discovery payload. Same actorId story as `CommandPayload`.
- */
-export type DiscoveryPayload = Omit<Discovery, "actorId">;
 
 /**
  * Discovery result union — open (more options to pick) or complete
