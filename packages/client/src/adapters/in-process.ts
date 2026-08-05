@@ -2,9 +2,12 @@ import type {
   AnyGameStateDefinition,
   CanonicalState,
   CanonicalStateOf,
+  EventRegistry,
+  GameEvent,
   GameExecutor,
 } from "@tableverse-kit/engine";
-import type { TableverseClient, TableverseGame } from "../client/types.ts";
+import type { AnyGameExecutor, GameShapeOf } from "../client/game-shape.ts";
+import type { TableverseClient } from "../client/types.ts";
 
 export interface CreateInProcessClientOptions<
   RootState extends AnyGameStateDefinition,
@@ -24,34 +27,52 @@ export interface CreateInProcessClientOptions<
  * a replay) and hands it in. The adapter owns the running-game phase: state
  * mutation, subscriber notification, event fan-out.
  *
- * `G` defaults to the unparameterized `TableverseGame` shape; pass `G`
- * explicitly to get typed view/event/command shapes, or use the
- * `createGameHooks<G>()` factory to bind the type once across the app.
- * `GameState` and `SetupInput` are inferred from the `executor` argument.
+ * All type parameters are inferred from the `executor` argument; the returned
+ * client's view / command / discovery / event shapes come from its
+ * `GameExecutor` type via `GameShapeOf`. Nothing is hand-authored.
  */
 export function createInProcessClient<
-  G extends TableverseGame,
   RootState extends AnyGameStateDefinition,
   SetupInput extends object | undefined = undefined,
+  TCommandDefinition = never,
+  TEventRegistry extends EventRegistry = EventRegistry,
 >(
-  executor: GameExecutor<RootState, SetupInput>,
+  executor: GameExecutor<
+    RootState,
+    SetupInput,
+    TCommandDefinition,
+    TEventRegistry
+  >,
   options: CreateInProcessClientOptions<RootState>,
-): TableverseClient<G> {
+): TableverseClient<
+  GameExecutor<RootState, SetupInput, TCommandDefinition, TEventRegistry>
+> {
+  type E = GameExecutor<
+    RootState,
+    SetupInput,
+    TCommandDefinition,
+    TEventRegistry
+  >;
+  type EventOut = GameShapeOf<E>["event"];
+
   let state = options.initialState;
   let version = 0;
   let currentViewerId = options.viewerId;
   const subscribers = new Set<() => void>();
-  const eventListeners = new Set<(event: G["event"]) => void>();
+  const eventListeners = new Set<(event: EventOut) => void>();
   let disposed = false;
 
   const notifySubscribers = (): void => {
     for (const listener of subscribers) listener();
   };
 
-  const emitEvents = (events: ReadonlyArray<G["event"]>): void => {
+  // `executor.executeCommand` returns loosely-typed `GameEvent[]`; the engine
+  // validated every emitted event against the registry, so narrowing to the
+  // derived event union here is sound.
+  const emitEvents = (events: ReadonlyArray<GameEvent>): void => {
     for (const event of events) {
       for (const listener of eventListeners) {
-        listener(event);
+        listener(event as EventOut);
       }
     }
   };
@@ -135,7 +156,9 @@ export function createInProcessClient<
       const result = executor.executeCommand(state, {
         type,
         actorId: currentViewerId,
-        input,
+        // `input` is the game's precise per-command type, deferred to `unknown`
+        // in this generic body; the engine re-validates it against the schema.
+        input: input as Record<string, unknown>,
       });
 
       if (!result.ok) {
@@ -159,7 +182,7 @@ export function createInProcessClient<
 }
 
 /**
- * Convenience: shape the executor type so callers don't have to fight
- * generics. The runtime cost is zero; this is only a type assertion helper.
+ * Convenience alias: name a game's in-process client type from its executor,
+ * e.g. `type SplendorClient = InProcessClient<typeof splendorExecutor>;`.
  */
-export type InProcessClient<G extends TableverseGame> = TableverseClient<G>;
+export type InProcessClient<E extends AnyGameExecutor> = TableverseClient<E>;

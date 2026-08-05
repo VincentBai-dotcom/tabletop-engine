@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { createInProcessClient } from "../src/adapters/in-process.ts";
+import type { AnyGameExecutor } from "../src/client/game-shape.ts";
 
 interface FakeState {
   game: { counter: number };
@@ -115,10 +116,13 @@ function buildFakeExecutor(initialCounter = 0) {
 describe("createInProcessClient", () => {
   test("getView delegates to executor with viewer context", () => {
     const { executor, calls } = buildFakeExecutor();
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(5),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(5),
+      },
+    );
 
     expect(client.getView()).toEqual({ counter: 5 });
     expect(calls.getView).toBe(1);
@@ -126,10 +130,13 @@ describe("createInProcessClient", () => {
 
   test("execute applies state, bumps version, notifies subscribers, fans out events", async () => {
     const { executor } = buildFakeExecutor();
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(),
+      },
+    );
 
     let subscribeCalls = 0;
     const events: unknown[] = [];
@@ -153,10 +160,13 @@ describe("createInProcessClient", () => {
 
   test("execute injects actorId from viewerId", async () => {
     const { executor, calls } = buildFakeExecutor();
-    const client = createInProcessClient(executor as never, {
-      viewerId: "alice",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "alice",
+        initialState: fakeInitialState(),
+      },
+    );
 
     await client.execute({ type: "increment", input: { delta: 1 } });
     expect(calls.execute).toEqual([
@@ -175,10 +185,13 @@ describe("createInProcessClient", () => {
       reason: "not_allowed",
       events: [],
     })) as never;
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(),
+      },
+    );
 
     let subscribeCalls = 0;
     client.subscribe(() => {
@@ -193,10 +206,13 @@ describe("createInProcessClient", () => {
 
   test("discover injects actorId and resolves with engine result", async () => {
     const { executor, calls } = buildFakeExecutor();
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(),
+      },
+    );
 
     const result = await client.discover({
       type: "increment",
@@ -212,10 +228,13 @@ describe("createInProcessClient", () => {
   test("discover rejects when executor returns null", async () => {
     const { executor } = buildFakeExecutor();
     executor.discoverCommand = () => null as never;
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(),
+      },
+    );
 
     await expect(
       client.discover({ type: "nope", step: "init", input: {} }),
@@ -224,10 +243,13 @@ describe("createInProcessClient", () => {
 
   test("unsubscribe stops notifications", async () => {
     const { executor } = buildFakeExecutor();
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(),
+      },
+    );
 
     let count = 0;
     const unsubscribe = client.subscribe(() => {
@@ -247,10 +269,13 @@ describe("createInProcessClient", () => {
       state: stateWithActivePlayer("p2", 1),
       events: [],
     })) as never;
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(),
+      },
+    );
 
     let notifications = 0;
     client.subscribe(() => {
@@ -266,10 +291,13 @@ describe("createInProcessClient", () => {
   test("auto-switch viewer is skipped for automatic stages", async () => {
     const { executor } = buildFakeExecutor();
     // buildFakeExecutor returns automatic-stage state by default
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(),
+      },
+    );
 
     await client.execute({ type: "increment", input: { delta: 1 } });
     expect(client.viewerId).toBe("p1");
@@ -296,10 +324,13 @@ describe("createInProcessClient", () => {
       },
       events: [],
     })) as never;
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(),
+      },
+    );
 
     await client.execute({ type: "increment", input: { delta: 1 } });
     expect(client.viewerId).toBe("p1");
@@ -312,10 +343,13 @@ describe("createInProcessClient", () => {
       state: stateWithActivePlayer("p1", 1),
       events: [],
     })) as never;
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(),
+      },
+    );
 
     let notifications = 0;
     client.subscribe(() => {
@@ -330,10 +364,13 @@ describe("createInProcessClient", () => {
 
   test("dispose clears listeners and getView returns null", async () => {
     const { executor } = buildFakeExecutor();
-    const client = createInProcessClient(executor as never, {
-      viewerId: "p1",
-      initialState: fakeInitialState(),
-    });
+    const client = createInProcessClient(
+      executor as unknown as AnyGameExecutor,
+      {
+        viewerId: "p1",
+        initialState: fakeInitialState(),
+      },
+    );
 
     let count = 0;
     client.subscribe(() => {
