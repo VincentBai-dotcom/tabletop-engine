@@ -5,9 +5,3 @@ export type {
   ExecutionResult,
   TableverseClient,
 } from "./client/types.ts";
-
-export {
-  createInProcessClient,
-  type CreateInProcessClientOptions,
-  type InProcessClient,
-} from "./adapters/in-process.ts";
