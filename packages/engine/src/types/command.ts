@@ -41,7 +41,7 @@ export type CommandSchema<TInput extends CommandData = CommandData> =
   };
 
 export type CommandBuilderBaseConfig<
-  TCommandId extends string = string,
+  TCommandId extends string,
   TCommandInput extends CommandData = CommandData,
 > = {
   commandId: TCommandId;
