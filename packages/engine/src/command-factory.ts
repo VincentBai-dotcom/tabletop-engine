@@ -30,6 +30,7 @@ export interface CommandFactory<
   <TCommandId extends string, TCommandInput extends Record<string, unknown>>(
     config: CommandBuilderBaseConfig<TCommandId, TCommandInput>,
   ): CommandBuilder<
+    TCommandId,
     HydratedState,
     TCommandInput,
     never,
@@ -38,8 +39,7 @@ export interface CommandFactory<
     false,
     false,
     false,
-    TEventRegistry,
-    TCommandId
+    TEventRegistry
   >;
 }
 
@@ -212,11 +212,11 @@ export function createCommandFactory<
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >() {
   function brandCommandDefinition<
+    TCommandId extends string,
     TCommandInput extends Record<string, unknown>,
     TDiscoveryInput extends Record<string, unknown> = TCommandInput,
     TSteps extends readonly AnyDiscoveryStepDefinition[] =
       readonly AnyDiscoveryStepDefinition[],
-    TCommandId extends string = string,
   >(
     definition:
       | NonDiscoverableCommandDefinition<
@@ -302,12 +302,12 @@ export function createCommandFactory<
   // `.discoverable()`/`.isAvailable()`/`.validate()`/`.execute()` step — the
   // Accumulator* helpers below just read the relevant piece back out of it.
   type BuilderAccumulator = CommandBuilderAccumulator<
+    string,
     HydratedState,
     Record<string, unknown>,
     Record<string, unknown>,
     boolean,
-    readonly AnyDiscoveryStepDefinition[],
-    string
+    readonly AnyDiscoveryStepDefinition[]
   >;
 
   type AccumulatorCommandId<TAcc extends BuilderAccumulator> = TAcc extends {
@@ -357,6 +357,7 @@ export function createCommandFactory<
   function createBuilder<TAcc extends BuilderAccumulator>(
     accumulator: TAcc,
   ): CommandBuilder<
+    AccumulatorCommandId<TAcc>,
     HydratedState,
     AccumulatorCommandInput<TAcc>,
     AccumulatorDiscoveryInput<TAcc>,
@@ -365,8 +366,7 @@ export function createCommandFactory<
     AccumulatorHasAvailability<TAcc>,
     AccumulatorHasValidate<TAcc>,
     AccumulatorHasExecute<TAcc>,
-    TEventRegistry,
-    AccumulatorCommandId<TAcc>
+    TEventRegistry
   > {
     return {
       discoverable<
@@ -440,6 +440,7 @@ export function createCommandFactory<
             >);
       },
     } as CommandBuilder<
+      AccumulatorCommandId<TAcc>,
       HydratedState,
       AccumulatorCommandInput<TAcc>,
       AccumulatorDiscoveryInput<TAcc>,
@@ -448,8 +449,7 @@ export function createCommandFactory<
       AccumulatorHasAvailability<TAcc>,
       AccumulatorHasValidate<TAcc>,
       AccumulatorHasExecute<TAcc>,
-      TEventRegistry,
-      AccumulatorCommandId<TAcc>
+      TEventRegistry
     >;
   }
 
@@ -459,6 +459,7 @@ export function createCommandFactory<
   >(
     config: CommandBuilderBaseConfig<TCommandId, TCommandInput>,
   ): CommandBuilder<
+    TCommandId,
     HydratedState,
     TCommandInput,
     never,
@@ -467,8 +468,7 @@ export function createCommandFactory<
     false,
     false,
     false,
-    TEventRegistry,
-    TCommandId
+    TEventRegistry
   > {
     assertSerializableSchema(config.commandSchema);
 
@@ -476,9 +476,9 @@ export function createCommandFactory<
       commandId: config.commandId,
       commandSchema: config.commandSchema,
     } satisfies NonDiscoverableCommandAccumulator<
+      TCommandId,
       HydratedState,
-      TCommandInput,
-      TCommandId
+      TCommandInput
     >);
   }
 
