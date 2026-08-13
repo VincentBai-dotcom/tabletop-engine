@@ -744,6 +744,22 @@ function createExecutorMethods<
         return failure;
       }
 
+      try {
+        assertSchemaValue(definition.commandSchema, command.input);
+      } catch {
+        const failure: ExecutionFailure<
+          CanonicalState<CanonicalStateOf<RootState>>
+        > = {
+          ok: false,
+          state,
+          reason: "invalid_command_input",
+          metadata: { commandType: command.type },
+          events: [],
+        };
+
+        return failure;
+      }
+
       const currentStageState = state.runtime.progression.currentStage;
       const currentStage = getCurrentStageDefinition(game, state);
 
