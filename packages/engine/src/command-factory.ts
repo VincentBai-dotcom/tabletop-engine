@@ -4,7 +4,6 @@ import type {
   CommandBuilderBaseConfig,
   CommandSchema,
   DefinedCommand,
-  DiscoverableCommandAccumulator,
   DiscoverableCommandDefinition,
   DiscoveryDefinition,
   DiscoveryInitialInput,
@@ -24,21 +23,40 @@ import { commandDefinitionBrand as brand } from "./types/command";
 import { assertSerializableSchema } from "./schema";
 import type { EventRegistry, EmptyEventRegistry } from "./events/registry";
 
+/**
+ * The builder state produced by a fresh `defineCommand({...})` call, before
+ * any of `.discoverable()`/`.isAvailable()`/`.validate()`/`.execute()` have
+ * run. Shared by `CommandFactory`'s call signature and `defineCommand`'s
+ * return type below so the two can't drift out of sync.
+ */
+type InitialCommandBuilder<
+  TCommandId extends string,
+  HydratedState extends object,
+  TCommandInput extends Record<string, unknown>,
+  TEventRegistry extends EventRegistry,
+> = CommandBuilder<
+  TCommandId,
+  HydratedState,
+  TCommandInput,
+  never,
+  readonly AnyDiscoveryStepDefinition[],
+  false,
+  false,
+  false,
+  false,
+  TEventRegistry
+>;
+
 export interface CommandFactory<
   HydratedState extends object,
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
-  <TCommandInput extends Record<string, unknown>>(
-    config: CommandBuilderBaseConfig<TCommandInput>,
-  ): CommandBuilder<
+  <TCommandId extends string, TCommandInput extends Record<string, unknown>>(
+    config: CommandBuilderBaseConfig<TCommandId, TCommandInput>,
+  ): InitialCommandBuilder<
+    TCommandId,
     HydratedState,
     TCommandInput,
-    never,
-    readonly AnyDiscoveryStepDefinition[],
-    false,
-    false,
-    false,
-    false,
     TEventRegistry
   >;
 }
@@ -212,26 +230,44 @@ export function createCommandFactory<
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >() {
   function brandCommandDefinition<
+    TCommandId extends string,
     TCommandInput extends Record<string, unknown>,
     TDiscoveryInput extends Record<string, unknown> = TCommandInput,
     TSteps extends readonly AnyDiscoveryStepDefinition[] =
       readonly AnyDiscoveryStepDefinition[],
   >(
     definition:
-      | NonDiscoverableCommandDefinition<HydratedState, TCommandInput>
+      | NonDiscoverableCommandDefinition<
+          HydratedState,
+          TCommandInput,
+          TCommandId
+        >
       | DiscoverableCommandDefinition<
           HydratedState,
           TCommandInput,
           TDiscoveryInput,
-          TSteps
+          TSteps,
+          TCommandId
         >,
-  ): DefinedCommand<HydratedState, TCommandInput, TDiscoveryInput, TSteps> {
+  ): DefinedCommand<
+    HydratedState,
+    TCommandInput,
+    TDiscoveryInput,
+    TSteps,
+    TCommandId
+  > {
     return Object.defineProperty(definition, brand, {
       value: true,
       enumerable: false,
       configurable: false,
       writable: false,
-    }) as DefinedCommand<HydratedState, TCommandInput, TDiscoveryInput, TSteps>;
+    }) as DefinedCommand<
+      HydratedState,
+      TCommandInput,
+      TDiscoveryInput,
+      TSteps,
+      TCommandId
+    >;
   }
 
   function finalizeDiscoveryDefinition<
@@ -277,32 +313,77 @@ export function createCommandFactory<
     };
   }
 
-  function createBuilder<
-    TCommandInput extends Record<string, unknown>,
-    TDiscoveryInput extends Record<string, unknown> = TCommandInput,
-    TSteps extends readonly AnyDiscoveryStepDefinition[] =
-      readonly AnyDiscoveryStepDefinition[],
-    THasDiscovery extends boolean = false,
-    THasAvailability extends boolean = false,
-    THasValidate extends boolean = false,
-    THasExecute extends boolean = false,
-  >(
-    accumulator: CommandBuilderAccumulator<
-      HydratedState,
-      TCommandInput,
-      TDiscoveryInput,
-      THasDiscovery,
-      TSteps
-    >,
-  ): CommandBuilder<
+  // A single generic parameter over the accumulator value, rather than one
+  // positional type parameter per builder flag/type. TS can infer `TAcc`
+  // entirely from the argument at each recursive call below, so callers
+  // never restate the 8 positional args that used to accompany every
+  // `.discoverable()`/`.isAvailable()`/`.validate()`/`.execute()` step — the
+  // Accumulator* helpers below just read the relevant piece back out of it.
+  type BuilderAccumulator = CommandBuilderAccumulator<
+    string,
     HydratedState,
-    TCommandInput,
-    TDiscoveryInput,
-    TSteps,
-    THasDiscovery,
-    THasAvailability,
-    THasValidate,
-    THasExecute,
+    Record<string, unknown>,
+    Record<string, unknown>,
+    boolean,
+    readonly AnyDiscoveryStepDefinition[]
+  >;
+
+  type AccumulatorCommandId<TAcc extends BuilderAccumulator> = TAcc extends {
+    commandId: infer TId extends string;
+  }
+    ? TId
+    : string;
+
+  type AccumulatorCommandInput<TAcc extends BuilderAccumulator> = TAcc extends {
+    commandSchema: CommandSchema<infer TInput>;
+  }
+    ? TInput
+    : Record<string, unknown>;
+
+  type AccumulatorSteps<TAcc extends BuilderAccumulator> = TAcc extends {
+    discovery: DiscoveryDefinition<infer TSteps>;
+  }
+    ? TSteps
+    : readonly AnyDiscoveryStepDefinition[];
+
+  type AccumulatorHasDiscovery<TAcc extends BuilderAccumulator> = TAcc extends {
+    discovery: DiscoveryDefinition<readonly AnyDiscoveryStepDefinition[]>;
+  }
+    ? true
+    : false;
+
+  type AccumulatorDiscoveryInput<TAcc extends BuilderAccumulator> =
+    AccumulatorHasDiscovery<TAcc> extends true
+      ? DiscoveryInitialInput<AccumulatorSteps<TAcc>>
+      : AccumulatorCommandInput<TAcc>;
+
+  type AccumulatorHasAvailability<TAcc extends BuilderAccumulator> =
+    TAcc extends { isAvailable: (...args: never[]) => unknown } ? true : false;
+
+  type AccumulatorHasValidate<TAcc extends BuilderAccumulator> = TAcc extends {
+    validate: (...args: never[]) => unknown;
+  }
+    ? true
+    : false;
+
+  type AccumulatorHasExecute<TAcc extends BuilderAccumulator> = TAcc extends {
+    execute: (...args: never[]) => unknown;
+  }
+    ? true
+    : false;
+
+  function createBuilder<TAcc extends BuilderAccumulator>(
+    accumulator: TAcc,
+  ): CommandBuilder<
+    AccumulatorCommandId<TAcc>,
+    HydratedState,
+    AccumulatorCommandInput<TAcc>,
+    AccumulatorDiscoveryInput<TAcc>,
+    AccumulatorSteps<TAcc>,
+    AccumulatorHasDiscovery<TAcc>,
+    AccumulatorHasAvailability<TAcc>,
+    AccumulatorHasValidate<TAcc>,
+    AccumulatorHasExecute<TAcc>,
     TEventRegistry
   > {
     return {
@@ -317,7 +398,7 @@ export function createCommandFactory<
             stepId: TStepId,
           ) => DiscoveryStepBuilder<
             HydratedState,
-            TCommandInput,
+            AccumulatorCommandInput<TAcc>,
             readonly AnyDiscoveryStepDefinition[],
             TStepId
           >,
@@ -326,7 +407,7 @@ export function createCommandFactory<
         function discoveryStepFactory<TStepId extends string>(stepId: TStepId) {
           return createDiscoveryStepBuilder<
             HydratedState,
-            TCommandInput,
+            AccumulatorCommandInput<TAcc>,
             TStepId
           >(stepId);
         }
@@ -334,94 +415,19 @@ export function createCommandFactory<
         const steps = configure(discoveryStepFactory);
         const discovery = finalizeDiscoveryDefinition(steps);
 
-        const nextAccumulator = {
-          ...accumulator,
-          discovery,
-        } as DiscoverableCommandAccumulator<
-          HydratedState,
-          TCommandInput,
-          DiscoveryInitialInput<TNextSteps>,
-          TNextSteps
-        >;
-
-        return createBuilder<
-          TCommandInput,
-          DiscoveryInitialInput<TNextSteps>,
-          TNextSteps,
-          true,
-          THasAvailability,
-          THasValidate,
-          THasExecute
-        >(nextAccumulator);
+        return createBuilder({ ...accumulator, discovery });
       },
 
       isAvailable(isAvailable) {
-        const nextAccumulator = {
-          ...accumulator,
-          isAvailable,
-        } as CommandBuilderAccumulator<
-          HydratedState,
-          TCommandInput,
-          TDiscoveryInput,
-          THasDiscovery,
-          TSteps
-        >;
-
-        return createBuilder<
-          TCommandInput,
-          TDiscoveryInput,
-          TSteps,
-          THasDiscovery,
-          true,
-          THasValidate,
-          THasExecute
-        >(nextAccumulator);
+        return createBuilder({ ...accumulator, isAvailable });
       },
 
       validate(validate) {
-        const nextAccumulator = {
-          ...accumulator,
-          validate,
-        } as CommandBuilderAccumulator<
-          HydratedState,
-          TCommandInput,
-          TDiscoveryInput,
-          THasDiscovery,
-          TSteps
-        >;
-
-        return createBuilder<
-          TCommandInput,
-          TDiscoveryInput,
-          TSteps,
-          THasDiscovery,
-          THasAvailability,
-          true,
-          THasExecute
-        >(nextAccumulator);
+        return createBuilder({ ...accumulator, validate });
       },
 
       execute(execute) {
-        const nextAccumulator = {
-          ...accumulator,
-          execute,
-        } as CommandBuilderAccumulator<
-          HydratedState,
-          TCommandInput,
-          TDiscoveryInput,
-          THasDiscovery,
-          TSteps
-        >;
-
-        return createBuilder<
-          TCommandInput,
-          TDiscoveryInput,
-          TSteps,
-          THasDiscovery,
-          THasAvailability,
-          THasValidate,
-          true
-        >(nextAccumulator);
+        return createBuilder({ ...accumulator, execute });
       },
 
       build() {
@@ -438,38 +444,42 @@ export function createCommandFactory<
           validate: accumulator.validate,
           execute: accumulator.execute,
         } as
-          | NonDiscoverableCommandDefinition<HydratedState, TCommandInput>
+          | NonDiscoverableCommandDefinition<
+              HydratedState,
+              AccumulatorCommandInput<TAcc>,
+              AccumulatorCommandId<TAcc>
+            >
           | DiscoverableCommandDefinition<
               HydratedState,
-              TCommandInput,
-              TDiscoveryInput,
-              TSteps
+              AccumulatorCommandInput<TAcc>,
+              AccumulatorDiscoveryInput<TAcc>,
+              AccumulatorSteps<TAcc>,
+              AccumulatorCommandId<TAcc>
             >);
       },
     } as CommandBuilder<
+      AccumulatorCommandId<TAcc>,
       HydratedState,
-      TCommandInput,
-      TDiscoveryInput,
-      TSteps,
-      THasDiscovery,
-      THasAvailability,
-      THasValidate,
-      THasExecute,
+      AccumulatorCommandInput<TAcc>,
+      AccumulatorDiscoveryInput<TAcc>,
+      AccumulatorSteps<TAcc>,
+      AccumulatorHasDiscovery<TAcc>,
+      AccumulatorHasAvailability<TAcc>,
+      AccumulatorHasValidate<TAcc>,
+      AccumulatorHasExecute<TAcc>,
       TEventRegistry
     >;
   }
 
-  function defineCommand<TCommandInput extends Record<string, unknown>>(
-    config: CommandBuilderBaseConfig<TCommandInput>,
-  ): CommandBuilder<
+  function defineCommand<
+    TCommandId extends string,
+    TCommandInput extends Record<string, unknown>,
+  >(
+    config: CommandBuilderBaseConfig<TCommandId, TCommandInput>,
+  ): InitialCommandBuilder<
+    TCommandId,
     HydratedState,
     TCommandInput,
-    never,
-    readonly AnyDiscoveryStepDefinition[],
-    false,
-    false,
-    false,
-    false,
     TEventRegistry
   > {
     assertSerializableSchema(config.commandSchema);
@@ -478,6 +488,7 @@ export function createCommandFactory<
       commandId: config.commandId,
       commandSchema: config.commandSchema,
     } satisfies NonDiscoverableCommandAccumulator<
+      TCommandId,
       HydratedState,
       TCommandInput
     >);

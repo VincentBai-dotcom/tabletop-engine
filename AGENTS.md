@@ -26,13 +26,14 @@ The intended public package family is:
 - `@tableverse-kit/cli`
   local authoring tooling, installed with the `tvk` command
 - `@tableverse-kit/client`
-  the frontend client. Its React-free root (`@tableverse-kit/client`) ships the
-  renderer-agnostic `TableverseClient`, the in-process adapter, and the
-  interaction state machine — consumable directly by canvas/WebGL/WASM
-  frontends. Thin React hooks live in the optional `@tableverse-kit/client/react`
-  entry (`react` is an optional peer dependency). Renamed from the former
-  `@tableverse-kit/ui`; the previously planned shadcn-style styled/copy-in
-  component kit is cancelled — see
+  the frontend client. Ships the renderer-agnostic `TableverseClient` interface
+  and the `GameShapeOf` type machinery that derives a game's view/command/
+  discovery/event shapes from its `GameExecutor` — nothing hand-authored. No
+  concrete adapter ships yet: local/dev usage runs a real local server rather
+  than an in-process, same-process client. Thin React hooks
+  (`@tableverse-kit/client/react`) remain a deferral — see Active Deferrals
+  below. Renamed from the former `@tableverse-kit/ui`; the previously planned
+  shadcn-style styled/copy-in component kit is cancelled — see
   `docs/design/2026-07-05-frontend-runtime-agnostic-client.md`.
 
 ## Platform Boundary
