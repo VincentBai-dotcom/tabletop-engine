@@ -23,22 +23,40 @@ import { commandDefinitionBrand as brand } from "./types/command";
 import { assertSerializableSchema } from "./schema";
 import type { EventRegistry, EmptyEventRegistry } from "./events/registry";
 
+/**
+ * The builder state produced by a fresh `defineCommand({...})` call, before
+ * any of `.discoverable()`/`.isAvailable()`/`.validate()`/`.execute()` have
+ * run. Shared by `CommandFactory`'s call signature and `defineCommand`'s
+ * return type below so the two can't drift out of sync.
+ */
+type InitialCommandBuilder<
+  TCommandId extends string,
+  HydratedState extends object,
+  TCommandInput extends Record<string, unknown>,
+  TEventRegistry extends EventRegistry,
+> = CommandBuilder<
+  TCommandId,
+  HydratedState,
+  TCommandInput,
+  never,
+  readonly AnyDiscoveryStepDefinition[],
+  false,
+  false,
+  false,
+  false,
+  TEventRegistry
+>;
+
 export interface CommandFactory<
   HydratedState extends object,
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
   <TCommandId extends string, TCommandInput extends Record<string, unknown>>(
     config: CommandBuilderBaseConfig<TCommandId, TCommandInput>,
-  ): CommandBuilder<
+  ): InitialCommandBuilder<
     TCommandId,
     HydratedState,
     TCommandInput,
-    never,
-    readonly AnyDiscoveryStepDefinition[],
-    false,
-    false,
-    false,
-    false,
     TEventRegistry
   >;
 }
@@ -458,16 +476,10 @@ export function createCommandFactory<
     TCommandInput extends Record<string, unknown>,
   >(
     config: CommandBuilderBaseConfig<TCommandId, TCommandInput>,
-  ): CommandBuilder<
+  ): InitialCommandBuilder<
     TCommandId,
     HydratedState,
     TCommandInput,
-    never,
-    readonly AnyDiscoveryStepDefinition[],
-    false,
-    false,
-    false,
-    false,
     TEventRegistry
   > {
     assertSerializableSchema(config.commandSchema);
