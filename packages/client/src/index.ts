@@ -5,3 +5,8 @@ export type {
   ExecutionResult,
   TableverseClient,
 } from "./client/types.ts";
+export type {
+  ConnectionStatus,
+  TransportErrorReason,
+} from "./client/lifecycle.ts";
+export { TransportError } from "./client/lifecycle.ts";
