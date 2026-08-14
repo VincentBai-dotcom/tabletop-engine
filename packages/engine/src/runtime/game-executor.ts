@@ -83,7 +83,7 @@ export interface GameExecutor<
 
 /**
  * Wraps the raw event collector with the author-facing `emitEvent`: it stamps
- * `category: "domain"` and validates the type/payload against the game's event
+ * `category: "domain"` and validates the type/payload against the gameDefinition's event
  * registry. Every emitted event must be declared; an undeclared `type` throws.
  * This backs the compile-time contract at runtime (defense against untrusted
  * bundled code that bypasses the types).
@@ -106,14 +106,14 @@ function createCommandGameView<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
+  gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
   state: CanonicalState<CanonicalStateOf<RootState>>,
   options?: {
     readonly?: boolean;
     allowDirectMutation?: boolean;
   },
 ): StateClassOf<RootState> {
-  return hydrateStateFacade(game.stateFacade, state.game, {
+  return hydrateStateFacade(gameDefinition.stateFacade, state.game, {
     readonly: options?.readonly ?? false,
     allowDirectMutation: options?.allowDirectMutation ?? false,
   });
@@ -130,13 +130,13 @@ function createInitialRuntimeState<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
+  gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
   rngSeed: string | number,
 ): RuntimeState {
   const runtime: RuntimeState = {
     progression: {
       currentStage: {
-        id: game.initialStage.id,
+        id: gameDefinition.initialStage.id,
         kind: "automatic",
       },
       lastActingStage: null,
@@ -157,7 +157,7 @@ function initializeGameState<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
+  gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
   input: object | undefined,
   rngSeed: string | number,
 ): CanonicalState<CanonicalStateOf<RootState>> {
@@ -165,28 +165,28 @@ function initializeGameState<
     throw new Error("rng_seed_required");
   }
 
-  if (game.setupInputSchema && input === undefined) {
+  if (gameDefinition.setupInputSchema && input === undefined) {
     throw new Error("setup_input_required");
   }
 
-  if (game.setupInputSchema && input !== undefined) {
-    assertSchemaValue(game.setupInputSchema, input);
+  if (gameDefinition.setupInputSchema && input !== undefined) {
+    assertSchemaValue(gameDefinition.setupInputSchema, input);
   }
 
-  const gameState = structuredClone(game.defaultCanonicalGameState);
-  const runtime = createInitialRuntimeState(game, rngSeed);
+  const gameState = structuredClone(gameDefinition.defaultCanonicalGameState);
+  const runtime = createInitialRuntimeState(gameDefinition, rngSeed);
   const rng = createRNGService(runtime.rng);
 
-  validateCanonicalGameState(game, gameState);
+  validateCanonicalGameState(gameDefinition, gameState);
 
-  if (game.setupInputSchema) {
+  if (gameDefinition.setupInputSchema) {
     if (input === undefined) {
       throw new Error("setup_input_required");
     }
 
-    game.setup?.({
+    gameDefinition.setup?.({
       game: createCommandGameView(
-        game,
+        gameDefinition,
         {
           game: gameState,
           runtime,
@@ -200,9 +200,9 @@ function initializeGameState<
       input,
     });
   } else {
-    game.setup?.({
+    gameDefinition.setup?.({
       game: createCommandGameView(
-        game,
+        gameDefinition,
         {
           game: gameState,
           runtime,
@@ -216,18 +216,18 @@ function initializeGameState<
     });
   }
 
-  validateCanonicalGameState(game, gameState);
+  validateCanonicalGameState(gameDefinition, gameState);
 
   initializeStageMachine(
     {
       game: gameState,
       runtime,
     },
-    game,
+    gameDefinition,
     rng,
   );
 
-  validateCanonicalState(game, {
+  validateCanonicalState(gameDefinition, {
     game: gameState,
     runtime,
   });
@@ -242,10 +242,10 @@ function getCurrentStageDefinition<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
+  gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
   state: CanonicalState<CanonicalStateOf<RootState>>,
 ): StageDefinition<StateClassOf<RootState>> | undefined {
-  return game.stages[state.runtime.progression.currentStage.id] as
+  return gameDefinition.stages[state.runtime.progression.currentStage.id] as
     | StageDefinition<StateClassOf<RootState>>
     | undefined;
 }
@@ -261,10 +261,10 @@ function initializeStageMachine<
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
   state: CanonicalState<CanonicalStateOf<RootState>>,
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
+  gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
   rng: ReturnType<typeof createRNGService>,
 ): void {
-  let currentStage = game.initialStage as
+  let currentStage = gameDefinition.initialStage as
     | StageDefinition<StateClassOf<RootState>>
     | undefined;
 
@@ -274,7 +274,9 @@ function initializeStageMachine<
         id: currentStage.id,
         kind: "activePlayer",
         activePlayerId: currentStage.activePlayer({
-          game: createCommandGameView(game, state, { readonly: true }),
+          game: createCommandGameView(gameDefinition, state, {
+            readonly: true,
+          }),
           runtime: state.runtime,
         }),
       };
@@ -287,7 +289,9 @@ function initializeStageMachine<
         id: currentStage.id,
         kind: "multiActivePlayer",
         activePlayerIds: currentStage.activePlayers({
-          game: createCommandGameView(game, state, { readonly: true }),
+          game: createCommandGameView(gameDefinition, state, {
+            readonly: true,
+          }),
           runtime: state.runtime,
           memory,
         }),
@@ -302,7 +306,9 @@ function initializeStageMachine<
     };
 
     currentStage.run?.({
-      game: createCommandGameView(game, state, { allowDirectMutation: true }),
+      game: createCommandGameView(gameDefinition, state, {
+        allowDirectMutation: true,
+      }),
       runtime: state.runtime,
       rng,
       emitEvent() {},
@@ -313,7 +319,7 @@ function initializeStageMachine<
     }
 
     currentStage = currentStage.transition({
-      game: createCommandGameView(game, state, { readonly: true }),
+      game: createCommandGameView(gameDefinition, state, { readonly: true }),
       runtime: state.runtime,
       nextStages: resolveStageNextStages(currentStage),
     });
@@ -325,7 +331,7 @@ function advanceStageMachine<
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
   state: CanonicalState<CanonicalStateOf<RootState>>,
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
+  gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
   nextStage: StageDefinition<StateClassOf<RootState>>,
   rng: ReturnType<typeof createRNGService>,
   rawEmit: (event: GameEvent) => void,
@@ -340,7 +346,9 @@ function advanceStageMachine<
         id: currentStage.id,
         kind: "activePlayer",
         activePlayerId: currentStage.activePlayer({
-          game: createCommandGameView(game, state, { readonly: true }),
+          game: createCommandGameView(gameDefinition, state, {
+            readonly: true,
+          }),
           runtime: state.runtime,
         }),
       };
@@ -355,7 +363,9 @@ function advanceStageMachine<
         id: currentStage.id,
         kind: "multiActivePlayer",
         activePlayerIds: currentStage.activePlayers({
-          game: createCommandGameView(game, state, { readonly: true }),
+          game: createCommandGameView(gameDefinition, state, {
+            readonly: true,
+          }),
           runtime: state.runtime,
           memory,
         }),
@@ -374,7 +384,9 @@ function advanceStageMachine<
     rawEmit(createStageEnteredEvent(stageState));
 
     currentStage.run?.({
-      game: createCommandGameView(game, state, { allowDirectMutation: true }),
+      game: createCommandGameView(gameDefinition, state, {
+        allowDirectMutation: true,
+      }),
       runtime: state.runtime,
       rng,
       emitEvent: domainEmit,
@@ -386,7 +398,7 @@ function advanceStageMachine<
 
     rawEmit(createStageExitedEvent(stageState));
     currentStage = currentStage.transition({
-      game: createCommandGameView(game, state, { readonly: true }),
+      game: createCommandGameView(gameDefinition, state, { readonly: true }),
       runtime: state.runtime,
       nextStages: resolveStageNextStages(currentStage),
     });
@@ -399,7 +411,7 @@ export function createGameExecutor<
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  game: GameDefinitionWithSetupInput<
+  gameDefinition: GameDefinitionWithSetupInput<
     RootState,
     SetupInput,
     TCommandDefinition,
@@ -412,7 +424,7 @@ export function createGameExecutor<
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  game: GameDefinitionWithoutSetupInput<
+  gameDefinition: GameDefinitionWithoutSetupInput<
     RootState,
     TCommandDefinition,
     TEventRegistry
@@ -423,12 +435,18 @@ export function createGameExecutor<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
->(game: AnyGameDefinition<RootState, TCommandDefinition, TEventRegistry>) {
-  if (game.setupInputSchema) {
-    return createGameExecutorWithSetup(game);
+>(
+  gameDefinition: AnyGameDefinition<
+    RootState,
+    TCommandDefinition,
+    TEventRegistry
+  >,
+) {
+  if (gameDefinition.setupInputSchema) {
+    return createGameExecutorWithSetup(gameDefinition);
   }
 
-  return createGameExecutorWithoutSetup(game);
+  return createGameExecutorWithoutSetup(gameDefinition);
 }
 
 // Factories use `object` for SetupInput internally; the public overloads on
@@ -438,7 +456,7 @@ function createGameExecutorWithSetup<
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  game: GameDefinitionWithSetupInput<
+  gameDefinition: GameDefinitionWithSetupInput<
     RootState,
     object,
     TCommandDefinition,
@@ -447,9 +465,9 @@ function createGameExecutorWithSetup<
 ): GameExecutor<RootState, object, TCommandDefinition, TEventRegistry> {
   return {
     createInitialState(input, rngSeed) {
-      return initializeGameState(game, input, rngSeed);
+      return initializeGameState(gameDefinition, input, rngSeed);
     },
-    ...createExecutorMethods(game),
+    ...createExecutorMethods(gameDefinition),
   };
 }
 
@@ -458,7 +476,7 @@ function createGameExecutorWithoutSetup<
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  game: GameDefinitionWithoutSetupInput<
+  gameDefinition: GameDefinitionWithoutSetupInput<
     RootState,
     TCommandDefinition,
     TEventRegistry
@@ -466,9 +484,9 @@ function createGameExecutorWithoutSetup<
 ): GameExecutor<RootState, undefined, TCommandDefinition, TEventRegistry> {
   return {
     createInitialState(rngSeed) {
-      return initializeGameState(game, undefined, rngSeed);
+      return initializeGameState(gameDefinition, undefined, rngSeed);
     },
-    ...createExecutorMethods(game),
+    ...createExecutorMethods(gameDefinition),
   };
 }
 
@@ -477,26 +495,30 @@ function createExecutorMethods<
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 >(
-  game: AnyGameDefinition<RootState, TCommandDefinition, TEventRegistry>,
+  gameDefinition: AnyGameDefinition<
+    RootState,
+    TCommandDefinition,
+    TEventRegistry
+  >,
 ): Omit<
   GameExecutor<RootState, never, TCommandDefinition, TEventRegistry>,
   "createInitialState"
 > {
   return {
-    __eventDefinitions: game.__eventDefinitions,
+    __eventDefinitions: gameDefinition.__eventDefinitions,
 
     getView(state, viewer) {
-      validateCanonicalState(game, state);
+      validateCanonicalState(gameDefinition, state);
       return getVisibleStateView<
         CanonicalStateOf<RootState>,
         ViewOf<RootState>
-      >(state, viewer, game.stateFacade);
+      >(state, viewer, gameDefinition.stateFacade);
     },
 
     listAvailableCommands(state, options) {
-      validateCanonicalState(game, state);
+      validateCanonicalState(gameDefinition, state);
       const currentStageState = state.runtime.progression.currentStage;
-      const currentStage = getCurrentStageDefinition(game, state);
+      const currentStage = getCurrentStageDefinition(gameDefinition, state);
 
       if (!currentStage) {
         return [];
@@ -521,24 +543,26 @@ function createExecutorMethods<
       }
 
       return currentStage.commands
-        .filter((definition) => {
-          if (!definition.isAvailable) {
+        .filter((commandDefinition) => {
+          if (!commandDefinition.isAvailable) {
             return true;
           }
 
-          return definition.isAvailable({
-            game: createCommandGameView(game, state, { readonly: true }),
+          return commandDefinition.isAvailable({
+            game: createCommandGameView(gameDefinition, state, {
+              readonly: true,
+            }),
             runtime: state.runtime,
-            commandType: definition.commandId,
+            commandType: commandDefinition.commandId,
             actorId: options.actorId,
           } satisfies CommandAvailabilityContext<StateClassOf<RootState>>);
         })
-        .map((definition) => definition.commandId);
+        .map((commandDefinition) => commandDefinition.commandId);
     },
 
     discoverCommand(state, discovery) {
-      validateCanonicalState(game, state);
-      const currentStage = getCurrentStageDefinition(game, state);
+      validateCanonicalState(gameDefinition, state);
+      const currentStage = getCurrentStageDefinition(gameDefinition, state);
 
       if (
         !currentStage ||
@@ -555,12 +579,12 @@ function createExecutorMethods<
         return null;
       }
 
-      const definition = game.commands[discovery.type];
-      if (!definition) {
+      const commandDefinition = gameDefinition.commands[discovery.type];
+      if (!commandDefinition) {
         return null;
       }
 
-      const discoveryDefinition = definition?.discovery;
+      const discoveryDefinition = commandDefinition?.discovery;
 
       if (
         typeof discovery.actorId !== "string" ||
@@ -578,9 +602,11 @@ function createExecutorMethods<
       }
 
       if (
-        definition.isAvailable &&
-        !definition.isAvailable({
-          game: createCommandGameView(game, state, { readonly: true }),
+        commandDefinition.isAvailable &&
+        !commandDefinition.isAvailable({
+          game: createCommandGameView(gameDefinition, state, {
+            readonly: true,
+          }),
           runtime: state.runtime,
           commandType: discovery.type,
           actorId: discovery.actorId,
@@ -608,7 +634,7 @@ function createExecutorMethods<
       }
 
       const discoveryContext = {
-        game: createCommandGameView(game, state, { readonly: true }),
+        game: createCommandGameView(gameDefinition, state, { readonly: true }),
         runtime: state.runtime,
         commandType: discovery.type,
         actorId: discovery.actorId,
@@ -639,7 +665,7 @@ function createExecutorMethods<
         };
 
         try {
-          assertSchemaValue(definition.commandSchema, completion.input);
+          assertSchemaValue(commandDefinition.commandSchema, completion.input);
         } catch {
           return null;
         }
@@ -692,10 +718,10 @@ function createExecutorMethods<
     },
 
     executeCommand(state, command) {
-      validateCanonicalState(game, state);
-      const definition = game.commands[command.type];
+      validateCanonicalState(gameDefinition, state);
+      const commandDefinition = gameDefinition.commands[command.type];
 
-      if (!definition) {
+      if (!commandDefinition) {
         const failure: ExecutionFailure<
           CanonicalState<CanonicalStateOf<RootState>>
         > = {
@@ -742,7 +768,7 @@ function createExecutorMethods<
       }
 
       try {
-        assertSchemaValue(definition.commandSchema, command.input);
+        assertSchemaValue(commandDefinition.commandSchema, command.input);
       } catch {
         const failure: ExecutionFailure<
           CanonicalState<CanonicalStateOf<RootState>>
@@ -758,7 +784,7 @@ function createExecutorMethods<
       }
 
       const currentStageState = state.runtime.progression.currentStage;
-      const currentStage = getCurrentStageDefinition(game, state);
+      const currentStage = getCurrentStageDefinition(gameDefinition, state);
 
       if (
         !currentStage ||
@@ -817,8 +843,8 @@ function createExecutorMethods<
         >;
       }
 
-      const validation = definition.validate({
-        game: createCommandGameView(game, state, { readonly: true }),
+      const validation = commandDefinition.validate({
+        game: createCommandGameView(gameDefinition, state, { readonly: true }),
         runtime: state.runtime,
         command,
       } satisfies ValidationContext<StateClassOf<RootState>, Command>);
@@ -841,7 +867,7 @@ function createExecutorMethods<
       const collector = createEventCollector();
       const domainEmit = createDomainEmit(
         collector.emit,
-        game.eventDefinitions,
+        gameDefinition.eventDefinitions,
       );
       const rng = createRNGService(workingState.runtime.rng);
 
@@ -851,8 +877,8 @@ function createExecutorMethods<
       ) {
         executeCommandAgainstState(
           workingState,
-          game,
-          definition,
+          gameDefinition,
+          commandDefinition,
           command,
           rng,
           domainEmit,
@@ -863,7 +889,10 @@ function createExecutorMethods<
           activePlayerId: currentStageState.activePlayerId,
         } satisfies SingleActivePlayerStageState;
 
-        const nextCurrentStage = getCurrentStageDefinition(game, workingState);
+        const nextCurrentStage = getCurrentStageDefinition(
+          gameDefinition,
+          workingState,
+        );
 
         if (!nextCurrentStage || nextCurrentStage.kind !== "activePlayer") {
           throw new Error(
@@ -877,9 +906,11 @@ function createExecutorMethods<
 
         advanceStageMachine(
           workingState,
-          game,
+          gameDefinition,
           nextCurrentStage.transition({
-            game: createCommandGameView(game, workingState, { readonly: true }),
+            game: createCommandGameView(gameDefinition, workingState, {
+              readonly: true,
+            }),
             runtime: workingState.runtime,
             command: command as Parameters<
               typeof nextCurrentStage.transition
@@ -900,14 +931,17 @@ function createExecutorMethods<
         ).memory;
 
         currentStage.onSubmit({
-          game: createCommandGameView(game, workingState, { readonly: true }),
+          game: createCommandGameView(gameDefinition, workingState, {
+            readonly: true,
+          }),
           runtime: workingState.runtime,
           memory,
           command: command as Parameters<
             typeof currentStage.onSubmit
           >[0]["command"],
           execute: (submittedCommand) => {
-            const submittedDefinition = game.commands[submittedCommand.type];
+            const submittedDefinition =
+              gameDefinition.commands[submittedCommand.type];
 
             if (!submittedDefinition) {
               throw new Error(
@@ -917,7 +951,7 @@ function createExecutorMethods<
 
             executeCommandAgainstState(
               workingState,
-              game,
+              gameDefinition,
               submittedDefinition,
               submittedCommand,
               rng,
@@ -927,7 +961,9 @@ function createExecutorMethods<
         });
 
         const nextActivePlayerIds = currentStage.activePlayers({
-          game: createCommandGameView(game, workingState, { readonly: true }),
+          game: createCommandGameView(gameDefinition, workingState, {
+            readonly: true,
+          }),
           runtime: workingState.runtime,
           memory,
         });
@@ -941,7 +977,9 @@ function createExecutorMethods<
 
         if (
           currentStage.isComplete({
-            game: createCommandGameView(game, workingState, { readonly: true }),
+            game: createCommandGameView(gameDefinition, workingState, {
+              readonly: true,
+            }),
             runtime: workingState.runtime,
             memory,
           })
@@ -961,9 +999,9 @@ function createExecutorMethods<
 
           advanceStageMachine(
             workingState,
-            game,
+            gameDefinition,
             currentStage.transition({
-              game: createCommandGameView(game, workingState, {
+              game: createCommandGameView(gameDefinition, workingState, {
                 readonly: true,
               }),
               runtime: workingState.runtime,
@@ -977,7 +1015,7 @@ function createExecutorMethods<
         }
       }
 
-      validateCanonicalState(game, workingState);
+      validateCanonicalState(gameDefinition, workingState);
 
       const success: ExecutionSuccess<
         CanonicalState<CanonicalStateOf<RootState>>
@@ -1012,14 +1050,16 @@ function executeCommandAgainstState<
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
   state: CanonicalState<CanonicalStateOf<RootState>>,
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
-  definition: RuntimeCommandDefinition<StateClassOf<RootState>>,
+  gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
+  commandDefinition: RuntimeCommandDefinition<StateClassOf<RootState>>,
   command: Command,
   rng: ReturnType<typeof createRNGService>,
   emitEvent: (event: EmittableEvent) => void,
 ): void {
-  definition.execute({
-    game: createCommandGameView(game, state, { allowDirectMutation: true }),
+  commandDefinition.execute({
+    game: createCommandGameView(gameDefinition, state, {
+      allowDirectMutation: true,
+    }),
     runtime: state.runtime,
     command,
     rng,

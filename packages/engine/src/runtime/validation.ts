@@ -23,29 +23,29 @@ export function validateCanonicalGameState<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
+  gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
   gameState: CanonicalStateOf<RootState>,
 ): void {
-  assertSchemaValue(game.canonicalGameStateSchema, gameState);
+  assertSchemaValue(gameDefinition.canonicalGameStateSchema, gameState);
 }
 
 export function validateRuntimeState<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
+  gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
   runtimeState: RuntimeState,
 ): void {
-  assertSchemaValue(game.runtimeStateSchema, runtimeState);
+  assertSchemaValue(gameDefinition.runtimeStateSchema, runtimeState);
 }
 
 export function validateCanonicalState<
   RootState extends AnyGameStateDefinition,
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
-  game: AnyGameDefinition<RootState, TCommandDefinition>,
+  gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
   state: CanonicalState<CanonicalStateOf<RootState>>,
 ): void {
-  validateCanonicalGameState(game, state.game);
-  validateRuntimeState(game, state.runtime);
+  validateCanonicalGameState(gameDefinition, state.game);
+  validateRuntimeState(gameDefinition, state.runtime);
 }
