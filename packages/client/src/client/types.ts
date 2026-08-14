@@ -1,5 +1,6 @@
 import type { AnyCommandDiscoveryResult } from "@tableverse-kit/engine";
 import type { AnyGameExecutor, GameShapeOf } from "./game-shape.ts";
+import type { ConnectionStatus } from "./lifecycle.ts";
 
 /**
  * Discovery result union — open (more options to pick) or complete
@@ -18,7 +19,9 @@ export interface ExecutionResult {
  * derived from it via `GameShapeOf` — nothing is hand-authored.
  */
 export interface TableverseClient<E extends AnyGameExecutor> {
-  readonly viewerId: string;
+  getStatus(): ConnectionStatus;
+  getViewerId(): string | null;
+  ready(): Promise<void>;
 
   getView(): GameShapeOf<E>["view"] | null;
   getAvailableCommands(): Promise<readonly string[]>;
