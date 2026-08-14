@@ -1,6 +1,4 @@
 import type { FieldType, ObjectFieldType } from "../schema";
-import type { CanonicalGameState } from "../state-facade/canonical";
-import type { EmittableEvent } from "./event";
 import type {
   EmittableEventOf,
   EmptyEventRegistry,
@@ -8,7 +6,7 @@ import type {
 } from "../events/registry";
 import type { RNGApi } from "./rng";
 import type { ValidationOutcome } from "./result";
-import type { CanonicalState, RuntimeState } from "./state";
+import type { RuntimeState } from "./state";
 
 export const commandDefinitionBrand = Symbol(
   "tabletop-engine.command-definition",
@@ -614,17 +612,6 @@ export type CommandBuilder<
     TCommandId
   >;
 
-export interface InternalValidationContext<
-  HydratedState extends object,
-  TCommand extends Command = Command,
-  TCanonicalGameState extends object = CanonicalGameState<HydratedState>,
-> {
-  state: CanonicalState<TCanonicalGameState>;
-  game: Readonly<HydratedState>;
-  runtime: Readonly<RuntimeState>;
-  command: TCommand;
-}
-
 export type ValidationContext<
   HydratedState extends object,
   TCommand extends Command = Command,
@@ -634,35 +621,12 @@ export type ValidationContext<
   command: TCommand;
 };
 
-export interface InternalCommandAvailabilityContext<
-  HydratedState extends object,
-  TCanonicalGameState extends object = CanonicalGameState<HydratedState>,
-> {
-  state: CanonicalState<TCanonicalGameState>;
-  game: Readonly<HydratedState>;
-  runtime: Readonly<RuntimeState>;
-  commandType: string;
-  actorId: string;
-}
-
 export type CommandAvailabilityContext<HydratedState extends object> = {
   game: Readonly<HydratedState>;
   runtime: Readonly<RuntimeState>;
   commandType: string;
   actorId: string;
 };
-
-export interface InternalDiscoveryContext<
-  HydratedState extends object,
-  TDiscovery extends DiscoveryData = DiscoveryData,
-  TCanonicalGameState extends object = CanonicalGameState<HydratedState>,
-> extends InternalCommandAvailabilityContext<
-  HydratedState,
-  TCanonicalGameState
-> {
-  discovery: Discovery<TDiscovery>;
-  input: TDiscovery;
-}
 
 export type DiscoveryContext<
   HydratedState extends object,
@@ -730,21 +694,6 @@ export type CommandDiscoveryResultFor<TDefinition> = TDefinition extends {
         }
   : never;
 
-export interface InternalExecuteContext<
-  HydratedState extends object,
-  TCommand extends Command = Command,
-  TCanonicalGameState extends object = CanonicalGameState<HydratedState>,
-> extends InternalValidationContext<
-  HydratedState,
-  TCommand,
-  TCanonicalGameState
-> {
-  game: HydratedState;
-  runtime: Readonly<RuntimeState>;
-  rng: RNGApi;
-  emitEvent(event: EmittableEvent): void;
-}
-
 /**
  * The `emitEvent` capability. A game that declared events (non-empty registry)
  * gets `emitEvent` typed to that event union; a game with no registry gets no
@@ -768,27 +717,3 @@ export type ExecuteContext<
   command: TCommand;
   rng: RNGApi;
 } & EmitEventCapability<TEventRegistry>;
-
-export interface InternalCommandDefinition<
-  HydratedState extends object,
-  TCommandInput extends CommandData = CommandData,
-> {
-  commandId: string;
-  commandSchema: CommandSchema<TCommandInput>;
-  discovery?: DiscoveryDefinition;
-  isAvailable?(
-    context: InternalCommandAvailabilityContext<HydratedState>,
-  ): boolean;
-  validate(
-    context: InternalValidationContext<
-      HydratedState,
-      CommandFromSchema<TCommandInput>
-    >,
-  ): ValidationOutcome;
-  execute(
-    context: InternalExecuteContext<
-      HydratedState,
-      CommandFromSchema<TCommandInput>
-    >,
-  ): void;
-}

@@ -1,10 +1,10 @@
 import type {
   Command,
+  CommandAvailabilityContext,
   Discovery,
-  InternalCommandAvailabilityContext,
-  InternalDiscoveryContext,
-  InternalExecuteContext,
-  InternalValidationContext,
+  DiscoveryStepContext,
+  ExecuteContext,
+  ValidationContext,
 } from "../types/command";
 import type { EmittableEvent } from "../types/event";
 import type { CanonicalState } from "../types/state";
@@ -18,9 +18,8 @@ export function createValidationContext<
   state: CanonicalState<CanonicalGameState>,
   game: Readonly<HydratedState>,
   command: TCommandInput,
-): InternalValidationContext<HydratedState, TCommandInput, CanonicalGameState> {
+): ValidationContext<HydratedState, TCommandInput> {
   return {
-    state,
     game,
     runtime: state.runtime,
     command,
@@ -35,9 +34,8 @@ export function createCommandAvailabilityContext<
   game: Readonly<HydratedState>,
   commandType: string,
   actorId: string,
-): InternalCommandAvailabilityContext<HydratedState, CanonicalGameState> {
+): CommandAvailabilityContext<HydratedState> {
   return {
-    state,
     game,
     runtime: state.runtime,
     commandType,
@@ -53,11 +51,7 @@ export function createDiscoveryContext<
   state: CanonicalState<CanonicalGameState>,
   game: Readonly<HydratedState>,
   discovery: Discovery<TDiscoveryInput>,
-): InternalDiscoveryContext<
-  HydratedState,
-  TDiscoveryInput,
-  CanonicalGameState
-> {
+): DiscoveryStepContext<HydratedState, TDiscoveryInput> {
   return {
     ...createCommandAvailabilityContext(
       state,
@@ -80,9 +74,10 @@ export function createExecuteContext<
   command: TCommandInput,
   rng: RNGApi,
   emitEvent: (event: EmittableEvent) => void,
-): InternalExecuteContext<HydratedState, TCommandInput, CanonicalGameState> {
+): ExecuteContext<HydratedState, TCommandInput> & {
+  emitEvent(event: EmittableEvent): void;
+} {
   return {
-    state,
     command,
     game,
     runtime: state.runtime,
