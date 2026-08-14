@@ -1,4 +1,5 @@
 import type { FieldType, ObjectFieldType } from "../schema";
+import type { EmittableEvent } from "./event";
 import type {
   EmittableEventOf,
   EmptyEventRegistry,
@@ -370,6 +371,17 @@ export type CommandDefinition<
     >
   | NonDiscoverableCommandDefinition<HydratedState, TCommandInput, TCommandId>;
 
+/**
+ * The execute context the runtime actually hands a command. It is the
+ * registry-erased form: `emitEvent` is always present (the executor supplies
+ * it) and typed loosely to `EmittableEvent`, since the concrete event union is
+ * gone by the time a command is invoked through `RuntimeCommandDefinition`.
+ */
+export type RuntimeExecuteContext<HydratedState extends object> =
+  ExecuteContext<HydratedState, Command> & {
+    emitEvent(event: EmittableEvent): void;
+  };
+
 export type RuntimeCommandDefinition<HydratedState extends object> = {
   commandId: string;
   commandSchema: CommandSchema<Record<string, unknown>>;
@@ -378,7 +390,7 @@ export type RuntimeCommandDefinition<HydratedState extends object> = {
   validate(
     context: ValidationContext<HydratedState, Command>,
   ): ValidationOutcome;
-  execute(context: ExecuteContext<HydratedState, Command>): void;
+  execute(context: RuntimeExecuteContext<HydratedState>): void;
 };
 
 export type NonDiscoverableCommandAccumulator<

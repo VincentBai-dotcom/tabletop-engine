@@ -4,23 +4,21 @@ import type {
   GameDefinitionWithoutSetupInput,
 } from "../game-definition";
 import {
-  createCommandAvailabilityContext,
-  createDiscoveryContext,
-  createExecuteContext,
-  createValidationContext,
-} from "./contexts";
-import {
   createEventCollector,
   createStageEnteredEvent,
   createStageExitedEvent,
 } from "./events";
 import type {
   Command,
+  CommandAvailabilityContext,
   RuntimeCommandDefinition,
   CommandDefinition,
   CommandDiscoveryResultFor,
   Discovery,
+  DiscoveryStepContext,
   DiscoveryStepOption,
+  RuntimeExecuteContext,
+  ValidationContext,
 } from "../types/command";
 import type { EmittableEvent, GameEvent } from "../types/event";
 import type { EventRegistry, EmptyEventRegistry } from "../events/registry";
@@ -528,14 +526,12 @@ function createExecutorMethods<
             return true;
           }
 
-          return definition.isAvailable(
-            createCommandAvailabilityContext(
-              state,
-              createCommandGameView(game, state, { readonly: true }),
-              definition.commandId,
-              options.actorId,
-            ),
-          );
+          return definition.isAvailable({
+            game: createCommandGameView(game, state, { readonly: true }),
+            runtime: state.runtime,
+            commandType: definition.commandId,
+            actorId: options.actorId,
+          } satisfies CommandAvailabilityContext<StateClassOf<RootState>>);
         })
         .map((definition) => definition.commandId);
     },
@@ -583,14 +579,12 @@ function createExecutorMethods<
 
       if (
         definition.isAvailable &&
-        !definition.isAvailable(
-          createCommandAvailabilityContext(
-            state,
-            createCommandGameView(game, state, { readonly: true }),
-            discovery.type,
-            discovery.actorId,
-          ),
-        )
+        !definition.isAvailable({
+          game: createCommandGameView(game, state, { readonly: true }),
+          runtime: state.runtime,
+          commandType: discovery.type,
+          actorId: discovery.actorId,
+        } satisfies CommandAvailabilityContext<StateClassOf<RootState>>)
       ) {
         return null;
       }
@@ -613,11 +607,14 @@ function createExecutorMethods<
         return null;
       }
 
-      const discoveryContext = createDiscoveryContext(
-        state,
-        createCommandGameView(game, state, { readonly: true }),
+      const discoveryContext = {
+        game: createCommandGameView(game, state, { readonly: true }),
+        runtime: state.runtime,
+        commandType: discovery.type,
+        actorId: discovery.actorId,
         discovery,
-      );
+        input: discovery.input,
+      } satisfies DiscoveryStepContext<StateClassOf<RootState>>;
 
       const result = (
         step.resolve as (context: typeof discoveryContext) => unknown
@@ -820,13 +817,11 @@ function createExecutorMethods<
         >;
       }
 
-      const validation = definition.validate(
-        createValidationContext(
-          state,
-          createCommandGameView(game, state, { readonly: true }),
-          command,
-        ),
-      );
+      const validation = definition.validate({
+        game: createCommandGameView(game, state, { readonly: true }),
+        runtime: state.runtime,
+        command,
+      } satisfies ValidationContext<StateClassOf<RootState>, Command>);
 
       if (validation.ok === false) {
         const failure: ExecutionFailure<
@@ -1023,15 +1018,13 @@ function executeCommandAgainstState<
   rng: ReturnType<typeof createRNGService>,
   emitEvent: (event: EmittableEvent) => void,
 ): void {
-  definition.execute(
-    createExecuteContext(
-      state,
-      createCommandGameView(game, state, { allowDirectMutation: true }),
-      command,
-      rng,
-      emitEvent,
-    ),
-  );
+  definition.execute({
+    game: createCommandGameView(game, state, { allowDirectMutation: true }),
+    runtime: state.runtime,
+    command,
+    rng,
+    emitEvent,
+  } satisfies RuntimeExecuteContext<StateClassOf<RootState>>);
 
   state.runtime.history.entries.push({
     id: String(state.runtime.history.entries.length + 1),
