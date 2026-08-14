@@ -34,6 +34,14 @@ it no longer does.)
   `node:fs`, `fileURLToPath(new URL(".", import.meta.url))` for the current
   directory (not `import.meta.dir`), and `process.argv[1] === fileURLToPath(import.meta.url)`
   for the "run as main" check (not `import.meta.main`).
+- **Comments are a last resort, not a default.** They drift out of sync with the
+  code and mislead both humans and agents; self-explanatory code (clear names,
+  small functions, expressive types) is the goal. Do not narrate what the code
+  already says. Reserve a comment for the rare thing code cannot express — a
+  non-obvious _why_, a subtle constraint. In particular, **do not document
+  behavior on an interface** (e.g. "rejects with `X`", "fires on every change"): an
+  interface only constrains types, an implementation is free not to honor the prose,
+  and the comment silently becomes a lie.
 
 ## Verification
 
