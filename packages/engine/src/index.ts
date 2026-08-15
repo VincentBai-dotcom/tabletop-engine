@@ -26,7 +26,7 @@ export type {
   GameSetupContextWithInput,
   GameSetupContextWithoutInput,
 } from "./game-definition";
-export type { GameExecutor } from "./runtime/game-executor";
+export type { AnyGameExecutor, GameExecutor } from "./runtime/game-executor";
 export type {
   AnyGameStateDefinition,
   CanonicalStateOf,

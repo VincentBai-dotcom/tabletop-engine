@@ -81,6 +81,18 @@ export interface GameExecutor<
   ): ExecutionResult<CanonicalState<CanonicalStateOf<RootState>>>;
 }
 
+/** Structural upper bound for any game's executor, for dynamic hosts. */
+export type AnyGameExecutor = GameExecutor<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  any
+>;
+
 /**
  * Wraps the raw event collector with the author-facing `emitEvent`: it stamps
  * `category: "domain"` and validates the type/payload against the gameDefinition's event
@@ -430,6 +442,10 @@ export function createGameExecutor<
     TEventRegistry
   >,
 ): GameExecutor<RootState, undefined, TCommandDefinition, TEventRegistry>;
+
+export function createGameExecutor(
+  gameDefinition: AnyGameDefinition,
+): AnyGameExecutor;
 
 export function createGameExecutor<
   RootState extends AnyGameStateDefinition,
