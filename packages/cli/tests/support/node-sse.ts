@@ -1,4 +1,4 @@
-import type { SseFactory } from "@tableverse-kit/client";
+import type { SseFactory } from "@tableverse-kit/client/dev";
 
 /**
  * A `fetch`-backed SSE reader for Node test runs, standing in for the browser's

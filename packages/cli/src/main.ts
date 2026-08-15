@@ -2,7 +2,6 @@
 
 import { fileURLToPath } from "node:url";
 import { runDevCommand } from "./commands/dev.ts";
-import { runGenerateCommand } from "./commands/generate.ts";
 import { createAuthContext } from "./lib/auth/context.ts";
 import { runLoginCommand } from "./commands/login.ts";
 import { runLogoutCommand } from "./commands/logout.ts";
@@ -26,12 +25,6 @@ export async function run(
 
   if (!command || isHelpFlag(command)) {
     return success(createRootHelpText());
-  }
-
-  if (command === "generate") {
-    return runGenerateCommand(args, {
-      cwd: options.cwd ?? process.cwd(),
-    });
   }
 
   if (command === "validate") {

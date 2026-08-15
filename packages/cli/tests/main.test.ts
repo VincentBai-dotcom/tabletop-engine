@@ -21,16 +21,7 @@ describe("tvk", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("tvk");
-    expect(result.stdout).toContain("generate");
     expect(result.stdout).toContain("validate");
-  });
-
-  it("prints generate help for generate --help", async () => {
-    const result = await run(["generate", "--help"]);
-
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("tvk generate");
-    expect(result.stdout).toContain("client-sdk");
   });
 
   it("prints validate help for validate --help", async () => {
@@ -39,13 +30,6 @@ describe("tvk", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("tvk validate");
     expect(result.stdout).toContain("--config");
-  });
-
-  it("rejects unknown generate subcommands", async () => {
-    const result = await run(["generate", "foo"]);
-
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("unknown_generate_target:foo");
   });
 
   it("rejects deprecated game-selection flags", async () => {
@@ -60,7 +44,7 @@ describe("tvk", () => {
   });
 
   it("rejects unexpected positional arguments after command parsing begins", async () => {
-    const result = await run(["generate", "client-sdk", "oops"]);
+    const result = await run(["validate", "oops"]);
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("unexpected_positional_argument:oops");

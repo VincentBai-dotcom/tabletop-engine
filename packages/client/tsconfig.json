@@ -1,5 +1,12 @@
 {
   "compilerOptions": {
+    // Composite project (in the root references) so the whole client is
+    // type-checked under its own DOM lib — notably the bridge, which needs
+    // `window` and is imported by no Node consumer. Code a Node package imports
+    // via `./dev` is additionally checked inline under that consumer's config, so
+    // shared code there must use only globals common to DOM and Node.
+    "composite": true,
+
     // Environment setup & latest features
     "lib": ["ESNext", "DOM"],
     "target": "ESNext",
@@ -24,5 +31,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
-  }
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
 }
