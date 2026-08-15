@@ -1,5 +1,11 @@
-// Framework-neutral core. Safe to import from a canvas/WebGL/WASM frontend.
-export type { AnyGameExecutor, GameShapeOf } from "./client/game-shape.ts";
+// Browser entry: the framework-neutral core plus the production postMessage
+// bridge (which needs `window`). The local-dev client is the `./dev` subpath,
+// which a Node context can type-check against.
+export type {
+  AnyGameExecutor,
+  GameShapeOf,
+  SetupInputOf,
+} from "./client/game-shape.ts";
 export type {
   DiscoveryResult,
   ExecutionResult,
@@ -15,15 +21,11 @@ export type {
   TransportHandlers,
   TransportSnapshot,
 } from "./client/transport.ts";
-export type { SetupInputOf } from "./client/game-shape.ts";
 export { createTableverseClient } from "./client/client-core.ts";
 export {
-  DevTransport,
-  type DevTransportOptions,
-  type SseConnection,
-  type SseFactory,
-} from "./dev/dev-transport.ts";
-export {
-  createDevClient,
-  type CreateDevClientOptions,
-} from "./dev/create-dev-client.ts";
+  BridgeTransport,
+  bridgeMessages,
+  type BridgeEndpoint,
+  type BridgeTransportOptions,
+} from "./bridge/bridge-transport.ts";
+export { createBridgeClient } from "./bridge/create-bridge-client.ts";

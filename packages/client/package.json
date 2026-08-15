@@ -4,9 +4,17 @@
   "type": "module",
   "private": false,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./dev": "./src/dev/index.ts"
   },
   "types": "./src/index.ts",
+  "typesVersions": {
+    "*": {
+      "dev": [
+        "./src/dev/index.ts"
+      ]
+    }
+  },
   "files": [
     "src"
   ],

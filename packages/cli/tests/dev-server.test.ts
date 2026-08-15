@@ -14,7 +14,7 @@ import {
   DevTransport,
   type GameShapeOf,
   type TableverseClient,
-} from "@tableverse-kit/client";
+} from "@tableverse-kit/client/dev";
 import {
   startDevServer,
   type DevServerHandle,
