@@ -5,11 +5,16 @@ export type ConnectionStatus =
   | "closed"
   | "error";
 
-export type TransportErrorReason = "not_ready" | "connection_lost" | "closed";
+export type TransportErrorReason =
+  | "not_ready"
+  | "connection_lost"
+  | "server_error"
+  | "closed";
 
 const DEFAULT_MESSAGE: Record<TransportErrorReason, string> = {
   not_ready: "client is not ready",
   connection_lost: "connection lost",
+  server_error: "server error",
   closed: "client is closed",
 };
 

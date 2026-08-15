@@ -1,31 +1,19 @@
+import type { AnyGameExecutor, GameShapeOf } from "./game-shape.ts";
+import type { ExecutionResult, TableverseClient } from "./types.ts";
+import type { ConnectionStatus, TransportErrorReason } from "./lifecycle.ts";
+import { TransportError } from "./lifecycle.ts";
 import type {
-  AnyGameExecutor,
-  GameShapeOf,
-} from "../../src/client/game-shape.ts";
-import type {
-  ExecutionResult,
-  TableverseClient,
-} from "../../src/client/types.ts";
-import type {
-  ConnectionStatus,
-  TransportErrorReason,
-} from "../../src/client/lifecycle.ts";
-import { TransportError } from "../../src/client/lifecycle.ts";
-
-export interface ReferenceClientOptions<E extends AnyGameExecutor> {
-  viewerId: string;
-  view: GameShapeOf<E>["view"];
-  version?: number;
-  executeResult?: ExecutionResult;
-  discoverResult: GameShapeOf<E>["discovery"]["result"];
-}
+  Transport,
+  TransportHandlers,
+  TransportSnapshot,
+} from "./transport.ts";
 
 interface ReadyWaiter {
   resolve: () => void;
   reject: (error: unknown) => void;
 }
 
-export class ReferenceClient<
+class TransportClient<
   E extends AnyGameExecutor,
 > implements TableverseClient<E> {
   #status: ConnectionStatus = "connecting";
@@ -34,25 +22,16 @@ export class ReferenceClient<
   #view: GameShapeOf<E>["view"] | null = null;
   #version: number | null = null;
 
-  readonly #targetViewerId: string;
-  readonly #targetView: GameShapeOf<E>["view"];
-  readonly #targetVersion: number;
-  readonly #executeResult: ExecutionResult;
-  readonly #discoverResult: GameShapeOf<E>["discovery"]["result"];
-
+  readonly #transport: Transport<E>;
   readonly #snapshotListeners = new Set<() => void>();
   readonly #eventListeners = new Set<
     (event: GameShapeOf<E>["event"]) => void
   >();
   readonly #readyWaiters: ReadyWaiter[] = [];
 
-  constructor(options: ReferenceClientOptions<E>) {
-    this.#targetViewerId = options.viewerId;
-    this.#targetView = options.view;
-    this.#targetVersion = options.version ?? 1;
-    this.#executeResult = options.executeResult ?? { accepted: true };
-    this.#discoverResult = options.discoverResult;
-    queueMicrotask(() => this.#becomeReady());
+  constructor(transport: Transport<E>) {
+    this.#transport = transport;
+    transport.connect(this.#handlers());
   }
 
   getStatus(): ConnectionStatus {
@@ -86,7 +65,7 @@ export class ReferenceClient<
     if (this.#status !== "ready") {
       return Promise.reject(new TransportError("not_ready"));
     }
-    return Promise.resolve([]);
+    return this.#transport.listAvailableCommands();
   }
 
   getStateVersion(): number | null {
@@ -107,32 +86,69 @@ export class ReferenceClient<
     };
   }
 
-  discover(): Promise<GameShapeOf<E>["discovery"]["result"]> {
+  discover(
+    request: GameShapeOf<E>["discovery"]["payload"],
+  ): Promise<GameShapeOf<E>["discovery"]["result"]> {
     if (this.#status !== "ready") {
       return Promise.reject(new TransportError("not_ready"));
     }
-    return Promise.resolve(this.#discoverResult);
+    return this.#transport.discover(request);
   }
 
-  execute(): Promise<ExecutionResult> {
+  execute(command: GameShapeOf<E>["command"]): Promise<ExecutionResult> {
     if (this.#status !== "ready") {
       return Promise.reject(new TransportError("not_ready"));
     }
-    return Promise.resolve(this.#executeResult);
+    return this.#transport.execute(command);
   }
 
   dispose(): void {
     if (this.#status === "closed") {
       return;
     }
-    this.#status = "closed";
-    this.#notifySnapshot();
-    this.#rejectWaiters(new TransportError("closed"));
-    this.#snapshotListeners.clear();
-    this.#eventListeners.clear();
+    this.#transport.close();
+    this.#closeWith(new TransportError("closed"));
   }
 
-  fail(reason: TransportErrorReason = "connection_lost"): void {
+  #handlers(): TransportHandlers<E> {
+    return {
+      onSnapshot: (snapshot) => this.#applySnapshot(snapshot),
+      onEvent: (event) => this.#deliverEvent(event),
+      onReconnecting: () => this.#setStatus("reconnecting"),
+      onClosed: () => this.#closeWith(new TransportError("closed")),
+      onError: (reason) => this.#fail(reason),
+    };
+  }
+
+  #applySnapshot(snapshot: TransportSnapshot<E>): void {
+    this.#viewerId = snapshot.viewerId;
+    this.#view = snapshot.view;
+    this.#version = snapshot.version;
+    if (this.#status !== "ready") {
+      this.#status = "ready";
+      const waiters = this.#readyWaiters.splice(0);
+      for (const waiter of waiters) {
+        waiter.resolve();
+      }
+    }
+    this.#notifySnapshot();
+  }
+
+  #deliverEvent(event: GameShapeOf<E>["event"]): void {
+    for (const listener of [...this.#eventListeners]) {
+      listener(event);
+    }
+  }
+
+  #setStatus(status: ConnectionStatus): void {
+    if (this.#status === status) {
+      return;
+    }
+    this.#status = status;
+    this.#notifySnapshot();
+  }
+
+  #fail(reason: TransportErrorReason): void {
     if (this.#status === "closed" || this.#status === "error") {
       return;
     }
@@ -142,25 +158,15 @@ export class ReferenceClient<
     this.#rejectWaiters(new TransportError(reason));
   }
 
-  emit(event: GameShapeOf<E>["event"]): void {
-    for (const listener of [...this.#eventListeners]) {
-      listener(event);
-    }
-  }
-
-  #becomeReady(): void {
-    if (this.#status !== "connecting") {
+  #closeWith(error: TransportError): void {
+    if (this.#status === "closed") {
       return;
     }
-    this.#status = "ready";
-    this.#viewerId = this.#targetViewerId;
-    this.#view = this.#targetView;
-    this.#version = this.#targetVersion;
+    this.#status = "closed";
     this.#notifySnapshot();
-    const waiters = this.#readyWaiters.splice(0);
-    for (const waiter of waiters) {
-      waiter.resolve();
-    }
+    this.#rejectWaiters(error);
+    this.#snapshotListeners.clear();
+    this.#eventListeners.clear();
   }
 
   #rejectWaiters(error: unknown): void {
@@ -175,4 +181,10 @@ export class ReferenceClient<
       listener();
     }
   }
+}
+
+export function createTableverseClient<E extends AnyGameExecutor>(
+  transport: Transport<E>,
+): TableverseClient<E> {
+  return new TransportClient(transport);
 }

@@ -1,4 +1,5 @@
 import type {
+  AnyGameExecutor,
   CommandDiscoveryResultFor,
   DiscoveryDefinition,
   DomainEventsOf,
@@ -7,14 +8,16 @@ import type {
   RuntimeEvent,
 } from "@tableverse-kit/engine";
 
-/** Structural upper bound for any game's executor. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnyGameExecutor = GameExecutor<any, any, any, any>;
+export type { AnyGameExecutor };
 
 /** The command-definition union carried by the executor's 3rd type param. */
 type CommandDefsOf<E> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   E extends GameExecutor<any, any, infer Cmd, any> ? Cmd : never;
+
+export type SetupInputOf<E> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  E extends GameExecutor<any, infer Setup, any, any> ? Setup : never;
 
 /**
  * Correlated command payload: distributes over the command union so

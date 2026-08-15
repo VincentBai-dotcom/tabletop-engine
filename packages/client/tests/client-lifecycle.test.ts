@@ -9,11 +9,11 @@ import {
   t,
 } from "@tableverse-kit/engine";
 import type { GameShapeOf } from "../src/client/game-shape.ts";
-import { TransportError } from "../src/index.ts";
+import { createTableverseClient, TransportError } from "../src/index.ts";
 import {
-  ReferenceClient,
-  type ReferenceClientOptions,
-} from "./support/reference-client.ts";
+  FakeTransport,
+  type FakeTransportOptions,
+} from "./support/fake-transport.ts";
 
 class DemoState {
   count = 0;
@@ -69,18 +69,22 @@ function buildExecutor() {
 const executor = buildExecutor();
 type Executor = typeof executor;
 
-function makeClient(
-  overrides: Partial<ReferenceClientOptions<Executor>> = {},
-): ReferenceClient<Executor> {
-  return new ReferenceClient<Executor>({
-    viewerId: "p1",
-    view: {} as unknown as GameShapeOf<Executor>["view"],
+const snapshot = {
+  viewerId: "p1",
+  view: {} as unknown as GameShapeOf<Executor>["view"],
+  version: 1,
+};
+
+function makeClient(overrides: Partial<FakeTransportOptions<Executor>> = {}) {
+  const transport = new FakeTransport<Executor>({
     discoverResult: {
       complete: true,
       input: { n: 1 },
     } as unknown as GameShapeOf<Executor>["discovery"]["result"],
     ...overrides,
   });
+  const client = createTableverseClient<Executor>(transport);
+  return { client, transport };
 }
 
 async function rejection(promise: Promise<unknown>): Promise<unknown> {
@@ -97,14 +101,15 @@ describe("client lifecycle / identity / error contract", () => {
     expect(executor.createInitialState).toBeTypeOf("function");
   });
 
-  test("born connecting: no viewerId or view until ready", async () => {
-    const client = makeClient();
+  test("born connecting: no viewerId or view until the first snapshot", async () => {
+    const { client, transport } = makeClient();
 
     expect(client.getStatus()).toBe("connecting");
     expect(client.getViewerId()).toBeNull();
     expect(client.getView()).toBeNull();
     expect(client.getStateVersion()).toBeNull();
 
+    transport.emitSnapshot(snapshot);
     await client.ready();
 
     expect(client.getStatus()).toBe("ready");
@@ -113,40 +118,66 @@ describe("client lifecycle / identity / error contract", () => {
     expect(client.getStateVersion()).toBe(1);
   });
 
-  test("subscribe fires once on the connecting → ready transition", async () => {
-    const client = makeClient();
+  test("subscribe fires on the connecting → ready transition", () => {
+    const { client, transport } = makeClient();
     let calls = 0;
     client.subscribe(() => {
       calls += 1;
     });
 
-    await client.ready();
+    transport.emitSnapshot(snapshot);
 
     expect(calls).toBe(1);
   });
 
-  test("subscribe returns a working unsubscribe", async () => {
-    const client = makeClient();
+  test("subscribe returns a working unsubscribe", () => {
+    const { client, transport } = makeClient();
     let calls = 0;
     const unsubscribe = client.subscribe(() => {
       calls += 1;
     });
     unsubscribe();
 
-    await client.ready();
+    transport.emitSnapshot(snapshot);
 
     expect(calls).toBe(0);
   });
 
   test("ready() resolves immediately once already ready", async () => {
-    const client = makeClient();
+    const { client, transport } = makeClient();
+    transport.emitSnapshot(snapshot);
     await client.ready();
 
     await expect(client.ready()).resolves.toBeUndefined();
   });
 
+  test("a later snapshot bumps the version and notifies", () => {
+    const { client, transport } = makeClient();
+    let calls = 0;
+    transport.emitSnapshot(snapshot);
+    client.subscribe(() => {
+      calls += 1;
+    });
+
+    transport.emitSnapshot({ ...snapshot, version: 2 });
+
+    expect(client.getStateVersion()).toBe(2);
+    expect(calls).toBe(1);
+  });
+
+  test("reconnecting then a snapshot returns to ready", () => {
+    const { client, transport } = makeClient();
+    transport.emitSnapshot(snapshot);
+
+    transport.reconnecting();
+    expect(client.getStatus()).toBe("reconnecting");
+
+    transport.emitSnapshot({ ...snapshot, version: 2 });
+    expect(client.getStatus()).toBe("ready");
+  });
+
   test("execute before ready rejects TransportError(not_ready)", async () => {
-    const client = makeClient();
+    const { client } = makeClient();
 
     const error = await rejection(
       client.execute({ type: "score", input: { n: 1 } }),
@@ -157,7 +188,7 @@ describe("client lifecycle / identity / error contract", () => {
   });
 
   test("discover before ready rejects TransportError(not_ready)", async () => {
-    const client = makeClient();
+    const { client } = makeClient();
 
     const error = await rejection(
       client.discover({ type: "score", step: "pick", input: {} }),
@@ -167,20 +198,21 @@ describe("client lifecycle / identity / error contract", () => {
     expect((error as TransportError).reason).toBe("not_ready");
   });
 
-  test("execute after ready resolves a game-rule rejection in-band", async () => {
-    const client = makeClient({
+  test("execute after ready delegates and resolves a game-rule rejection", async () => {
+    const { client, transport } = makeClient({
       executeResult: { accepted: false, reason: "illegal_move" },
     });
-    await client.ready();
+    transport.emitSnapshot(snapshot);
 
     const result = await client.execute({ type: "score", input: { n: 1 } });
 
     expect(result).toEqual({ accepted: false, reason: "illegal_move" });
+    expect(transport.executeCalls).toBe(1);
   });
 
-  test("discover after ready resolves the discovery result", async () => {
-    const client = makeClient();
-    await client.ready();
+  test("discover after ready delegates to the transport", async () => {
+    const { client, transport } = makeClient();
+    transport.emitSnapshot(snapshot);
 
     const result = await client.discover({
       type: "score",
@@ -189,10 +221,22 @@ describe("client lifecycle / identity / error contract", () => {
     });
 
     expect(result).toMatchObject({ complete: true });
+    expect(transport.discoverCalls).toBe(1);
   });
 
-  test("dispose() closes, notifies subscribers, and rejects a pending ready()", async () => {
-    const client = makeClient();
+  test("getAvailableCommands rejects before ready, delegates after", async () => {
+    const { client, transport } = makeClient({ availableCommands: ["score"] });
+
+    const error = await rejection(client.getAvailableCommands());
+    expect(error).toBeInstanceOf(TransportError);
+
+    transport.emitSnapshot(snapshot);
+    await expect(client.getAvailableCommands()).resolves.toEqual(["score"]);
+    expect(transport.listCalls).toBe(1);
+  });
+
+  test("dispose() closes the transport, notifies, and rejects a pending ready()", async () => {
+    const { client, transport } = makeClient();
     const pending = client.ready();
     let notified = 0;
     client.subscribe(() => {
@@ -202,17 +246,29 @@ describe("client lifecycle / identity / error contract", () => {
     client.dispose();
 
     expect(client.getStatus()).toBe("closed");
+    expect(transport.closed).toBe(true);
     expect(notified).toBe(1);
     const error = await rejection(pending);
     expect(error).toBeInstanceOf(TransportError);
     expect((error as TransportError).reason).toBe("closed");
   });
 
-  test("ready() rejects if the client errors before becoming ready", async () => {
-    const client = makeClient();
+  test("transport-signalled close rejects a pending ready()", async () => {
+    const { client, transport } = makeClient();
     const pending = client.ready();
 
-    client.fail();
+    transport.serverClosed();
+
+    expect(client.getStatus()).toBe("closed");
+    const error = await rejection(pending);
+    expect((error as TransportError).reason).toBe("closed");
+  });
+
+  test("ready() rejects if the transport errors before becoming ready", async () => {
+    const { client, transport } = makeClient();
+    const pending = client.ready();
+
+    transport.fail();
 
     expect(client.getStatus()).toBe("error");
     const error = await rejection(pending);
@@ -221,28 +277,36 @@ describe("client lifecycle / identity / error contract", () => {
   });
 
   test("ready() after an error reports that failure's reason", async () => {
-    const client = makeClient();
-    client.fail("not_ready");
+    const { client, transport } = makeClient();
+    transport.fail("not_ready");
 
     const error = await rejection(client.ready());
     expect(error).toBeInstanceOf(TransportError);
     expect((error as TransportError).reason).toBe("not_ready");
   });
 
-  test("onEvent delivers events until unsubscribed", async () => {
-    const client = makeClient();
-    await client.ready();
+  test("onEvent delivers events until unsubscribed", () => {
+    const { client, transport } = makeClient();
+    transport.emitSnapshot(snapshot);
 
     const seen: GameShapeOf<Executor>["event"][] = [];
     const off = client.onEvent((event) => {
       seen.push(event);
     });
 
-    client.emit({ category: "domain", type: "scored", payload: { points: 3 } });
+    transport.emitEvent({
+      category: "domain",
+      type: "scored",
+      payload: { points: 3 },
+    });
     expect(seen).toHaveLength(1);
 
     off();
-    client.emit({ category: "domain", type: "scored", payload: { points: 1 } });
+    transport.emitEvent({
+      category: "domain",
+      type: "scored",
+      payload: { points: 1 },
+    });
     expect(seen).toHaveLength(1);
   });
 });
