@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@inquirer/testing": "^3.3.9",
+    "@tableverse-kit/client": "workspace:*",
     "@types/node": "^24.13.2",
     "splendor-example": "workspace:*"
   },

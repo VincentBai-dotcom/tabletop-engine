@@ -34,6 +34,14 @@ it no longer does.)
   `node:fs`, `fileURLToPath(new URL(".", import.meta.url))` for the current
   directory (not `import.meta.dir`), and `process.argv[1] === fileURLToPath(import.meta.url)`
   for the "run as main" check (not `import.meta.main`).
+- **Avoid casting; treat an unavoidable cast as a bug in a dependency.** Type
+  assertions (`as`, and especially `as unknown as`) silence the compiler rather
+  than satisfy it, so a later change in the thing being cast breaks the code
+  silently. Reach for a cast only when there is genuinely no typed path — and
+  when you must, recognize that the need is usually a design issue in the code
+  being depended on (a missing overload, an unexported type, a signature that
+  doesn't accept the value you have). Prefer fixing that underlying type surface
+  over papering it with a cast at the call site.
 - **Comments are a last resort, not a default.** They drift out of sync with the
   code and mislead both humans and agents; self-explanatory code (clear names,
   small functions, expressive types) is the goal. Do not narrate what the code

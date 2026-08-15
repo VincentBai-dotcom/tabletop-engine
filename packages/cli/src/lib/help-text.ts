@@ -5,6 +5,7 @@ export function createRootHelpText(): string {
     "Commands:",
     "  generate",
     "  validate",
+    "  dev",
     "  login",
     "  logout",
     "  whoami",
@@ -29,6 +30,19 @@ export function createValidateHelpText(): string {
   return ["tvk validate", "", "Optional flags:", "  --config <path>"].join(
     "\n",
   );
+}
+
+export function createDevHelpText(): string {
+  return [
+    "tvk dev",
+    "",
+    "Run the game locally: an in-memory server executes the game out of process",
+    "and the client talks to it over SSE/HTTP.",
+    "",
+    "Optional flags:",
+    "  --config <path>",
+    "  --port <number>",
+  ].join("\n");
 }
 
 const ENVIRONMENT_HELP = [
