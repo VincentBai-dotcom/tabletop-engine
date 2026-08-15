@@ -3,26 +3,12 @@ export function createRootHelpText(): string {
     "tvk",
     "",
     "Commands:",
-    "  generate",
     "  validate",
     "  dev",
     "  login",
     "  logout",
     "  whoami",
     "  upload",
-  ].join("\n");
-}
-
-export function createGenerateHelpText(): string {
-  return [
-    "tvk generate",
-    "",
-    "Targets:",
-    "  client-sdk",
-    "",
-    "Optional flags:",
-    "  --config <path>",
-    "  --outDir <path>",
   ].join("\n");
 }
 
