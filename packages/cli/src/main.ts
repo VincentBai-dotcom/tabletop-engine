@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { fileURLToPath } from "node:url";
+import { runDevCommand } from "./commands/dev.ts";
 import { runGenerateCommand } from "./commands/generate.ts";
 import { createAuthContext } from "./lib/auth/context.ts";
 import { runLoginCommand } from "./commands/login.ts";
@@ -35,6 +36,12 @@ export async function run(
 
   if (command === "validate") {
     return runValidateCommand(args, {
+      cwd: options.cwd ?? process.cwd(),
+    });
+  }
+
+  if (command === "dev") {
+    return runDevCommand(args, {
       cwd: options.cwd ?? process.cwd(),
     });
   }
