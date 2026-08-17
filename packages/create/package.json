@@ -1,0 +1,23 @@
+{
+  "name": "@tableverse-kit/create",
+  "version": "0.0.0",
+  "type": "module",
+  "private": false,
+  "bin": {
+    "create-tableverse-kit": "./src/main.ts"
+  },
+  "files": [
+    "src",
+    "templates/default"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

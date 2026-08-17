@@ -196,6 +196,16 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/create:
+    dependencies:
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.2
+        version: 24.13.2
+
   packages/engine:
     dependencies:
       '@sinclair/typebox':

@@ -1,0 +1,17 @@
+{
+  "name": "{{projectName}}",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev:server": "pnpm -C engine dev",
+    "dev:web": "pnpm -C client dev",
+    "build": "pnpm -C client build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@tableverse-kit/cli": "{{tableverseVersion}}",
+    "typescript": "^5"
+  }
+}

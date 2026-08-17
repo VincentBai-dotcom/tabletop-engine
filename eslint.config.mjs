@@ -72,6 +72,7 @@ export default defineConfig([
     "Splendor.md",
     "nobile tiles.md",
     "docs/**",
+    "packages/create/templates/**",
     "**/dist",
     "**/coverage",
     "**/tsconfig.tsbuildinfo",

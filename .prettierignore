@@ -3,3 +3,6 @@ build
 coverage
 dist
 
+# Scaffold templates are shipped verbatim; formatting them would rewrite the
+# emitted project's files and break the `{{token}}` placeholders on some paths.
+packages/create/templates

@@ -1,0 +1,19 @@
+{
+  "name": "{{projectName}}-client",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tableverse-kit/client": "{{tableverseVersion}}",
+    "{{projectName}}-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "vite": "^7.1.12"
+  }
+}
