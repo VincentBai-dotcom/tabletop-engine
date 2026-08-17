@@ -208,6 +208,32 @@ describe("bridge client", () => {
     expect((error as TransportError).reason).toBe("server_error");
   });
 
+  test("execute rejects when the result envelope is malformed", async () => {
+    const { client, bridge } = makeClient();
+    bridge.send({ type: bridgeMessages.snapshot, payload: snapshotPayload });
+    await client.ready();
+
+    const pending = client.execute({ type: "score", input: { n: 1 } });
+    const request = bridge.lastRequest(bridgeMessages.execute);
+    bridge.send({
+      type: bridgeMessages.executionResult,
+      requestId: request?.requestId,
+      payload: { accepted: "nope" },
+    });
+
+    const error = await rejection(pending);
+    expect(error).toBeInstanceOf(TransportError);
+    expect((error as TransportError).reason).toBe("server_error");
+  });
+
+  test("a malformed snapshot push moves the client to error", () => {
+    const { client, bridge } = makeClient();
+
+    bridge.send({ type: bridgeMessages.snapshot, payload: { version: 1 } });
+
+    expect(client.getStatus()).toBe("error");
+  });
+
   test("pushed events reach onEvent", async () => {
     const { client, bridge } = makeClient();
     bridge.send({ type: bridgeMessages.snapshot, payload: snapshotPayload });

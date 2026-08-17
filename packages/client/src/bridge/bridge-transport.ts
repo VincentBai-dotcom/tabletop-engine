@@ -5,6 +5,13 @@ import {
   TransportError,
   type TransportErrorReason,
 } from "../client/lifecycle.ts";
+import {
+  assertDiscoveryResult,
+  assertEventEnvelope,
+  assertSnapshotEnvelope,
+  parseCommandList,
+  parseExecutionResult,
+} from "../client/message-validation.ts";
 
 export const bridgeMessages = {
   ready: "game_ready",
@@ -62,25 +69,24 @@ export class BridgeTransport<
     this.#endpoint.post({ type: bridgeMessages.ready });
   }
 
-  execute(command: GameShapeOf<E>["command"]): Promise<ExecutionResult> {
-    return this.#request(
-      bridgeMessages.execute,
-      command,
-    ) as Promise<ExecutionResult>;
+  async execute(command: GameShapeOf<E>["command"]): Promise<ExecutionResult> {
+    return parseExecutionResult(
+      await this.#request(bridgeMessages.execute, command),
+    );
   }
 
-  discover(
+  async discover(
     request: GameShapeOf<E>["discovery"]["payload"],
   ): Promise<GameShapeOf<E>["discovery"]["result"]> {
-    return this.#request(bridgeMessages.discover, request) as Promise<
-      GameShapeOf<E>["discovery"]["result"]
-    >;
+    const result = await this.#request(bridgeMessages.discover, request);
+    assertDiscoveryResult(result);
+    return result as GameShapeOf<E>["discovery"]["result"];
   }
 
-  listAvailableCommands(): Promise<readonly string[]> {
-    return this.#request(bridgeMessages.listCommands, undefined) as Promise<
-      readonly string[]
-    >;
+  async listAvailableCommands(): Promise<readonly string[]> {
+    return parseCommandList(
+      await this.#request(bridgeMessages.listCommands, undefined),
+    );
   }
 
   close(): void {
@@ -120,28 +126,32 @@ export class BridgeTransport<
       return;
     }
 
-    switch (type) {
-      case bridgeMessages.snapshot:
-        handlers.onSnapshot(payload as TransportSnapshotPayload<E>);
-        return;
-      case bridgeMessages.event:
-        handlers.onEvent(payload as GameShapeOf<E>["event"]);
-        return;
-      case bridgeMessages.ended:
-        handlers.onClosed();
-        return;
-      case bridgeMessages.error:
-        handlers.onError(toReason(reason));
-        return;
+    try {
+      switch (type) {
+        case bridgeMessages.snapshot:
+          assertSnapshotEnvelope(payload);
+          handlers.onSnapshot({
+            viewerId: payload.viewerId,
+            version: payload.version,
+            view: payload.view as GameShapeOf<E>["view"],
+          });
+          return;
+        case bridgeMessages.event:
+          assertEventEnvelope(payload);
+          handlers.onEvent(payload as GameShapeOf<E>["event"]);
+          return;
+        case bridgeMessages.ended:
+          handlers.onClosed();
+          return;
+        case bridgeMessages.error:
+          handlers.onError(toReason(reason));
+          return;
+      }
+    } catch {
+      handlers.onError("server_error");
     }
   }
 }
-
-type TransportSnapshotPayload<E extends AnyGameExecutor> = {
-  viewerId: string;
-  view: GameShapeOf<E>["view"];
-  version: number;
-};
 
 const KNOWN_REASONS: readonly TransportErrorReason[] = [
   "not_ready",

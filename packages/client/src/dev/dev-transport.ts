@@ -2,6 +2,13 @@ import type { AnyGameExecutor, GameShapeOf } from "../client/game-shape.ts";
 import type { ExecutionResult } from "../client/types.ts";
 import type { Transport, TransportHandlers } from "../client/transport.ts";
 import { TransportError } from "../client/lifecycle.ts";
+import {
+  assertDiscoveryResult,
+  assertEventEnvelope,
+  assertSnapshotEnvelope,
+  parseCommandList,
+  parseExecutionResult,
+} from "../client/message-validation.ts";
 
 export interface SseConnection {
   addMessageListener(type: string, listener: (data: string) => void): void;
@@ -35,26 +42,27 @@ export class DevTransport<E extends AnyGameExecutor> implements Transport<E> {
     void this.#start(handlers);
   }
 
-  execute(command: GameShapeOf<E>["command"]): Promise<ExecutionResult> {
-    return this.#post("/execute", {
-      viewer: this.#viewer,
-      command,
-    }) as Promise<ExecutionResult>;
+  async execute(command: GameShapeOf<E>["command"]): Promise<ExecutionResult> {
+    return parseExecutionResult(
+      await this.#post("/execute", { viewer: this.#viewer, command }),
+    );
   }
 
-  discover(
+  async discover(
     request: GameShapeOf<E>["discovery"]["payload"],
   ): Promise<GameShapeOf<E>["discovery"]["result"]> {
-    return this.#post("/discover", {
+    const result = await this.#post("/discover", {
       viewer: this.#viewer,
       request,
-    }) as Promise<GameShapeOf<E>["discovery"]["result"]>;
+    });
+    assertDiscoveryResult(result);
+    return result as GameShapeOf<E>["discovery"]["result"];
   }
 
   async listAvailableCommands(): Promise<readonly string[]> {
     const url = `${this.#baseUrl}/commands?viewer=${encodeURIComponent(this.#viewer)}`;
     const response = await this.#fetch(url);
-    return (await response.json()) as readonly string[];
+    return parseCommandList(await response.json());
   }
 
   close(): void {
@@ -84,17 +92,27 @@ export class DevTransport<E extends AnyGameExecutor> implements Transport<E> {
     this.#connection = connection;
 
     connection.addMessageListener("snapshot", (data) => {
-      handlers.onSnapshot(
-        JSON.parse(data) as {
-          viewerId: string;
-          view: GameShapeOf<E>["view"];
-          version: number;
-        },
-      );
+      try {
+        const raw: unknown = JSON.parse(data);
+        assertSnapshotEnvelope(raw);
+        handlers.onSnapshot({
+          viewerId: raw.viewerId,
+          version: raw.version,
+          view: raw.view as GameShapeOf<E>["view"],
+        });
+      } catch {
+        handlers.onError("server_error");
+      }
     });
 
     connection.addMessageListener("event", (data) => {
-      handlers.onEvent(JSON.parse(data) as GameShapeOf<E>["event"]);
+      try {
+        const raw: unknown = JSON.parse(data);
+        assertEventEnvelope(raw);
+        handlers.onEvent(raw as GameShapeOf<E>["event"]);
+      } catch {
+        handlers.onError("server_error");
+      }
     });
 
     connection.setErrorListener((reconnecting) => {
