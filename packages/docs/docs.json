@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "name": "tableverse-kit",
-  "theme": "aspen",
+  "theme": "luma",
   "logo": {
     "light": "/logo/lockup-light.svg",
     "dark": "/logo/lockup-dark.svg"
