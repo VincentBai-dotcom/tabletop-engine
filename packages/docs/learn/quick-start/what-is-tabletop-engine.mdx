@@ -1,0 +1,60 @@
+---
+title: "What is tabletop-engine?"
+description: "tabletop-engine is a TypeScript library for building board game rules engines with typed state, commands, stages, visibility, and replay."
+---
+
+tabletop-engine is a TypeScript runtime library that gives you the building blocks for a complete board game or tabletop rules engine. You define your game state with decorators, model turn structure with stages, and author commands with validation and execution logic.
+
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/learn/quick-start/build-your-first-game">
+    Build a minimal working game in under five minutes.
+  </Card>
+  <Card title="Installation" icon="box" href="/learn/quick-start/installation">
+    Add tabletop-engine to your TypeScript project.
+  </Card>
+  <Card title="Build your game" icon="lightbulb" href="/learn/build-your-game/assemble-the-game-definition">
+    Learn how game definitions, stages, commands, and state facades fit together.
+  </Card>
+  <Card title="Reference" icon="code" href="/reference/authoring-apis/create-game-definition-builder">
+    Full reference for every class, function, and decorator.
+  </Card>
+</CardGroup>
+
+## Key capabilities
+
+tabletop-engine covers the runtime mechanics that every board game backend needs, so you can stay focused on your game's rules.
+
+<CardGroup cols={2}>
+  <Card title="State facades" icon="layer-group">
+    Author game state as decorated TypeScript classes using `@State()` and `@field()`. The engine compiles these into a serializable canonical schema that persists between turns.
+  </Card>
+  <Card title="Stages and progression" icon="arrow-right-arrow-left">
+    Model your game's turn structure as a graph of named stages. Each stage controls who can act, which commands are available, and where the game goes next.
+  </Card>
+  <Card title="Commands" icon="terminal">
+    Define commands with `validate` and `execute` hooks. The executor runs validation before applying any mutations, so invalid commands never corrupt game state.
+  </Card>
+  <Card title="Hidden information" icon="eye-slash">
+    Project viewer-specific state with `getView()`. Each player sees only what they're allowed to see — cards in hand, private tokens, or role assignments — while the engine keeps the authoritative canonical state separate.
+  </Card>
+  <Card title="Deterministic RNG" icon="shuffle">
+    Seeded random number generation is built into setup and execution contexts. Games are fully replayable and testable from a given seed.
+  </Card>
+  <Card title="Snapshots and replay" icon="clock-rotate-left">
+    Capture canonical state, replay command history, and debug rule behavior with deterministic inputs.
+  </Card>
+</CardGroup>
+
+## Who it's for
+
+tabletop-engine is designed for TypeScript developers building the backend logic for turn-based or board game experiences. It works well whether you're:
+
+- Building a standalone game server for a hobby project
+- Creating a reusable rules engine to power multiple clients (web, terminal, mobile)
+- Prototyping game mechanics before layering on a UI or multiplayer infrastructure
+
+The library focuses on game rules. Auth, lobbies, persistence, and hosting live outside the engine boundary.
+
+<Note>
+  tabletop-engine requires TypeScript 5+ and uses the `experimentalDecorators` compiler option for state facade authoring. See [Installation](/learn/quick-start/installation) for the required `tsconfig.json` settings.
+</Note>

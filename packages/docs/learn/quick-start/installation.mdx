@@ -1,0 +1,131 @@
+---
+title: "Installation"
+description: "Add tabletop-engine to your project with npm, bun, pnpm, or yarn, then configure TypeScript 5+ with experimentalDecorators to enable state facade authoring."
+---
+
+tabletop-engine is published to npm as a standard ES module package. It has a single runtime dependency (`@sinclair/typebox` for schema types) and a peer dependency on TypeScript 5+. Before you can use the state facade decorators, you need to enable `experimentalDecorators` in your `tsconfig.json`.
+
+## Install the package
+
+<CodeGroup>
+
+```bash npm
+npm install @tabletop-kit/engine
+```
+
+```bash bun
+bun add @tabletop-kit/engine
+```
+
+```bash pnpm
+pnpm add @tabletop-kit/engine
+```
+
+```bash yarn
+yarn add @tabletop-kit/engine
+```
+
+</CodeGroup>
+
+## Configure TypeScript
+
+tabletop-engine uses TypeScript decorator syntax (`@State()`, `@field()`) for state facade authoring. You need TypeScript 5 or later and the `experimentalDecorators` option enabled in your `tsconfig.json`.
+
+```json
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "strict": true
+  }
+}
+```
+
+<Warning>
+  Without `experimentalDecorators: true`, the `@State()` and `@field()` decorators will produce a TypeScript compiler error. This option is required for state facade authoring.
+</Warning>
+
+### Recommended compiler options
+
+The following `tsconfig.json` reflects the settings used by the tabletop-engine package itself and its reference implementations. You don't need to match every option, but `experimentalDecorators` is required and `strict` is strongly recommended.
+
+```json
+{
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleDetection": "force",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "experimentalDecorators": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
+```
+
+## Runtime requirements
+
+tabletop-engine runs on **Bun** or **Node.js**. There are no browser-specific APIs in the core package, so you can also use it in server-side environments that support modern ES modules.
+
+<Note>
+  The reference implementation and CLI tooling use Bun. If you're using Node.js, make sure your version supports ES modules (`"type": "module"` in `package.json` or `.mjs` file extensions).
+</Note>
+
+## Package exports
+
+The package exposes two subpath exports:
+
+| Export | Path | Purpose |
+|--------|------|---------|
+| `@tabletop-kit/engine` | `.` | Core runtime — `GameDefinitionBuilder`, `createGameExecutor`, decorators, schema types, and all utilities |
+| `@tabletop-kit/engine/config` | `./config` | CLI configuration helper — `defineConfig` for `tabletop.config.ts` |
+
+In most cases you only need the main export:
+
+```typescript
+import {
+  GameDefinitionBuilder,
+  createGameExecutor,
+  createStageFactory,
+  createCommandFactory,
+  State,
+  field,
+  t,
+} from "@tabletop-kit/engine";
+```
+
+Use the `./config` subpath only when writing a `tabletop.config.ts` file for the CLI:
+
+```typescript
+import { defineConfig } from "@tabletop-kit/engine/config";
+import { myGame } from "./src/game.ts";
+
+export default defineConfig({
+  game: myGame,
+  outDir: "./generated",
+});
+```
+
+## Verify the installation
+
+After installing and configuring TypeScript, confirm that the package resolves correctly by importing from `@tabletop-kit/engine`:
+
+```typescript
+import { State, field, t } from "@tabletop-kit/engine";
+
+@State()
+class TestState {
+  @field(t.number())
+  value = 0;
+}
+
+console.log("tabletop-engine is working");
+```
+
+If TypeScript reports no errors and the import resolves, you're ready to build. Head to [Build your first game](/learn/quick-start/build-your-first-game) to create your first game definition.

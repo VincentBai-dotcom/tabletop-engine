@@ -1,0 +1,218 @@
+---
+title: "Saving, restoring, and replaying game state"
+description: "Use createSnapshot() and restoreSnapshot() for save/load, and the replay helpers to reconstruct or audit any point in a game's command history."
+---
+
+tabletop-engine keeps game state as a plain serializable object, which makes persistence straightforward. The snapshot API deep-clones state into a versioned container you can store anywhere. The replay API tracks the command log from a starting snapshot so you can reconstruct any moment in the game — useful for debugging, undo, and audit trails.
+
+## Snapshots
+
+### Creating a snapshot
+
+`createSnapshot()` produces a `Snapshot<State>` — a versioned deep clone of the canonical state at a single point in time.
+
+```typescript
+import { createSnapshot } from "@tabletop-kit/engine";
+
+const state = executor.createInitialState({ playerIds: ["alice", "bob"] }, "seed-42");
+const snapshot = createSnapshot(state);
+// snapshot = { version: 1, state: <deep clone of state> }
+```
+
+The `Snapshot<State>` type is:
+
+```typescript
+interface Snapshot<State> {
+  version: number;
+  state: State;
+}
+```
+
+Because `state` is a plain JSON-serializable object, you can persist it however your application requires — a database column, a file, an in-memory store, or a message broker.
+
+### Restoring from a snapshot
+
+`restoreSnapshot()` deep-clones the snapshot's state back out, giving you a fresh canonical state object ready to pass to the executor:
+
+```typescript
+import { restoreSnapshot } from "@tabletop-kit/engine";
+
+const restoredState = restoreSnapshot(snapshot);
+const result = executor.executeCommand(restoredState, someCommand);
+```
+
+<Note>
+Both `createSnapshot()` and `restoreSnapshot()` use `structuredClone()` internally, so the original state and any restored copy are always independent. Mutating one never affects the other.
+</Note>
+
+### Save and load example
+
+```typescript
+import { createSnapshot, restoreSnapshot } from "@tabletop-kit/engine";
+import { createGameExecutorInstance } from "./game.ts";
+
+const executor = createGameExecutorInstance();
+
+// --- Save ---
+function saveGame(state: GameState): string {
+  const snapshot = createSnapshot(state);
+  return JSON.stringify(snapshot);
+}
+
+// --- Load ---
+function loadGame(serialized: string): GameState {
+  const snapshot = JSON.parse(serialized) as Snapshot<GameState>;
+  return restoreSnapshot(snapshot);
+}
+
+// Usage
+let state = executor.createInitialState({ playerIds: ["alice", "bob"] }, "seed-42");
+
+// Play a few turns ...
+state = executor.executeCommand(state, {
+  type: "take_three_distinct_gems",
+  actorId: "alice",
+  input: { colors: ["white", "blue", "green"] },
+}).state;
+
+const saved = saveGame(state);
+// ... store `saved` wherever you like ...
+
+const loaded = loadGame(saved);
+// Resume from the saved point
+const next = executor.executeCommand(loaded, {
+  type: "take_two_same_gems",
+  actorId: "bob",
+  input: { color: "red" },
+});
+```
+
+## Replay
+
+The replay helpers let you build a log of commands from an initial snapshot and later reconstruct any state in that history.
+
+### Creating a replay record
+
+Start a `ReplayRecord` from an initial snapshot:
+
+```typescript
+import { createReplayRecord, createSnapshot } from "@tabletop-kit/engine";
+
+const initialState = executor.createInitialState(
+  { playerIds: ["alice", "bob"] },
+  "seed-42",
+);
+const initialSnapshot = createSnapshot(initialState);
+let record = createReplayRecord(initialSnapshot);
+```
+
+The `ReplayRecord` type captures the snapshot and all subsequent commands:
+
+```typescript
+interface ReplayRecord<State, Command, Event> {
+  initialSnapshot: Snapshot<State>;
+  commands: Command[];
+  events: Event[];
+  checkpoints: unknown[];
+}
+```
+
+### Appending steps
+
+After each `executeCommand()` call, append the command and its result to the record. `appendReplayStep()` returns a new record — it does not mutate the existing one:
+
+```typescript
+import { appendReplayStep } from "@tabletop-kit/engine";
+
+let state = initialState;
+
+const command = {
+  type: "take_three_distinct_gems" as const,
+  actorId: "alice",
+  input: { colors: ["white", "blue", "green"] },
+};
+
+const result = executor.executeCommand(state, command);
+
+if (result.ok) {
+  state = result.state;
+  record = appendReplayStep(record, command, result);
+}
+```
+
+### Replaying the full record
+
+`replayRecord()` takes an executor and a `ReplayRecord` and re-executes every command against the initial snapshot, returning the final state:
+
+```typescript
+import { replayRecord } from "@tabletop-kit/engine";
+
+const finalState = replayRecord(executor, record);
+```
+
+Because execution is deterministic (same commands + same RNG seed = same outcome), `finalState` will always match the state you had when the record was produced.
+
+<Tip>
+You can also replay up to a specific step by slicing `record.commands` before passing the record to `replayRecord()`. Construct a new record object with `{ ...record, commands: record.commands.slice(0, n) }`.
+</Tip>
+
+## Use cases
+
+| Use case | Technique |
+| --- | --- |
+| Save/load | Serialize `createSnapshot(state)` to storage; `restoreSnapshot()` to resume |
+| Undo | Keep a snapshot before each command; restore it to roll back |
+| Game history / audit | Build a `ReplayRecord` across the session; store it for later review |
+| Debugging | Replay to a specific step and inspect state at that point |
+| Regression tests | Record a known-good game session; replay it and assert final state |
+
+## Complete example
+
+```typescript
+import {
+  createSnapshot,
+  restoreSnapshot,
+  createReplayRecord,
+  appendReplayStep,
+  replayRecord,
+} from "@tabletop-kit/engine";
+import { createGameExecutorInstance } from "./game.ts";
+
+const executor = createGameExecutorInstance();
+
+// 1. Create the initial state and snapshot it
+const initialState = executor.createInitialState(
+  { playerIds: ["alice", "bob"] },
+  "seed-99",
+);
+const initialSnapshot = createSnapshot(initialState);
+let record = createReplayRecord(initialSnapshot);
+
+// 2. Play the game, logging each command into the record
+let state = initialState;
+
+const commands = [
+  { type: "take_three_distinct_gems", actorId: "alice", input: { colors: ["white", "blue", "green"] } },
+  { type: "take_two_same_gems", actorId: "bob", input: { color: "red" } },
+] as const;
+
+for (const command of commands) {
+  const result = executor.executeCommand(state, command);
+
+  if (!result.ok) {
+    throw new Error(`Command failed: ${result.reason}`);
+  }
+
+  state = result.state;
+  record = appendReplayStep(record, command, result);
+}
+
+// 3. Save the record (commands + initial snapshot) to persistent storage
+const saved = JSON.stringify(record);
+
+// 4. Later: reconstruct the final state from the record alone
+const restoredRecord = JSON.parse(saved);
+const reconstructed = replayRecord(executor, restoredRecord);
+
+console.log(reconstructed.game.playerOrder); // ["alice", "bob"]
+```

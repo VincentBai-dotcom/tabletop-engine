@@ -1,0 +1,186 @@
+---
+title: "Visibility: Projecting State Views Per Viewer"
+description: "Control what each player and spectator sees. Mark fields as hidden or visible-to-self and the engine projects a tailored state view per viewer automatically."
+---
+
+In games with hidden information — private hands, face-down cards, concealed bids — different players need to see different views of state. The visibility system lets you annotate fields on your `@State()` classes to declare who can see what, and the engine projects a tailored view for each viewer without you writing any projection code by hand.
+
+## Viewer types
+
+The engine recognises two viewer types:
+
+| Viewer | Description |
+|---|---|
+| `{ kind: "player", playerId: string }` | A player in the game, identified by ID |
+| `{ kind: "spectator" }` | An observer with no player identity |
+
+You pass a viewer object to `executor.getView(state, viewer)` to receive the projected state for that viewer.
+
+## Configuring visibility
+
+Call `configureVisibility()` after defining a `@State()` class to declare field-level rules:
+
+```typescript
+import { configureVisibility } from "@tabletop-kit/engine";
+import { PlayerState } from "./player-state.ts";
+
+configureVisibility(PlayerState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.hand.hidden(),
+  ],
+}));
+```
+
+`configureVisibility` takes the class and a callback. The callback receives a `field` proxy — access any field name on it to get a token with `.hidden()` and `.visibleToSelf()` methods.
+
+## Field visibility modes
+
+### `hidden()`
+
+A hidden field is replaced with `{ __hidden: true }` in the projected state for all viewers who should not see it. Both other players and spectators receive the envelope instead of the real value.
+
+```typescript
+configureVisibility(PlayerState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.hand.hidden(),
+  ],
+}));
+```
+
+With this configuration, `game.players["alice"].hand` in the view for player `"bob"` becomes `{ __hidden: true }`.
+
+### `visibleToSelf()`
+
+A `visibleToSelf` field is visible to the player who owns the state object, and hidden from all other viewers.
+
+```typescript
+configureVisibility(PlayerState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.reservedCards.visibleToSelf(),
+  ],
+}));
+```
+
+With this configuration:
+- Player `"alice"` sees their own `reservedCards` in full.
+- Player `"bob"` and spectators see `{ __hidden: true }`.
+
+## `ownedBy`: linking ownership to a player ID
+
+The `ownedBy` key tells the engine which field on the state object holds the owning player's ID. This is what makes `visibleToSelf` work — without `ownedBy`, the engine has no way to know which player to show self-visible fields to.
+
+```typescript
+configureVisibility(PlayerState, ({ field }) => ({
+  ownedBy: field.id,   // field.id must be a string field
+  fields: [
+    field.hand.visibleToSelf(),
+  ],
+}));
+```
+
+`ownedBy` must reference a `string` field on the state class.
+
+## Derived hidden values
+
+Sometimes you want to reveal a summary of a hidden field rather than nothing at all — for example, showing the count of cards in a player's hand without revealing which cards they are. Pass an options object to `.hidden()` or `.visibleToSelf()` with a `schema` and `derive` function:
+
+```typescript
+const hiddenHandSchema = t.object({ count: t.number() });
+
+configureVisibility(PlayerState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.hand.hidden({
+      schema: hiddenHandSchema,
+      derive(hand) {
+        return { count: hand.length };
+      },
+    }),
+  ],
+}));
+```
+
+When `derive` is provided, the projected value for unauthorised viewers becomes `{ __hidden: true, value: { count: 3 } }` instead of `{ __hidden: true }`. The `schema` field is required when `derive` is provided, so the engine can validate the derived shape.
+
+## The `__hidden` envelope
+
+Hidden fields in projected state always use this envelope shape:
+
+```typescript
+interface HiddenValue<TValue = unknown> {
+  __hidden: true;
+  value?: TValue;   // present only when derive() is configured
+}
+```
+
+Clients should check `__hidden === true` to detect hidden values and use the optional `value` field if the server derives a summary.
+
+## Getting a view
+
+Call `getView(state, viewer)` on the executor to project state for a specific viewer:
+
+```typescript
+const executor = createGameExecutor(createMyGame());
+const state = executor.createInitialState();
+
+// Full view for alice
+const aliceView = executor.getView(state, {
+  kind: "player",
+  playerId: "alice",
+});
+
+// Spectator view — all self-visible and hidden fields are replaced
+const spectatorView = executor.getView(state, {
+  kind: "spectator",
+});
+```
+
+The returned object has the shape `{ game: VisibleGameState, progression: ProgressionState }`.
+
+## Complete example: Splendor player state
+
+Splendor players keep reserved cards private from other players. The Splendor reference implementation shows how to use `visibleToSelf` with a derived summary — other players see a count of reserved cards, not the card IDs:
+
+```typescript
+import { configureVisibility, field, State, t } from "@tabletop-kit/engine";
+
+const hiddenReservedCardSchema = t.object({
+  count: t.number(),
+});
+
+@State()
+export class SplendorPlayerState {
+  @field(t.string())
+  id = "";
+
+  @field(t.array(t.number()))
+  reservedCardIds: number[] = [];
+
+  @field(t.array(t.number()))
+  purchasedCardIds: number[] = [];
+}
+
+configureVisibility(SplendorPlayerState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.reservedCardIds.visibleToSelf({
+      schema: hiddenReservedCardSchema,
+      derive(reservedCardIds) {
+        return { count: reservedCardIds.length };
+      },
+    }),
+  ],
+}));
+```
+
+With this configuration:
+- Alice sees her own `reservedCardIds` as `[12, 47]`.
+- Bob sees Alice's `reservedCardIds` as `{ __hidden: true, value: { count: 2 } }`.
+- A spectator sees the same envelope as Bob.
+
+<Tip>
+  Call `configureVisibility` in the same file as the state class, after the class definition. This keeps visibility rules colocated with the state they apply to.
+</Tip>

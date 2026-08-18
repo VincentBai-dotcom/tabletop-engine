@@ -1,0 +1,101 @@
+---
+title: "tt-kit validate: Check Game Definition and Snapshots"
+description: "Validate your tabletop-engine game definition against its own schemas, and optionally verify that saved state snapshots still conform to the current schema."
+---
+
+The `validate` command loads your game definition via `tabletop.config.ts` and checks that the canonical game state schema and runtime state schema are structurally valid. When you pass a snapshot file, it also checks that the saved state conforms to both schemas. Use `validate` in CI to catch schema regressions before they reach production.
+
+## Usage
+
+```bash
+tt-kit validate [flags]
+```
+
+## Basic validation
+
+Running `validate` without any extra flags checks that your game definition loads correctly and its schemas are valid:
+
+```bash
+tt-kit validate
+```
+
+On success, the command prints:
+
+```
+validated game:<your-game-name>
+```
+
+If the game definition fails to load or a schema is invalid, the command exits with a non-zero code and prints an error message to stderr.
+
+## Snapshot validation
+
+The `--snapshot` flag takes a path to a JSON file containing a saved game state. The file must have `game` and `runtime` top-level keys — the same shape your server persists between turns:
+
+```json
+{
+  "game": { ... },
+  "runtime": { ... }
+}
+```
+
+```bash
+tt-kit validate --snapshot ./snapshots/game-123.json
+```
+
+When the snapshot is valid, the output includes both confirmation lines:
+
+```
+validated game:<your-game-name>
+validated snapshot:./snapshots/game-123.json
+```
+
+If the snapshot does not conform to the current schemas, the command exits with a non-zero code describing which assertion failed.
+
+<Warning>
+  Snapshot validation checks the state against the schemas your current game definition produces. If you change your state shape and old snapshots no longer pass, you need to migrate those snapshots or update your game definition.
+</Warning>
+
+## Use cases
+
+<Steps>
+  <Step title="CI schema check">
+    Add `tt-kit validate` to your CI pipeline to confirm that every pull request keeps the game definition loadable and the schemas coherent.
+
+    ```bash
+    tt-kit validate
+    ```
+  </Step>
+  <Step title="Regression test saved states">
+    Capture snapshots from staging or production and validate them against schema changes before you deploy:
+
+    ```bash
+    tt-kit validate --snapshot ./snapshots/game-123.json
+    tt-kit validate --snapshot ./snapshots/game-456.json
+    ```
+  </Step>
+  <Step title="Verify a config change">
+    After editing your game definition or config file, run validate to confirm the changes are valid before regenerating artifacts:
+
+    ```bash
+    tt-kit validate --config ./config/tabletop.config.ts
+    ```
+  </Step>
+</Steps>
+
+## Flags
+
+<ParamField path="--config" type="string">
+  Path to a config file. Defaults to `tabletop.config.ts` in the current working directory.
+
+  ```bash
+  tt-kit validate --config ./config/tabletop.config.ts
+  ```
+</ParamField>
+
+<ParamField path="--snapshot" type="string">
+  Path to a JSON snapshot file to validate against the game's canonical and runtime state schemas. The file must contain `game` and `runtime` keys at the top level.
+
+  ```bash
+  tt-kit validate --snapshot ./snapshots/game-123.json
+  ```
+</ParamField>

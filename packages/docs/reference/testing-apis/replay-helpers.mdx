@@ -1,0 +1,176 @@
+---
+title: "Replay API: createReplayRecord and replayRecord"
+description: "Build immutable command logs with createReplayRecord and appendReplayStep, then reconstruct any game state deterministically using replayRecord."
+---
+
+The replay API lets you build an immutable log of every command applied to a game and re-execute that log from scratch against a fresh executor. Because the engine is deterministic, replaying the same sequence of commands from the same initial snapshot always produces the same final state. `ReplayRecord` is a plain serializable object, so you can store it in a database, send it over the wire, or use it as test fixtures.
+
+## `createReplayRecord(initialSnapshot)`
+
+```typescript
+function createReplayRecord<
+  State extends CanonicalState,
+  TCommandInput extends Command,
+  Ev extends GameEvent,
+>(
+  initialSnapshot: Snapshot<State>,
+): ReplayRecord<State, TCommandInput, Ev>
+```
+
+Creates a new `ReplayRecord` from an initial snapshot. The record starts with an empty command list and no events.
+
+<ParamField path="initialSnapshot" type="Snapshot<State>" required>
+  A versioned snapshot of the starting state. Create one with
+  `createSnapshot()`. The snapshot is stored as-is inside the record — it is
+  not cloned again here.
+</ParamField>
+
+```typescript
+import { createSnapshot, createReplayRecord } from "@tabletop-kit/engine";
+
+const initial = executor.createInitialState({ playerIds: ["p1", "p2"] }, "seed-123");
+const snapshot = createSnapshot(initial);
+const record = createReplayRecord(snapshot);
+```
+
+## `appendReplayStep(record, command, result)`
+
+```typescript
+function appendReplayStep<
+  State extends CanonicalState,
+  TCommandInput extends Command,
+  Ev extends GameEvent,
+>(
+  record: ReplayRecord<State, TCommandInput, Ev>,
+  command: TCommandInput,
+  result: ExecutionResult<State>,
+): ReplayRecord<State, TCommandInput, Ev>
+```
+
+Appends a command and its execution result to the record. This function is **immutable** — it returns a new `ReplayRecord` with the command and events appended; the original record is not modified.
+
+<ParamField path="record" type="ReplayRecord<State, TCommandInput, Ev>" required>
+  The existing replay record to extend.
+</ParamField>
+
+<ParamField path="command" type="TCommandInput" required>
+  The command that was executed. This is the same object you passed to
+  `executeCommand`.
+</ParamField>
+
+<ParamField path="result" type="ExecutionResult<State>" required>
+  The result returned by `executeCommand`. Events from `result.events` are
+  merged into the record's event log.
+</ParamField>
+
+```typescript
+const command = { type: "take_gems", actorId: "p1", input: { colors: ["white", "blue"] } };
+const result = executor.executeCommand(state, command);
+
+const updated = appendReplayStep(record, command, result);
+// `record` is unchanged; `updated` contains the new step
+```
+
+## `replayRecord(gameExecutor, record)`
+
+```typescript
+function replayRecord<
+  State extends CanonicalState,
+  TCommandInput extends Command,
+>(
+  gameExecutor: {
+    executeCommand(state: State, command: TCommandInput): ExecutionResult<State>;
+  },
+  record: ReplayRecord<State, TCommandInput>,
+): State
+```
+
+Replays all commands in the record against the executor, starting from the initial snapshot, and returns the final state. Each command is executed in order; the state produced by each step feeds into the next.
+
+<ParamField path="gameExecutor" type="object" required>
+  Any object that exposes an `executeCommand(state, command)` method. A
+  `GameExecutor` returned by `createGameExecutor()` satisfies this interface.
+</ParamField>
+
+<ParamField path="record" type="ReplayRecord<State, TCommandInput>" required>
+  The replay record to execute. The `initialSnapshot` is restored with
+  `restoreSnapshot()` before execution begins.
+</ParamField>
+
+<ResponseField name="State" type="CanonicalState">
+  The canonical state after all commands in `record.commands` have been
+  applied in order.
+</ResponseField>
+
+## `ReplayRecord<State, Command, Event>`
+
+```typescript
+interface ReplayRecord<
+  State extends CanonicalState = CanonicalState,
+  TCommandInput extends Command = Command,
+  Ev extends GameEvent = GameEvent,
+> {
+  initialSnapshot: Snapshot<State>;
+  commands: TCommandInput[];
+  events: Ev[];
+  checkpoints: Snapshot<State>[];
+}
+```
+
+A plain serializable object. Store it as JSON; deserialize it by casting to `ReplayRecord` before passing to `replayRecord()`.
+
+## `HistoryEntry`
+
+The runtime tracks each successfully executed command in `runtime.history.entries`:
+
+```typescript
+interface HistoryEntry {
+  id: string;
+  commandType: string;
+  actorId?: string;
+}
+```
+
+Access the history from within command or stage logic via `runtime.history.entries`. Use `ReplayRecord` when you need a full replayable log outside the executor.
+
+## Complete example
+
+```typescript
+import {
+  createSnapshot,
+  createReplayRecord,
+  appendReplayStep,
+  replayRecord,
+} from "@tabletop-kit/engine";
+
+// 1. Create initial state and start the record
+const initial = executor.createInitialState({ playerIds: ["p1", "p2"] }, "seed-abc");
+let record = createReplayRecord(createSnapshot(initial));
+let state = initial;
+
+// 2. Execute commands and append each step
+const commands = [
+  { type: "take_gems", actorId: "p1", input: { colors: ["white", "blue", "green"] } },
+  { type: "reserve_card", actorId: "p2", input: { cardId: 42 } },
+];
+
+for (const command of commands) {
+  const result = executor.executeCommand(state, command);
+  record = appendReplayStep(record, command, result);
+  state = result.state;
+}
+
+// 3. Store the record as JSON
+const serialized = JSON.stringify(record);
+
+// 4. Later, restore and replay
+const restored = JSON.parse(serialized) as typeof record;
+const finalState = replayRecord(executor, restored);
+```
+
+<Tip>
+  `replayRecord` does not record a new history as it runs — it simply returns
+  the resulting state. If you want to audit events during replay, iterate
+  over `record.commands` and call `executeCommand` yourself, inspecting
+  `result.events` at each step.
+</Tip>

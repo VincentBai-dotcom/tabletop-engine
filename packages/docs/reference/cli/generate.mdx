@@ -1,0 +1,77 @@
+---
+title: "tt-kit generate: Schemas and Types"
+description: "Generate JSON schemas and TypeScript type declarations from your tabletop-engine game definition."
+---
+
+The `generate` command reads your game definition via `tabletop.config.ts` and writes one or more output files to your configured output directory. Run it any time you change your game's state shape, add commands, or update visibility configuration. Each target is independent — you can run only the targets your project needs.
+
+## Usage
+
+```bash
+tt-kit generate <target> [flags]
+```
+
+## Targets
+
+### `schemas`
+
+Generates `schemas.generated.json` containing JSON Schema definitions for every aspect of your game's data model:
+
+- **`canonicalState`** — the full authoritative state your server stores, combining `game` (your game-specific fields) and `runtime` (engine bookkeeping)
+- **`visibleState`** — the viewer-facing projected state that your server sends to clients
+- **`commands`** — input schemas for every command your game defines
+- **`discoveries`** — multi-step discovery schemas for commands that support them, including each step's input and output shape
+
+```bash
+tt-kit generate schemas
+```
+
+Output: `<outDir>/schemas.generated.json`
+
+Use this file to validate server payloads, generate documentation, or drive server-side request validation independently of the TypeScript types.
+
+### `types`
+
+Generates TypeScript declaration files (`.d.ts`) for your game's state shapes:
+
+- **`canonical-state.generated.d.ts`** — exports a `CanonicalState` type representing the full server-side state
+- **`visible-state.generated.d.ts`** — exports a `VisibleState` type representing what a connected client sees
+
+```bash
+tt-kit generate types
+```
+
+Output: `<outDir>/canonical-state.generated.d.ts` and `<outDir>/visible-state.generated.d.ts`
+
+Import these types in your server or shared type packages to get compile-time guarantees that your state conforms to the schemas your game defines.
+
+## Running all targets
+
+You can run both targets in sequence to keep generated artifacts up to date:
+
+```bash
+tt-kit generate schemas
+tt-kit generate types
+```
+
+<Tip>
+  Add these commands to your project's build script so generated files stay in sync whenever you change your game definition.
+</Tip>
+
+## Flags
+
+<ParamField path="--config" type="string">
+  Path to a config file. Defaults to `tabletop.config.ts` in the current working directory.
+
+  ```bash
+  tt-kit generate schemas --config ./config/tabletop.config.ts
+  ```
+</ParamField>
+
+<ParamField path="--outDir" type="string">
+  Override the output directory for generated files. Relative paths resolve from the current working directory, overriding the `outDir` set in your config file.
+
+  ```bash
+  tt-kit generate types --outDir ./src/generated
+  ```
+</ParamField>

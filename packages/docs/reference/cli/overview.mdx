@@ -1,0 +1,67 @@
+---
+title: "tt-kit: Generate and Validate Game Artifacts"
+description: "tt-kit reads your game definition and generates TypeScript types and JSON schemas for local tooling."
+---
+
+`tt-kit` is the companion CLI for `@tabletop-kit/engine`. Point it at your game definition to generate JSON schemas and TypeScript declarations for canonical state, visible state, commands, and discovery flows. You run these commands during development and again whenever your game's commands or state shape changes.
+
+## Installation
+
+<CodeGroup>
+
+```bash bun
+bun add @tabletop-kit/cli
+```
+
+```bash npm
+npm install @tabletop-kit/cli
+```
+
+</CodeGroup>
+
+## Configuration
+
+All commands read your game definition from a `tabletop.config.ts` file in the current working directory. Export your game using `defineConfig` from `@tabletop-kit/engine/config`:
+
+```typescript tabletop.config.ts
+import { defineConfig } from "@tabletop-kit/engine/config";
+import { createMyGame } from "./src/game.ts";
+
+export default defineConfig({
+  game: createMyGame(),
+  outDir: "./generated",
+});
+```
+
+The `game` field is required and must be a built `GameDefinition`. The `outDir` field is optional — when omitted, the CLI writes output to a `generated/` directory next to your config file.
+
+## Available commands
+
+| Command | Description |
+|---------|-------------|
+| [`generate`](/reference/cli/generate) | Generate schemas and types |
+| [`validate`](/reference/cli/validate) | Validate your game definition and optional state snapshots |
+
+## Global flags
+
+Both commands accept the following flags:
+
+<ParamField path="--config" type="string">
+  Path to a config file. Defaults to `tabletop.config.ts` in the current working directory.
+
+  ```bash
+  tt-kit generate schemas --config ./config/tabletop.config.ts
+  ```
+</ParamField>
+
+<ParamField path="--outDir" type="string">
+  Override the output directory for generated files. Relative paths are resolved from the current working directory. Takes precedence over `outDir` in your config file.
+
+  ```bash
+  tt-kit generate types --outDir ./src/generated
+  ```
+</ParamField>
+
+<Note>
+  The `--outDir` flag is available on `generate` subcommands. The `validate` command uses `--snapshot` instead — see [validate](/reference/cli/validate) for details.
+</Note>

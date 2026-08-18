@@ -1,0 +1,218 @@
+---
+title: "Visibility: Configuring Per-Viewer State Projection"
+description: "Reference for configureVisibility(), field tokens, hidden() and visibleToSelf() rules, and the Viewer and HiddenValue types for per-player state projection."
+---
+
+The visibility API lets you declare which fields of a `@State()` class should be hidden from certain viewers. When a client calls `getView(state, viewer)`, the engine projects the canonical state through the visibility rules you configured, replacing restricted fields with `HiddenValue` markers — optionally including a derived summary value — before delivering state to each player.
+
+## `configureVisibility(stateClass, builderFn)`
+
+```typescript
+function configureVisibility<TState extends object>(
+  target: StateClass<TState>,
+  config: (builder: VisibilityConfigurationBuilder<TState>) => VisibilityConfigurationInput<TState>,
+): void
+```
+
+Registers visibility rules on a `@State()` class. Call this once per class, typically in the same file where the class is defined, after the class declaration.
+
+<ParamField path="target" type="StateClass<TState>" required>
+  The `@State()` class you want to configure visibility for.
+</ParamField>
+
+<ParamField path="config" type="(builder) => VisibilityConfigurationInput" required>
+  A callback that receives a builder object and returns a configuration object
+  with optional `ownedBy` and `fields` properties.
+</ParamField>
+
+The builder provides a `field` proxy where each property name on your state class is a `VisibilityFieldToken`:
+
+```typescript
+configureVisibility(PlayerState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.hand.hidden(),
+    field.score.visibleToSelf(),
+  ],
+}));
+```
+
+### `ownedBy`
+
+```typescript
+ownedBy?: VisibilityFieldToken<TState, StringFieldName>
+```
+
+Marks which string field holds the owner player ID. The engine uses this to decide which viewer is the "self" in `visibleToSelf()` rules. Without `ownedBy`, `visibleToSelf()` has no effect.
+
+### `fields`
+
+```typescript
+fields?: Array<VisibilityFieldConfigEntry>
+```
+
+An array of field visibility entries created by calling `.hidden()` or `.visibleToSelf()` on a field token. Each field name may appear at most once; duplicates throw `duplicate_visibility_field:<fieldName>`.
+
+## Field token methods
+
+Each entry in `builder.field` is a `VisibilityFieldToken` with two methods.
+
+### `.hidden()`
+
+```typescript
+field.hand.hidden(): VisibilityFieldConfigEntry
+field.hand.hidden(options: { schema, derive }): VisibilityFieldConfigEntry
+```
+
+Marks the field as hidden from all viewers except the owner (when `ownedBy` is set). Spectators and non-owner players receive a `HiddenValue` in place of the real value.
+
+Without options, the hidden marker carries no alternate value:
+
+```typescript
+fields: [field.hand.hidden()]
+// Non-owners receive: { __hidden: true }
+```
+
+With `schema` and `derive`, the engine includes a derived summary in the hidden marker:
+
+```typescript
+const hiddenHandSchema = t.object({ count: t.number() });
+
+fields: [
+  field.hand.hidden({
+    schema: hiddenHandSchema,
+    derive(hand) {
+      return { count: hand.length };
+    },
+  }),
+]
+// Non-owners receive: { __hidden: true, value: { count: 3 } }
+```
+
+<ParamField path="options.schema" type="SerializableSchema">
+  The `t.*` schema for the derived value. Must not include `t.state()`. If
+  `schema` is provided, `derive` is also required.
+</ParamField>
+
+<ParamField path="options.derive" type="(value, state) => SerializableSchemaStatic<TSchema>">
+  A function that computes the summary value from the real field value and the
+  full state. Called at projection time.
+</ParamField>
+
+### `.visibleToSelf()`
+
+```typescript
+field.score.visibleToSelf(): VisibilityFieldConfigEntry
+field.score.visibleToSelf(options: { schema, derive }): VisibilityFieldConfigEntry
+```
+
+Marks the field as visible only to the player who owns the state object (identified via `ownedBy`). Other players and spectators receive a `HiddenValue`.
+
+Accepts the same optional `schema`/`derive` pair as `.hidden()`:
+
+```typescript
+fields: [
+  field.secretScore.visibleToSelf({
+    schema: t.object({ approximate: t.number() }),
+    derive(score) {
+      return { approximate: Math.floor(score / 10) * 10 };
+    },
+  }),
+]
+```
+
+## Types
+
+### `Viewer`
+
+```typescript
+type Viewer = PlayerViewer | SpectatorViewer;
+
+interface PlayerViewer {
+  kind: "player";
+  playerId: string;
+}
+
+interface SpectatorViewer {
+  kind: "spectator";
+}
+```
+
+Pass a `Viewer` to `gameExecutor.getView(state, viewer)` to get the projected state for that specific viewer.
+
+### `HiddenValue`
+
+```typescript
+interface HiddenValue<TValue = unknown> {
+  __hidden: true;
+  value?: TValue;
+}
+```
+
+The token the engine inserts wherever a field is restricted from a given viewer. When you call `.hidden()` or `.visibleToSelf()` without `schema`/`derive`, `value` is absent. When you supply `derive`, `value` holds the return value of your derive function.
+
+### `VisibleState<T>`
+
+```typescript
+interface VisibleState<TVisibleGame extends object = object> {
+  game: TVisibleGame;
+  progression: ProgressionState;
+}
+```
+
+The shape returned by `getView()`. The `game` property is the projected game state for the given viewer, with restricted fields replaced by `HiddenValue`.
+
+## Complete example
+
+The following example models a card game where each player's reserved cards are hidden from opponents but expose a count summary, and the overall deck is fully hidden:
+
+```typescript
+import { State, field, t, configureVisibility } from "@tabletop-kit/engine";
+
+const hiddenReservedSchema = t.object({ count: t.number() });
+
+@State()
+class PlayerState {
+  @field(t.string())
+  id!: string;
+
+  @field(t.array(t.number()))
+  reservedCardIds: number[] = [];
+
+  @field(t.number())
+  score = 0;
+}
+
+configureVisibility(PlayerState, ({ field }) => ({
+  ownedBy: field.id,
+  fields: [
+    field.reservedCardIds.visibleToSelf({
+      schema: hiddenReservedSchema,
+      derive(reservedCardIds) {
+        return { count: reservedCardIds.length };
+      },
+    }),
+    field.score.visibleToSelf(),
+  ],
+}));
+
+// When getView is called for "p2" on a PlayerState owned by "p1":
+// {
+//   id: "p1",
+//   reservedCardIds: { __hidden: true, value: { count: 2 } },
+//   score: { __hidden: true },
+// }
+
+// When getView is called for "p1" on their own PlayerState:
+// {
+//   id: "p1",
+//   reservedCardIds: [14, 27],
+//   score: 9,
+// }
+```
+
+<Tip>
+  Place `configureVisibility()` calls in the same file as the state class they
+  configure. This keeps ownership rules colocated with the data they govern and
+  makes it easy to audit what each player can see.
+</Tip>

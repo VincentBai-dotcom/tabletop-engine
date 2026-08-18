@@ -1,0 +1,244 @@
+---
+title: "GameExecutor API reference"
+description: "createGameExecutor wraps a GameDefinition into a runtime with createInitialState, executeCommand, listAvailableCommands, discoverCommand, and getView methods."
+---
+
+`createGameExecutor` wraps a `GameDefinition` and returns a `GameExecutor` — the runtime interface your server or game host uses to advance game state. All execution is transactional: commands run against a cloned working state, and the original state is never mutated.
+
+## `createGameExecutor(game)`
+
+```typescript
+import { createGameExecutor } from "@tabletop-kit/engine";
+
+const executor = createGameExecutor(game);
+```
+
+<ParamField path="game" type="GameDefinition" required>
+  A sealed game definition produced by `GameDefinitionBuilder.build()`. The executor reads the compiled schemas, stage graph, and command map from this object at construction time.
+</ParamField>
+
+<ResponseField name="returns" type="GameExecutor<CanonicalGameState, SetupInput>">
+  A `GameExecutor` instance. The instance holds no mutable state itself; all game state is passed in and out through individual method calls.
+</ResponseField>
+
+## Methods on `GameExecutor`
+
+### `createInitialState(rngSeed)`
+
+### `createInitialState(input, rngSeed)`
+
+Creates the starting canonical state for a new game session. Which signature you use depends on whether your game definition includes a setup input schema.
+
+**Without setup input:**
+
+<ParamField path="rngSeed" type="string | number" required>
+  Seed for the deterministic RNG. Any two games started with the same seed and the same sequence of commands produce identical state.
+</ParamField>
+
+**With setup input (when `.setupInput()` was called on the builder):**
+
+<ParamField path="input" type="SetupInput" required>
+  The typed setup input object. Must conform to the schema passed to `.setupInput()`. Validated against the schema before the setup callback runs.
+</ParamField>
+
+<ParamField path="rngSeed" type="string | number" required>
+  Seed for the deterministic RNG.
+</ParamField>
+
+<ResponseField name="returns" type="CanonicalState<GameState>">
+  The initial canonical state, shaped as `{ game, runtime }`. Pass this object to all subsequent executor method calls. The object is plain and serializable.
+</ResponseField>
+
+**Throws:**
+
+- `"setup_input_required"` — The game has a setup input schema but the input argument was omitted.
+- `"rng_seed_required"` — The RNG seed argument is missing or has the wrong type.
+
+```typescript
+// Without setup input
+const state = executor.createInitialState("seed-42");
+
+// With setup input
+const state = executor.createInitialState({ playerCount: 4 }, "seed-42");
+```
+
+### `getView(state, viewer)`
+
+Projects the canonical state for a specific viewer. Fields marked with `hidden()` or `visibleToSelf()` are filtered according to the viewer's identity.
+
+<ParamField path="state" type="CanonicalState<GameState>" required>
+  The current canonical state.
+</ParamField>
+
+<ParamField path="viewer" type="Viewer" required>
+  Who is requesting the view. One of:
+
+  - `{ kind: "player", playerId: string }` — a player who can see their own hidden fields
+  - `{ kind: "spectator" }` — an observer who sees only globally visible fields
+</ParamField>
+
+<ResponseField name="returns" type="VisibleState<object>">
+  An object with:
+
+  - `game` — the game state with hidden fields replaced by `{ __hidden: true }`
+  - `progression` — the current progression state, including stage ID and active player information
+</ResponseField>
+
+```typescript
+const playerView = executor.getView(state, {
+  kind: "player",
+  playerId: "player-1",
+});
+
+const spectatorView = executor.getView(state, { kind: "spectator" });
+```
+
+### `listAvailableCommands(state, options)`
+
+Returns the command IDs that the given actor can currently execute. This is affected by the current stage kind, whether the actor is active, and each command's optional `isAvailable` check.
+
+<ParamField path="state" type="CanonicalState<GameState>" required>
+  The current canonical state.
+</ParamField>
+
+<ParamField path="options.actorId" type="string" required>
+  The player ID to check availability for.
+</ParamField>
+
+<ResponseField name="returns" type="string[]">
+  An array of command ID strings. Returns an empty array if the current stage is automatic, the actor is not the active player, or no commands pass their `isAvailable` check.
+</ResponseField>
+
+```typescript
+const commands = executor.listAvailableCommands(state, {
+  actorId: "player-1",
+});
+// e.g. ["place-token", "pass"]
+```
+
+### `discoverCommand(state, discovery)`
+
+Runs one step of a multi-step command discovery flow. Discovery lets players browse options (such as a card hand or board positions) before the engine validates and commits a final command input.
+
+<ParamField path="state" type="CanonicalState<GameState>" required>
+  The current canonical state.
+</ParamField>
+
+<ParamField path="discovery" type="Discovery" required>
+  An object describing the current discovery step:
+
+  - `type: string` — the command ID being discovered
+  - `actorId: string` — the player performing the discovery
+  - `step: string` — the ID of the step to resolve
+  - `input: Record<string, unknown>` — input data for this step, validated against the step's input schema
+</ParamField>
+
+<ResponseField name="returns" type="CommandDiscoveryResult | null">
+  Either:
+
+  - `{ complete: false, step, options }` — the step resolved to a list of options, each with `id`, `output`, `nextStep`, and `nextInput`
+  - `{ complete: true, input }` — the discovery is complete and `input` is a valid command input ready to pass to `executeCommand`
+  - `null` — the discovery was invalid (unknown command, wrong actor, failed schema validation, or no discovery definition on the command)
+</ResponseField>
+
+### `executeCommand(state, command)`
+
+Validates and executes a command against a cloned copy of the state. On success, advances the stage machine and returns the updated state with any emitted events.
+
+<ParamField path="state" type="CanonicalState<GameState>" required>
+  The current canonical state. This object is never mutated; the returned state is a new object.
+</ParamField>
+
+<ParamField path="command" type="Command" required>
+  An object describing the command to execute:
+
+  - `type: string` — the command ID
+  - `actorId: string` — the ID of the player issuing the command
+  - `input: Record<string, unknown>` — the command input, validated against the command's schema
+</ParamField>
+
+<ResponseField name="returns" type="ExecutionResult<CanonicalState<GameState>>">
+  Either an `ExecutionSuccess` or `ExecutionFailure`. See [ExecutionResult](#executionresult) below.
+</ResponseField>
+
+```typescript
+import { createGameExecutor } from "@tabletop-kit/engine";
+
+const executor = createGameExecutor(game);
+const state = executor.createInitialState("seed-42");
+
+const result = executor.executeCommand(state, {
+  type: "place-token",
+  actorId: "player-1",
+  input: { position: 5 },
+});
+
+if (result.ok) {
+  console.log("New state:", result.state);
+  console.log("Events:", result.events);
+} else {
+  console.log("Failed:", result.reason);
+}
+```
+
+## `ExecutionResult`
+
+`ExecutionResult<State>` is a discriminated union of `ExecutionSuccess<State>` and `ExecutionFailure<State>`. Check `result.ok` to distinguish them.
+
+### `ExecutionSuccess`
+
+<ResponseField name="ok" type="true" required>
+  Always `true` on a successful execution.
+</ResponseField>
+
+<ResponseField name="state" type="CanonicalState<GameState>" required>
+  The updated canonical state after the command ran and the stage machine advanced.
+</ResponseField>
+
+<ResponseField name="events" type="GameEvent[]" required>
+  Events emitted during command execution and stage transitions. Events include stage-entered and stage-exited lifecycle events, plus any custom events your stage `run` functions emit.
+</ResponseField>
+
+### `ExecutionFailure`
+
+<ResponseField name="ok" type="false" required>
+  Always `false` on a failed execution.
+</ResponseField>
+
+<ResponseField name="state" type="CanonicalState<GameState>" required>
+  The original, unchanged canonical state. No state change occurs on failure.
+</ResponseField>
+
+<ResponseField name="reason" type="string" required>
+  A machine-readable failure reason. One of:
+
+  | Reason | Description |
+  |--------|-------------|
+  | `unknown_command` | No command with the given `type` exists in the game definition. |
+  | `missing_actor_id` | The `actorId` field is missing or empty. |
+  | `missing_command_input` | The `input` field is missing, `null`, or not a plain object. |
+  | `stage_not_accepting_commands` | The current stage is automatic and does not accept player commands. |
+  | `not_active_player` | The `actorId` is not the active player (or is not in the active players list for a multi-active-player stage). |
+  | `command_not_allowed_in_stage` | The command exists but is not registered for the current stage. |
+
+  Commands that fail their own `validate` function return the custom reason string from the validation outcome.
+</ResponseField>
+
+<ResponseField name="metadata" type="unknown">
+  Additional context for the failure, such as the failing `commandType`, `stageId`, or active player IDs. The shape varies by failure reason.
+</ResponseField>
+
+<ResponseField name="events" type="GameEvent[]" required>
+  Always an empty array on failure; no events are emitted when a command is rejected.
+</ResponseField>
+
+## `GameEvent`
+
+Events are emitted during stage transitions and by automatic stage `run` functions. You receive them in `ExecutionSuccess.events` and can use them to drive UI animations, logs, or analytics.
+
+Stage lifecycle events are emitted automatically:
+
+- **Stage exited** — emitted when leaving the current stage after a command is accepted
+- **Stage entered** — emitted when the stage machine arrives at a new stage
+
+Custom events can be emitted from an automatic stage's `run` function using the `emitEvent` callback.

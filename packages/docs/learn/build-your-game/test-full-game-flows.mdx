@@ -1,0 +1,272 @@
+---
+title: "Testing game logic with tabletop-engine"
+description: "Write scenario-style tests for commands, validation failures, and stage transitions using runScenario() and bun:test with no extra test configuration."
+---
+
+tabletop-engine ships a lightweight testing harness in `runScenario()` that drives a sequence of commands against a fresh game state and collects every result. Combined with a test runner like bun:test, it lets you verify command behavior, stage transitions, and validation failures with minimal boilerplate.
+
+## runScenario()
+
+`runScenario()` creates an initial state, executes a list of commands in order, and returns a `ScenarioResult` with the full execution trace.
+
+```typescript
+import { runScenario } from "@tabletop-kit/engine";
+
+const scenario = runScenario(
+  executor,
+  [
+    { type: "take_three_distinct_gems", actorId: "alice", input: { colors: ["white", "blue", "green"] } },
+    { type: "take_two_same_gems", actorId: "bob", input: { color: "red" } },
+  ],
+  { playerIds: ["alice", "bob"] }, // setupInput — passed to createInitialState
+  "test-seed",                     // rngSeed — optional, passed to createInitialState
+);
+```
+
+The variadic arguments after the command list are forwarded directly to `executor.createInitialState()`, so pass them in the same order your executor expects.
+
+### ScenarioResult shape
+
+```typescript
+interface ScenarioResult<State, Command> {
+  initialState: State;   // state before any command ran
+  finalState: State;     // state after all commands ran
+  commands: Command[];   // the commands you passed in
+  results: ExecutionResult<State>[]; // one result per command, in order
+}
+```
+
+Each `ExecutionResult` has the shape:
+
+```typescript
+// Successful execution
+{ ok: true; state: State; events: GameEvent[] }
+
+// Failed validation
+{ ok: false; reason: string; state: State }
+```
+
+## Writing your first test
+
+Install bun and import from `bun:test`. The executor is constructed once per test file; individual tests derive state through `runScenario()` or direct executor calls.
+
+```typescript
+import { expect, test } from "bun:test";
+import { runScenario } from "@tabletop-kit/engine";
+import { createGameExecutorInstance } from "../src/game.ts";
+
+const executor = createGameExecutorInstance();
+
+test("taking three distinct gems moves tokens from bank to player", () => {
+  const scenario = runScenario(
+    executor,
+    [
+      {
+        type: "take_three_distinct_gems",
+        actorId: "alice",
+        input: { colors: ["white", "blue", "green"] },
+      },
+    ],
+    { playerIds: ["alice", "bob"] },
+    "test-seed",
+  );
+
+  const result = scenario.results[0]!;
+
+  expect(result.ok).toBe(true);
+
+  if (!result.ok) throw new Error("expected command to succeed");
+
+  expect(result.state.game.players.alice?.tokens).toMatchObject({
+    white: 1,
+    blue: 1,
+    green: 1,
+  });
+  expect(result.state.game.bank.white).toBe(3);
+});
+```
+
+## Checking execution results
+
+Each result in `scenario.results` corresponds to the command at the same index. Always narrow the `ok` discriminant before accessing success-only fields:
+
+```typescript
+const [firstResult, secondResult] = scenario.results;
+
+// Success path
+if (firstResult.ok) {
+  console.log(firstResult.state);  // updated state
+  console.log(firstResult.events); // events emitted during execution
+}
+
+// Failure path
+if (!secondResult.ok) {
+  console.log(secondResult.reason); // validation failure reason string
+  console.log(secondResult.state);  // state is unchanged on failure
+}
+```
+
+<Note>
+When a command fails, the executor returns the original state unchanged. Subsequent commands in a `runScenario()` call execute against that unchanged state — they do not short-circuit. Check each result individually when testing scenarios that include expected failures.
+</Note>
+
+## Testing validation failures
+
+To test that a command is correctly rejected, execute it directly with `executor.executeCommand()` against a state you've set up for the failure condition:
+
+```typescript
+test("taking two same gems fails when fewer than four tokens remain in the bank", () => {
+  const state = executor.createInitialState(
+    { playerIds: ["alice", "bob"] },
+    "seed",
+  );
+
+  // Manually set up the failure condition
+  state.game.bank.red = 3;
+
+  const result = executor.executeCommand(state, {
+    type: "take_two_same_gems",
+    actorId: "alice",
+    input: { color: "red" },
+  });
+
+  expect(result.ok).toBe(false);
+
+  if (result.ok) throw new Error("expected validation to fail");
+
+  expect(result.reason).toBe("not_enough_tokens_for_double_take");
+  expect(result.state.game.bank.red).toBe(3); // state is unchanged
+});
+```
+
+## Testing stage transitions
+
+Assert the `runtime.progression.currentStage` on a result's state to verify that the right stage became active after a command:
+
+```typescript
+test("turn advances to bob after alice takes gems", () => {
+  const scenario = runScenario(
+    executor,
+    [
+      {
+        type: "take_three_distinct_gems",
+        actorId: "alice",
+        input: { colors: ["white", "blue", "green"] },
+      },
+    ],
+    { playerIds: ["alice", "bob"] },
+    "seed",
+  );
+
+  const result = scenario.results[0]!;
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) throw new Error("expected command to succeed");
+
+  expect(result.state.runtime.progression.currentStage).toEqual({
+    id: "playerTurn",
+    kind: "activePlayer",
+    activePlayerId: "bob",
+  });
+});
+```
+
+For stages that require a side condition to trigger (like a token-overflow stage), set up state manually and assert the transition:
+
+```typescript
+test("overflow lands the actor in returnExcessiveTokens", () => {
+  const state = executor.createInitialState(
+    { playerIds: ["alice", "bob"] },
+    "seed",
+  );
+
+  // Give alice enough tokens that taking two more will overflow
+  state.game.players.alice!.tokens.white = 9;
+  state.game.bank.white = 4;
+
+  const result = executor.executeCommand(state, {
+    type: "take_two_same_gems",
+    actorId: "alice",
+    input: { color: "white" },
+  });
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) throw new Error("expected command to succeed");
+
+  expect(result.state.runtime.progression.currentStage).toEqual({
+    id: "returnExcessiveTokens",
+    kind: "activePlayer",
+    activePlayerId: "alice",
+  });
+});
+```
+
+## Testing multi-command game flows
+
+`runScenario()` is at its most useful for flows that span multiple turns:
+
+```typescript
+test("game flow: alice takes gems, bob reserves a card, alice buys it", () => {
+  const scenario = runScenario(
+    executor,
+    [
+      {
+        type: "take_three_distinct_gems",
+        actorId: "alice",
+        input: { colors: ["white", "blue", "green"] },
+      },
+      {
+        type: "reserve_face_up_card",
+        actorId: "bob",
+        input: { level: 1, cardId: KNOWN_CARD_ID },
+      },
+    ],
+    { playerIds: ["alice", "bob"] },
+    "deterministic-seed",
+  );
+
+  expect(scenario.results[0]!.ok).toBe(true);
+  expect(scenario.results[1]!.ok).toBe(true);
+
+  expect(scenario.finalState.game.players.bob?.reservedCardIds).toContain(
+    KNOWN_CARD_ID,
+  );
+  expect(scenario.finalState.game.players.bob?.tokens.gold).toBe(1);
+});
+```
+
+## Checking emitted events
+
+Every `ExecutionResult` with `ok: true` carries an `events` array. Use it to assert that the right domain events fired:
+
+```typescript
+test("taking gems emits a gems_taken event", () => {
+  const scenario = runScenario(
+    executor,
+    [
+      {
+        type: "take_three_distinct_gems",
+        actorId: "alice",
+        input: { colors: ["white", "blue", "green"] },
+      },
+    ],
+    { playerIds: ["alice", "bob"] },
+    "seed",
+  );
+
+  const result = scenario.results[0]!;
+  if (!result.ok) throw new Error("expected command to succeed");
+
+  const gemEvent = result.events.find((e) => e.type === "gems_taken");
+
+  expect(gemEvent).toBeDefined();
+  expect(gemEvent?.payload).toMatchObject({
+    actorId: "alice",
+    colors: ["white", "blue", "green"],
+  });
+});
+```
+
+<Tip>
+Use a fixed RNG seed in all tests. A deterministic seed means shuffled decks and drawn cards are always the same, so your assertions about specific card IDs or game outcomes remain stable across runs.
+</Tip>

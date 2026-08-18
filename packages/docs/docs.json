@@ -1,0 +1,115 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "tableverse-kit",
+  "theme": "aspen",
+  "logo": {
+    "light": "/logo/lockup-light.svg",
+    "dark": "/logo/lockup-dark.svg"
+  },
+  "favicon": "/logo/favicon.svg",
+  "colors": {
+    "primary": "#d47c3a",
+    "light": "#e8893f",
+    "dark": "#d47c3a"
+  },
+  "background": {
+    "color": {
+      "light": "#fafaf8",
+      "dark": "#111110"
+    }
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/tableversehq/tableverse-kit"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Learn",
+        "groups": [
+          {
+            "group": "Quick start",
+            "pages": [
+              "learn/quick-start/what-is-tabletop-engine",
+              "learn/quick-start/installation",
+              "learn/quick-start/build-your-first-game"
+            ]
+          },
+          {
+            "group": "Build your game",
+            "pages": [
+              "learn/build-your-game/define-your-game-state",
+              "learn/build-your-game/define-your-commands",
+              "learn/build-your-game/define-your-stages",
+              "learn/build-your-game/assemble-the-game-definition",
+              "learn/build-your-game/add-game-rules-and-validation",
+              "learn/build-your-game/model-hidden-information",
+              "learn/build-your-game/return-sanitized-views-to-players",
+              "learn/build-your-game/test-commands",
+              "learn/build-your-game/test-stage-transitions",
+              "learn/build-your-game/test-full-game-flows",
+              "learn/build-your-game/test-hidden-information-behavior",
+              "learn/build-your-game/reproduce-bugs-with-snapshots-and-replay"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Core types",
+            "pages": [
+              "reference/core-types/game-definition",
+              "reference/core-types/state-schema-types",
+              "reference/core-types/state-decorators",
+              "reference/core-types/visibility-types",
+              "reference/core-types/snapshot-types",
+              "reference/core-types/replay-types"
+            ]
+          },
+          {
+            "group": "Authoring APIs",
+            "pages": [
+              "reference/authoring-apis/create-game-definition-builder",
+              "reference/authoring-apis/create-command-factory",
+              "reference/authoring-apis/create-stage-factory",
+              "reference/authoring-apis/configure-visibility",
+              "reference/authoring-apis/define-config"
+            ]
+          },
+          {
+            "group": "Runtime APIs",
+            "pages": [
+              "reference/runtime-apis/create-game-executor",
+              "reference/runtime-apis/execution-result",
+              "reference/runtime-apis/game-events",
+              "reference/runtime-apis/command-discovery",
+              "reference/runtime-apis/stage-progression"
+            ]
+          },
+          {
+            "group": "Testing APIs",
+            "pages": [
+              "reference/testing-apis/run-scenario",
+              "reference/testing-apis/snapshot-helpers",
+              "reference/testing-apis/replay-helpers"
+            ]
+          },
+          {
+            "group": "CLI",
+            "pages": [
+              "reference/cli/overview",
+              "reference/cli/generate",
+              "reference/cli/validate",
+              "reference/cli/configuration",
+              "reference/cli/flags"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

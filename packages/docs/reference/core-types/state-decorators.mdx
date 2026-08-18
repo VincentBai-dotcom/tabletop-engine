@@ -1,0 +1,129 @@
+---
+title: "State Decorators: @State, @field, and getStateMetadata"
+description: "Reference for the decorator API that registers game state classes with the tabletop-engine schema system and enables typed field introspection."
+---
+
+The state decorator API is how you tell the engine about your game's data shape. You annotate plain TypeScript classes with `@State()` and `@field()`, and the engine records enough metadata to serialize, deserialize, hydrate, and project your state at runtime. The decorated classes are a temporary authoring layer — when execution finishes the engine collapses everything back to plain canonical JSON.
+
+## `@State()`
+
+```typescript
+function State(): ClassDecorator
+```
+
+`@State()` is a class decorator that registers the class with the engine's internal metadata store. Without it, `@field()` registrations are silently ignored, and the class cannot be used as a facade or nested inside another state class.
+
+```typescript
+import { State, field, t } from "@tabletop-kit/engine";
+
+@State()
+class TokenPileState {
+  @field(t.number())
+  count!: number;
+}
+```
+
+<Warning>
+  Decorated classes must not be abstract. The engine instantiates them with
+  `new` to derive default canonical values from property initializers.
+</Warning>
+
+## `@field(fieldType)`
+
+```typescript
+function field(fieldType: FieldType): PropertyDecorator
+```
+
+`@field()` is a property decorator that registers a field's schema against the enclosing `@State()` class. Only properties annotated with `@field()` appear in the canonical schema — any unannotated property is transient and is never persisted.
+
+<ParamField path="fieldType" type="FieldType" required>
+  A field type descriptor created by the `t` schema builder. See [State schema
+  types](/reference/core-types/state-schema-types) for the full list of available builders.
+</ParamField>
+
+Use the `!` definite-assignment assertion on properties that the engine will hydrate rather than initialize from a literal:
+
+```typescript
+@State()
+class PlayerState {
+  @field(t.string())
+  id!: string;               // hydrated by the engine
+
+  @field(t.number())
+  score = 0;                 // default comes from the initializer
+
+  @field(t.array(t.string()))
+  hand: string[] = [];       // default is an empty array
+}
+```
+
+## Nested state classes
+
+Use `t.state(() => ClassName)` to embed one `@State()` class inside another. Pass a factory function — not the class directly — to avoid circular reference issues:
+
+```typescript
+@State()
+class TokenPileState {
+  @field(t.number())
+  count!: number;
+}
+
+@State()
+class GameState {
+  @field(t.state(() => TokenPileState))
+  tokens!: TokenPileState;
+
+  @field(t.array(t.string()))
+  playerIds!: string[];
+}
+```
+
+The engine recursively hydrates nested state classes from their canonical representations before running your command or stage logic. You access `game.tokens.count` as a normal TypeScript object; the engine handles serialization back to JSON after execution ends.
+
+## `getStateMetadata(stateClass)`
+
+```typescript
+function getStateMetadata(target: StateClass): StateMetadata
+```
+
+Returns the `StateMetadata` recorded for a state class. Useful for tooling, schema generation, or runtime introspection.
+
+<ParamField path="target" type="StateClass" required>
+  A class decorated with `@State()`. Passing an unregistered class throws
+  `state_metadata_not_found:<ClassName>`.
+</ParamField>
+
+<ResponseField name="StateMetadata" type="object">
+  <Expandable title="fields">
+    <ResponseField name="type" type='"state"'>
+      Always `"state"`.
+    </ResponseField>
+    <ResponseField name="fields" type="Record<string, StateFieldMetadata>">
+      A map from property name to its `FieldType` descriptor, populated by
+      each `@field()` call.
+    </ResponseField>
+    <ResponseField name="fieldVisibility" type="Record<string, FieldVisibilityConfig>">
+      A map from property name to its visibility configuration, set by
+      `configureVisibility()`. Empty by default.
+    </ResponseField>
+    <ResponseField name="ownedByField" type="string | undefined">
+      The name of the string field that holds the owner player ID, if set by
+      `configureVisibility()`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```typescript
+import { getStateMetadata } from "@tabletop-kit/engine";
+
+const metadata = getStateMetadata(GameState);
+console.log(Object.keys(metadata.fields));
+// ["tokens", "playerIds"]
+```
+
+## Authoring rules
+
+- **Do not make state classes abstract.** The engine calls `new MyStateClass()` to derive default values.
+- **Use `!` for fields with no natural default.** The engine hydrates them before your logic runs; you don't need to assign them in the constructor.
+- **Keep methods and getters freely.** Business logic methods are available inside lifecycle functions but are never serialized into canonical state.
+- **The facade is temporary.** Mutate facade instances inside `execute()` and `run()` callbacks; the engine writes changes back to canonical JSON before returning the new state.

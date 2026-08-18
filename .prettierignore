@@ -6,3 +6,7 @@ dist
 # Scaffold templates are shipped verbatim; formatting them would rewrite the
 # emitted project's files and break the `{{token}}` placeholders on some paths.
 packages/create/templates
+
+# Mintlify docs are authored in MDX; Prettier dedents fenced code inside JSX and
+# Mintlify components, corrupting code samples and breaking component nesting.
+packages/docs/**/*.mdx

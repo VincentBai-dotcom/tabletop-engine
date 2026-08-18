@@ -1,0 +1,134 @@
+---
+title: "Game Definition: Assembling Your Rules Engine"
+description: "Learn how GameDefinitionBuilder wires together your state, stages, and setup logic into a single GameDefinition that the executor can run."
+---
+
+A `GameDefinition` is the complete, compiled description of your game. It holds everything the engine needs to run a session: the state schema, the command map, the stage graph, and optional setup logic. You produce one by calling `GameDefinitionBuilder`, which collects your game's parts through a fluent API and validates them together when you call `.build()`.
+
+## The builder pattern
+
+Import `GameDefinitionBuilder` from `@tabletop-kit/engine` and call it with your game's name:
+
+```typescript
+import { GameDefinitionBuilder } from "@tabletop-kit/engine";
+
+const game = new GameDefinitionBuilder("my-game")
+  .rootState(MyGameState)
+  .initialStage(firstStage)
+  .build();
+```
+
+The builder uses TypeScript's type system to propagate the state type through each method call. Once you call `.rootState()`, subsequent method type parameters all reflect the state class you provided.
+
+## Builder methods
+
+<ParamField path=".rootState(StateClass)" type="StateClass" required>
+  Sets the root `@State()` class for your game. The builder uses this class to compile the canonical state schema and derive default values. This method must be called before `.build()`.
+
+  ```typescript
+  .rootState(SplendorGameState)
+  ```
+</ParamField>
+
+<ParamField path=".initialStage(stage)" type="StageDefinition" required>
+  Sets the first stage the engine enters when a session starts. The builder walks the stage graph from this entry point to collect every reachable stage and command.
+
+  ```typescript
+  .initialStage(playerTurnStage)
+  ```
+</ParamField>
+
+<ParamField path=".setupInput(schema)" type="ObjectFieldType">
+  Declares the shape of input passed to the `.setup()` callback. Use `t.object()` to define the schema. The type propagates into the setup function so `input` is fully typed.
+
+  ```typescript
+  .setupInput(t.object({
+    playerIds: t.array(t.string()),
+  }))
+  ```
+</ParamField>
+
+<ParamField path=".setup(fn)" type="(context) => void">
+  Registers a function that runs once when a new session is initialised. The context provides `game` (your facade class), `runtime`, `rng`, and `input` (the typed setup input, if declared).
+
+  ```typescript
+  .setup(({ game, rng, input }) => {
+    dealInitialCards(game, rng, input.playerIds);
+  })
+  ```
+</ParamField>
+
+<ParamField path=".build()" type="GameDefinition">
+  Validates and compiles all registered configuration into a `GameDefinition`. Throws if `rootState` or `initialStage` is missing. Returns the definition object that you pass to `createGameExecutor()`.
+</ParamField>
+
+## What `.build()` returns
+
+`GameDefinition` is a plain object with the following shape:
+
+| Property | Type | Description |
+|---|---|---|
+| `name` | `string` | The game identifier passed to the constructor |
+| `commands` | `Record<string, CommandDefinition>` | All commands reachable from the stage graph |
+| `stateFacade` | `CompiledStateFacadeDefinition` | Compiled descriptor used by the executor to hydrate facade classes |
+| `canonicalGameStateSchema` | `ObjectFieldType` | The validated JSON schema for canonical (stored) game state |
+| `runtimeStateSchema` | `TSchema` | JSON schema for internal runtime state |
+| `defaultCanonicalGameState` | `object` | Zero-value state produced from field defaults |
+| `initialStage` | `StageDefinition` | The entry-point stage |
+| `stages` | `Record<string, StageDefinition>` | All reachable stages, keyed by ID |
+| `setup` | `function \| undefined` | The registered setup callback, if any |
+
+## Complete example
+
+The Splendor reference implementation shows the full pattern:
+
+```typescript
+import { createGameExecutor, GameDefinitionBuilder, t } from "@tabletop-kit/engine";
+import { SplendorGameState } from "./states/game-state.ts";
+import { createSplendorStages } from "./stages/index.ts";
+import { setupSplendorGame } from "./setup.ts";
+
+export function createSplendorGame() {
+  const { initialStage } = createSplendorStages();
+
+  return new GameDefinitionBuilder("splendor")
+    .rootState(SplendorGameState)
+    .setupInput(
+      t.object({
+        playerIds: t.array(t.string()),
+      }),
+    )
+    .setup(({ game, rng, input }) => {
+      if (input.playerIds.length < 2 || input.playerIds.length > 4) {
+        throw new Error("splendor_requires_2_to_4_players");
+      }
+      setupSplendorGame(game, rng, input.playerIds);
+    })
+    .initialStage(initialStage)
+    .build();
+}
+
+export function createSplendorExecutor() {
+  return createGameExecutor(createSplendorGame());
+}
+```
+
+## CLI integration with `defineConfig`
+
+To use `tt-kit` commands like `generate` and `validate`, export your game definition from a `tabletop.config.ts` file using `defineConfig` from `@tabletop-kit/engine/config`:
+
+```typescript
+import { defineConfig } from "@tabletop-kit/engine/config";
+import { createSplendorGame } from "./src/game.ts";
+
+export default defineConfig({
+  game: createSplendorGame(),
+  outDir: "./generated",
+});
+```
+
+`defineConfig` is a thin wrapper that provides type checking on the config object. The `game` field must be a built `GameDefinition`. The `outDir` field is optional — it defaults to a `generated/` directory next to the config file.
+
+<Note>
+  Keep `createSplendorGame()` a pure function that constructs a new `GameDefinition` each time. The CLI imports your config file fresh on every run.
+</Note>
