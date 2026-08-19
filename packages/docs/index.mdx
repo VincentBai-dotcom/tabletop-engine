@@ -21,13 +21,13 @@ mode: "custom"
     </p>
     <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
       <a
-        href="/learn/quick-start/what-is-tabletop-engine"
+        href="/quick-start/introduction"
         className="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium bg-[#d47c3a] text-white hover:bg-[#b86a30] transition-colors no-underline"
       >
         Get started
       </a>
       <a
-        href="/reference/authoring-apis/create-game-definition-builder"
+        href="/engine/overview"
         className="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium bg-stone-100 dark:bg-stone-800 text-[#111110] dark:text-[#f0f0ee] hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors no-underline"
       >
         API reference
@@ -57,7 +57,7 @@ mode: "custom"
           information — all from one declaration.
         </p>
         <a
-          href="/learn/build-your-game/define-your-game-state"
+          href="/engine/game-state"
           className="mt-6 inline-block text-[#d47c3a] dark:text-[#e8893f] font-medium hover:underline"
         >
           Learn about state →
@@ -100,7 +100,7 @@ class GameState {
           clients.
         </p>
         <a
-          href="/learn/build-your-game/define-your-commands"
+          href="/engine/commands"
           className="mt-6 inline-block text-[#d47c3a] dark:text-[#e8893f] font-medium hover:underline"
         >
           Learn about commands →
@@ -147,7 +147,7 @@ const buyCard = defineGameCommand({
           from the same rule definitions.
         </p>
         <a
-          href="/reference/runtime-apis/create-game-executor"
+          href="/engine/executor"
           className="mt-6 inline-block text-[#d47c3a] dark:text-[#e8893f] font-medium hover:underline"
         >
           Executor reference →
@@ -190,7 +190,7 @@ executor.getView(result.state, "player_2"); // per-viewer sanitized state
           tests aligned with the rules your engine actually runs.
         </p>
         <a
-          href="/reference/cli/overview"
+          href="/cli/overview"
           className="mt-6 inline-block text-[#d47c3a] dark:text-[#e8893f] font-medium hover:underline"
         >
           CLI reference →
@@ -222,27 +222,27 @@ generated types:./generated/canonical-state.generated.d.ts
       </p>
     </div>
     <Columns cols={3}>
-      <Card title="Hidden information" icon="eye-slash" href="/learn/build-your-game/model-hidden-information">
+      <Card title="Hidden information" icon="eye-slash" href="/engine/hidden-information">
         Project a different view of state to each player. The engine sanitizes
         canonical state into per-seat views automatically.
       </Card>
-      <Card title="Stage progression" icon="diagram-project" href="/learn/build-your-game/define-your-stages">
+      <Card title="Stage progression" icon="diagram-project" href="/engine/stages">
         Model setup, draft, action, and scoring phases as a progression graph.
         The engine handles transitions and lifecycle resolution.
       </Card>
-      <Card title="Deterministic RNG" icon="dice" href="/reference/core-types/state-schema-types">
+      <Card title="Deterministic RNG" icon="dice" href="/engine/game-state">
         Seeded, replayable randomness baked into the runtime — shuffle decks
         and roll dice without breaking determinism.
       </Card>
-      <Card title="Snapshots & replay" icon="clock-rotate-left" href="/learn/build-your-game/reproduce-bugs-with-snapshots-and-replay">
+      <Card title="Snapshots & replay" icon="clock-rotate-left" href="/engine/testing">
         Capture any state, replay any sequence of commands. Reproduce bugs
         from production logs in a single line.
       </Card>
-      <Card title="Scenario testing" icon="flask" href="/learn/build-your-game/test-full-game-flows">
+      <Card title="Scenario testing" icon="flask" href="/engine/testing">
         A test harness designed for game logic. Drive games through full flows
         with concise, declarative scenarios.
       </Card>
-      <Card title="Rules-first runtime" icon="plug" href="/reference/runtime-apis/create-game-executor">
+      <Card title="Rules-first runtime" icon="plug" href="/engine/executor">
         Run setup, commands, stages, visibility, snapshots, and replay through
         one engine-owned execution path.
       </Card>
@@ -262,13 +262,13 @@ generated types:./generated/canonical-state.generated.d.ts
     </p>
     <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
       <a
-        href="/learn/quick-start/installation"
+        href="/quick-start/create-your-project"
         className="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium bg-[#d47c3a] text-white hover:bg-[#b86a30] transition-colors no-underline"
       >
         Install tabletop-engine
       </a>
       <a
-        href="/learn/quick-start/build-your-first-game"
+        href="/quick-start/build-your-game"
         className="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium bg-stone-100 dark:bg-stone-800 text-[#111110] dark:text-[#f0f0ee] hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors no-underline"
       >
         Build your first game
