@@ -25,8 +25,10 @@ pnpm -C packages/docs broken-links   # check for broken internal links
 
 - `docs.json` — navigation, theme, and site config
 - `index.mdx` — landing page
-- `learn/` — quick-start and build-your-game guides
-- `reference/` — API reference (core types, authoring, runtime, testing, CLI)
+- `quick-start/` — the first-project path from scaffolding through upload
+- `engine/` — state, commands, stages, visibility, executor, and testing
+- `client/` — local and hosted clients, views, and subscriptions
+- `cli/` — local development, upload, and configuration
 - `logo/` — brand assets referenced by `docs.json`
 
 ## Deploy

@@ -1,6 +1,71 @@
 ---
 title: "Publish to Tableverse"
-description: "Configure and publish your finished game to Tableverse."
+description: "Validate and upload your engine and frontend source."
 ---
 
-Configure publishing in `tableverse.config.ts` and ship your game to Tableverse.
+The generated `engine/tableverse.config.ts` already describes both packages:
+
+```ts
+import { defineConfig } from "@tableverse-kit/config";
+import { game } from "./src/game.ts";
+
+export default defineConfig({
+  game,
+  publish: {
+    engine: { root: "." },
+    frontend: {
+      root: "../client",
+      buildCommand: "pnpm build",
+      outDir: "dist",
+    },
+  },
+});
+```
+
+Paths are relative to the config file. Each configured source root must contain a supported lockfile.
+
+## Upload your game
+
+From the project root:
+
+<Steps>
+  <Step title="Check the project">
+
+```bash
+pnpm typecheck
+pnpm -C engine exec tvk validate
+```
+
+  </Step>
+  <Step title="Sign in">
+
+```bash
+pnpm -C engine exec tvk login
+```
+
+    The CLI opens your browser to authenticate.
+  </Step>
+  <Step title="Upload">
+
+```bash
+pnpm -C engine exec tvk upload
+```
+
+    On the first upload, choose an existing game or create one. The CLI saves that choice in `.tableverse/game.json`.
+  </Step>
+  <Step title="Follow the build">
+    The CLI prints a deployment dashboard URL and opens it when possible. Tableverse builds your engine and frontend from the uploaded source.
+  </Step>
+</Steps>
+
+<Warning>
+  Check the game name and ID printed before every upload. A copied project may still contain a link to the original game.
+</Warning>
+
+Local `.env` files are skipped during packaging. Configure deployment secrets in Tableverse instead of relying on local environment files.
+
+For CI, set `TABLEVERSE_GAME_ID` so the CLI does not need an interactive project-link prompt.
+
+<Card title="Upload reference" icon="arrow-right" href="/cli/publish">
+  Learn about project linking and upload behavior.
+</Card>

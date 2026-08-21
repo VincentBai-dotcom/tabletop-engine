@@ -1,6 +1,74 @@
 ---
 title: "Preview locally"
-description: "Run your game with tvk dev and connect the client."
+description: "Run your rules locally and connect your frontend."
 ---
 
-Start a local server with `tvk dev` and drive it from the client.
+Run the rules server and frontend in separate terminals.
+
+<CodeGroup>
+```bash Rules server
+pnpm dev:server
+```
+
+```bash Frontend
+pnpm dev:web
+```
+</CodeGroup>
+
+`pnpm dev:server` runs `tvk dev` from the engine package. It loads `engine/tableverse.config.ts` and listens at `http://localhost:5100` by default.
+
+The scaffold connects with `createDevClient` during development:
+
+```ts
+import { createBridgeClient, type TableverseClient } from "@tableverse-kit/client";
+import { createDevClient } from "@tableverse-kit/client/dev";
+import type { executor } from "token-race-engine";
+
+type Game = typeof executor;
+
+function connect(): TableverseClient<Game> {
+  if (import.meta.env.DEV) {
+    const url = import.meta.env.VITE_TVK_DEV_URL ?? "http://localhost:5100";
+    return createDevClient<Game>(url, { viewer: "p1" });
+  }
+
+  return createBridgeClient<Game>();
+}
+```
+
+The local client initializes one in-memory session, receives a player-safe view, and sends commands over HTTP. It updates all connected browser windows after an accepted command.
+
+## Try multiple players
+
+Choose a different viewer for another browser build or local entry point:
+
+```ts
+const client = createDevClient<Game>("http://localhost:5100", {
+  viewer: "p2",
+});
+```
+
+If your game defines setup input, pass it from the first client:
+
+```ts
+const client = createDevClient<Game>("http://localhost:5100", {
+  viewer: "p1",
+  setupInput: { playerIds: ["p1", "p2"] },
+});
+```
+
+<Note>
+  The local server keeps state in memory. Restarting `tvk dev` starts a new session.
+</Note>
+
+## Change the port
+
+```bash
+pnpm -C engine exec tvk dev --port 5200
+```
+
+Set `VITE_TVK_DEV_URL=http://localhost:5200` for the frontend as well.
+
+<Card title="Publish to Tableverse" icon="arrow-right" href="/quick-start/publish">
+  Validate and upload your project.
+</Card>

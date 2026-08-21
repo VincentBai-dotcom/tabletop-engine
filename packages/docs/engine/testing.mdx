@@ -1,6 +1,128 @@
 ---
 title: "Testing"
-description: "Test commands, stage transitions, and full game flows."
+description: "Test setup, commands, views, events, and complete game flows."
 ---
 
-Test your game's commands, transitions, and full flows with the testing helpers.
+Test the executor your game exports. This covers input schemas, validation, execution, stage transitions, events, and visibility together.
+
+The generated engine package uses Vitest:
+
+```bash
+pnpm -C engine test
+```
+
+## Test one command
+
+```ts
+import { expect, test } from "vitest";
+import { executor } from "../src/game.ts";
+
+test("the active player advances", () => {
+  const initial = executor.createInitialState(
+    { playerIds: ["p1", "p2"] },
+    "test-seed",
+  );
+
+  const result = executor.executeCommand(initial, {
+    type: "advance",
+    actorId: "p1",
+    input: { spaces: 2 },
+  });
+
+  expect(result.ok).toBe(true);
+  expect(result.state.game.positions.p1).toBe(2);
+  expect(initial.game.positions.p1).toBe(0);
+});
+```
+
+Use a fixed seed in every test. A failure then reproduces the same shuffles and rolls.
+
+## Test rejection
+
+```ts
+test("a player cannot move out of turn", () => {
+  const state = executor.createInitialState(
+    { playerIds: ["p1", "p2"] },
+    "test-seed",
+  );
+
+  const result = executor.executeCommand(state, {
+    type: "advance",
+    actorId: "p2",
+    input: { spaces: 2 },
+  });
+
+  expect(result).toMatchObject({
+    ok: false,
+    reason: "not_active_player",
+    state,
+    events: [],
+  });
+});
+```
+
+Also test every reason returned by your own `.validate()` callbacks.
+
+## Test a complete scenario
+
+`runScenario` applies a sequence and collects every result:
+
+```ts
+import { runScenario } from "@tableverse-kit/engine";
+
+const scenario = runScenario(
+  executor,
+  [
+    { type: "advance", actorId: "p1", input: { spaces: 2 } },
+    { type: "advance", actorId: "p2", input: { spaces: 1 } },
+  ],
+  { playerIds: ["p1", "p2"] },
+  "scenario-seed",
+);
+
+expect(scenario.results.every((result) => result.ok)).toBe(true);
+expect(scenario.finalState.game.positions).toEqual({ p1: 2, p2: 1 });
+```
+
+For a game without setup input, pass only the seed after the command array.
+
+## Test hidden information
+
+Create views for at least the owner, another player, and a spectator:
+
+```ts
+const forP1 = executor.getView(state, {
+  kind: "player",
+  playerId: "p1",
+});
+const forP2 = executor.getView(state, {
+  kind: "player",
+  playerId: "p2",
+});
+
+expect(forP1.game.players.p1?.hand).toEqual([3, 8]);
+expect(forP2.game.players.p1?.hand).toEqual({
+  __hidden: true,
+  value: { count: 2 },
+});
+```
+
+## Test events and transitions
+
+Successful results include both your domain events and engine stage events:
+
+```ts
+expect(result.events).toContainEqual({
+  category: "domain",
+  type: "advanced",
+  payload: { actorId: "p1", spaces: 2 },
+});
+
+expect(result.state.runtime.progression.currentStage).toMatchObject({
+  id: "player_turn",
+  kind: "activePlayer",
+  activePlayerId: "p2",
+});
+```
+
+Prefer assertions about player-visible rules and outcomes. Avoid tests that depend on private builder objects or schema implementation details.

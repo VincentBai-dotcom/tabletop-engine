@@ -1,6 +1,47 @@
 ---
 title: "Introduction"
-description: "What tableverse-kit is and the shape of a game you build with it."
+description: "Build a board game for Tableverse with TypeScript."
 ---
 
-tableverse-kit lets you express a board game's rules as plain TypeScript and ship them to Tableverse.
+tableverse-kit gives you the packages needed to build a board game for Tableverse. You write the rules and frontend. Tableverse runs the game and hosts it for your players.
+
+You do not need to build a server, room system, or network protocol.
+
+## What you build
+
+Every project has two parts:
+
+- An **engine** package containing state, commands, turn flow, and setup.
+- A **client** package containing the interface your players see.
+
+The engine produces a `GameExecutor`. The client derives its state and command types from that executor, so changes to your rules appear as TypeScript errors in your frontend.
+
+```text
+engine source → GameExecutor → Tableverse
+                         ↘ typed client → your frontend
+```
+
+## The development loop
+
+<Steps>
+  <Step title="Define the rules">
+    Model your game state, the commands players can use, and the stages that control play.
+  </Step>
+  <Step title="Build the frontend">
+    Read the current player view and send typed commands through `@tableverse-kit/client`.
+  </Step>
+  <Step title="Preview locally">
+    Run `tvk dev` beside your frontend. The local server executes the same game definition you publish.
+  </Step>
+  <Step title="Upload">
+    Run `tvk upload`. Tableverse builds the engine and frontend source, then gives you a deployment dashboard.
+  </Step>
+</Steps>
+
+## Before you start
+
+Install a current Node.js release and [pnpm](https://pnpm.io/installation). You should also be comfortable editing TypeScript, but you do not need prior game-engine experience.
+
+<Card title="Create your project" icon="arrow-right" href="/quick-start/create-your-project">
+  Scaffold a working engine and frontend.
+</Card>

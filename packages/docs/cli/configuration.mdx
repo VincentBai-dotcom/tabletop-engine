@@ -1,6 +1,96 @@
 ---
 title: "Configuration"
-description: "Configure your game with tableverse.config.ts and defineConfig."
+description: "Configure the game and publish source in tableverse.config.ts."
 ---
 
-Configure your game in `tableverse.config.ts` using `defineConfig`.
+Create `tableverse.config.ts` in your engine package and export `defineConfig(...)` as the default value.
+
+```ts
+import { defineConfig } from "@tableverse-kit/config";
+import { game } from "./src/game.ts";
+
+export default defineConfig({
+  game,
+  publish: {
+    engine: {
+      root: ".",
+    },
+    frontend: {
+      root: "../client",
+      buildCommand: "pnpm build",
+      outDir: "dist",
+    },
+  },
+});
+```
+
+`defineConfig` returns the object unchanged. Its purpose is type checking and editor completion.
+
+## Top-level fields
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `game` | Yes | A built game definition from `GameDefinitionBuilder`. |
+| `publish` | For upload | Engine and frontend source build settings. |
+
+You can use `tvk validate` and `tvk dev` without `publish`. `tvk upload` requires it.
+
+## Engine publish settings
+
+```ts
+engine: {
+  root: ".",
+}
+```
+
+`root` is the engine source directory, relative to `tableverse.config.ts`. It must contain the engine's `package.json` and have access to a lockfile.
+
+Point it at source, not a compiled file or output directory. Tableverse creates the sandbox bundle.
+
+## Frontend publish settings
+
+```ts
+frontend: {
+  root: "../client",
+  buildCommand: "pnpm build",
+  outDir: "dist",
+}
+```
+
+- `root` is the frontend source directory, relative to the config file.
+- `buildCommand` runs inside that source directory on Tableverse.
+- `outDir` is the static build output, relative to the frontend root.
+
+The CLI excludes `outDir` from upload because the platform recreates it.
+
+## Monorepo paths and lockfiles
+
+Each configured source root must contain a package-manager lockfile. Make sure your publish roots match the directories the platform can install and build independently.
+
+Keep workspace dependencies declared with `workspace:*`:
+
+```json
+{
+  "dependencies": {
+    "token-race-engine": "workspace:*"
+  }
+}
+```
+
+This lets the frontend import `typeof executor` during development and gives the platform enough source to reproduce the workspace build.
+
+## Alternate config files
+
+Every config-aware CLI command accepts `--config`:
+
+```bash
+pnpm exec tvk validate --config configs/demo.tableverse.config.ts
+pnpm exec tvk dev --config configs/demo.tableverse.config.ts
+pnpm exec tvk upload --config configs/production.tableverse.config.ts
+```
+
+Relative `root` paths always resolve from the selected config file, not from the shell's current directory.
+
+<Note>
+  Game identity does not belong in this file. `tvk upload` stores it in `.tableverse/game.json`, or you can override it with `TABLEVERSE_GAME_ID`.
+</Note>

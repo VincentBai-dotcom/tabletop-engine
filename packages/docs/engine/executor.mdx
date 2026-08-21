@@ -1,6 +1,91 @@
 ---
 title: "Executor"
-description: "Run a game definition and process commands at runtime."
+description: "Start games, execute commands, discover choices, and project views."
 ---
 
-The executor runs a game definition and processes commands as play proceeds.
+`createGameExecutor(game)` produces the final rules surface. Tableverse hosts it, the local server runs it, and your tests can call it directly.
+
+```ts
+import { createGameExecutor } from "@tableverse-kit/engine";
+import { game } from "./game.ts";
+
+export const executor = createGameExecutor(game);
+```
+
+## Start a game
+
+Pass setup input when your definition has `.setupInput()` and always provide a deterministic seed:
+
+```ts
+const state = executor.createInitialState(
+  { playerIds: ["p1", "p2"] },
+  "match-42",
+);
+```
+
+Without setup input, call `createInitialState("match-42")`.
+
+## Public methods
+
+| Method | Returns |
+| --- | --- |
+| `createInitialState(...)` | Canonical game and runtime state at the first waiting stage. |
+| `getView(state, viewer)` | A visibility-safe game view and current progression. |
+| `listAvailableCommands(state, { actorId })` | Command IDs the actor may currently use. |
+| `discoverCommand(state, request)` | Legal UI choices, completed command input, or `null`. |
+| `executeCommand(state, command)` | An accepted or rejected result with state and events. |
+
+## Execute a command
+
+```ts
+const result = executor.executeCommand(state, {
+  type: "advance",
+  actorId: "p1",
+  input: { spaces: 2 },
+});
+
+if (!result.ok) {
+  console.log(result.reason, result.metadata);
+} else {
+  console.log(result.state.game);
+  console.log(result.events);
+}
+```
+
+On success, continue from `result.state`. The executor does not mutate the input state.
+
+On rejection, `result.state` is the original state and `result.events` is empty. Common engine-level reasons include `unknown_command`, `not_active_player`, `invalid_command_input`, and `command_not_allowed_in_stage`. Your `.validate()` callback can return game-specific reasons.
+
+## Discover legal choices
+
+For a discoverable command, begin with its initial step:
+
+```ts
+const discovery = executor.discoverCommand(state, {
+  type: "choose_route",
+  actorId: "p1",
+  step: "select_route",
+  input: {},
+});
+```
+
+An incomplete result contains options. Send an option's `nextStep` and `nextInput` in the next discovery request. A complete result contains input ready for `executeCommand`.
+
+The executor returns `null` when the command, actor, step, input, or generated options are invalid.
+
+## Read available commands and views
+
+```ts
+const commands = executor.listAvailableCommands(state, { actorId: "p1" });
+const view = executor.getView(state, { kind: "player", playerId: "p1" });
+```
+
+Use canonical state only inside trusted rule and test code. Send `getView()` output to players.
+
+<Note>
+  Frontends normally use `TableverseClient` instead of calling the executor. The client supplies the viewer identity and actor ID through the host.
+</Note>
+
+<Card title="Test the executor" icon="flask" href="/engine/testing">
+  Verify complete command and stage flows with Vitest.
+</Card>

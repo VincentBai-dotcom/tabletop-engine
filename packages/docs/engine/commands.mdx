@@ -1,6 +1,118 @@
 ---
 title: "Commands"
-description: "Define the actions players can take, and how they validate and execute."
+description: "Define player actions, validation, execution, and guided input."
 ---
 
-Commands are the actions players can take; each one validates its input and mutates state.
+A command is an action a player can send from the frontend. Every command has an ID, an input schema, validation, and execution.
+
+## Define a command
+
+Create one factory for your game state and event registry:
+
+```ts
+import { createCommandFactory, t } from "@tableverse-kit/engine";
+import { events } from "./events.ts";
+import { GameState } from "./state.ts";
+
+const defineCommand = createCommandFactory<GameState, typeof events>();
+
+export const advance = defineCommand({
+  commandId: "advance",
+  commandSchema: t.object({ spaces: t.number() }),
+})
+  .isAvailable(({ game, actorId }) => !game.winnerId && game.canMove(actorId))
+  .validate(({ command }) =>
+    Number.isInteger(command.input.spaces) && command.input.spaces > 0
+      ? { ok: true as const }
+      : { ok: false as const, reason: "invalid_distance" },
+  )
+  .execute(({ game, command, emitEvent }) => {
+    game.move(command.actorId, command.input.spaces);
+    emitEvent({
+      type: "advanced",
+      payload: { actorId: command.actorId, spaces: command.input.spaces },
+    });
+  })
+  .build();
+```
+
+The stage containing `advance` still controls whose turn it is. `.isAvailable()` adds a rule for when the active player should see the command.
+
+## Availability and validation
+
+Use the two checks for different questions:
+
+- `.isAvailable()` answers “should this command be offered now?” It powers `getAvailableCommands()` in the client.
+- `.validate()` answers “is this exact attempt legal?” It returns a stable rejection `reason` that the frontend can handle.
+
+Always repeat critical legality checks in `.validate()`. Availability can change between rendering a button and submitting the command.
+
+Validation can also return structured metadata:
+
+```ts
+return {
+  ok: false as const,
+  reason: "not_enough_energy",
+  metadata: { required: 3, available: player.energy },
+};
+```
+
+## Execute the change
+
+`.execute()` receives mutable `game`, the validated `command`, deterministic `rng`, and typed `emitEvent` when your factory has an event registry.
+
+Use `rng` for random outcomes:
+
+```ts
+.execute(({ game, command, rng }) => {
+  const roll = rng.die(6);
+  game.resolveRoll(command.actorId, roll);
+})
+```
+
+An accepted command runs against a cloned working state. The executor returns the next state only after the command and following stage transitions finish successfully.
+
+## Guide the frontend with discovery
+
+Discovery lets the UI ask the engine for legal choices before it sends a command. This is useful when options depend on hidden or changing state.
+
+```ts
+export const chooseRoute = defineCommand({
+  commandId: "choose_route",
+  commandSchema: t.object({ routeId: t.number() }),
+})
+  .discoverable((step) => [
+    step("select_route")
+      .initial()
+      .input(t.object({ routeId: t.optional(t.number()) }))
+      .output(t.object({ routeId: t.number(), label: t.string() }))
+      .resolve(({ game, actorId, input }) => {
+        if (input.routeId !== undefined) {
+          return { complete: true as const, input: { routeId: input.routeId } };
+        }
+
+        return game.availableRoutes(actorId).map((route) => ({
+          id: String(route.id),
+          output: { routeId: route.id, label: route.name },
+          nextInput: { routeId: route.id },
+          nextStep: "select_route",
+        }));
+      })
+      .build(),
+  ])
+  .validate(({ game, command }) =>
+    game.canChooseRoute(command.actorId, command.input.routeId)
+      ? { ok: true as const }
+      : { ok: false as const, reason: "route_unavailable" },
+  )
+  .execute(({ game, command }) => {
+    game.chooseRoute(command.actorId, command.input.routeId);
+  })
+  .build();
+```
+
+Call the same step again with the chosen option's `nextInput`. The completed `input` must match the command schema.
+
+<Card title="Put commands in stages" icon="arrow-right" href="/engine/stages">
+  Control when and by whom commands can run.
+</Card>

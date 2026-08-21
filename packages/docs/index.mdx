@@ -1,278 +1,69 @@
 ---
-title: "tabletop-engine"
-description: "The runtime for board game rules engines."
+title: "tableverse-kit"
+description: "Build board game rules and frontends for Tableverse with TypeScript."
 mode: "custom"
 ---
 
-{/* Hero */}
-<div className="relative overflow-hidden">
-  <div className="max-w-5xl mx-auto px-6 pt-10 pb-16 lg:pt-16 lg:pb-24 text-center">
-    <img src="/logo/icon-light.svg" alt="tableverse-kit" className="block dark:hidden mx-auto h-32 lg:h-48 w-auto mb-10" />
-    <img src="/logo/icon-dark.svg" alt="tableverse-kit" className="hidden dark:block mx-auto h-32 lg:h-48 w-auto mb-10" />
-    <h1 className="text-5xl lg:text-7xl font-semibold tracking-tight text-[#111110] dark:text-[#f0f0ee]">
-      The runtime for
-      <br />
-      <span className="text-[#d47c3a] dark:text-[#e8893f]">board game rules engines.</span>
-    </h1>
-    <p className="mt-8 text-lg lg:text-xl text-stone-600 dark:text-stone-400 max-w-2xl mx-auto leading-relaxed">
-      Express your game's state, commands, and turn flow as plain TypeScript.
-      tabletop-engine handles validation, execution, hidden information, and
-      deterministic replay — so you can ship the rules with confidence.
-    </p>
-    <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-      <a
-        href="/quick-start/introduction"
-        className="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium bg-[#d47c3a] text-white hover:bg-[#b86a30] transition-colors no-underline"
-      >
-        Get started
-      </a>
-      <a
-        href="/engine/overview"
-        className="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium bg-stone-100 dark:bg-stone-800 text-[#111110] dark:text-[#f0f0ee] hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors no-underline"
-      >
-        API reference
-      </a>
-      <a
-        href="https://github.com/VincentBai-dotcom/tabletop-engine"
-        className="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium text-stone-700 dark:text-stone-300 hover:text-[#111110] dark:hover:text-[#f0f0ee] transition-colors no-underline"
-      >
-        View on GitHub →
-      </a>
-    </div>
+<div className="max-w-5xl mx-auto px-6 py-16 lg:py-24 text-center">
+  <img src="/logo/icon-light.svg" alt="tableverse-kit" className="block dark:hidden mx-auto h-32 lg:h-44 w-auto mb-8" />
+  <img src="/logo/icon-dark.svg" alt="tableverse-kit" className="hidden dark:block mx-auto h-32 lg:h-44 w-auto mb-8" />
+  <h1 className="text-5xl lg:text-7xl font-semibold tracking-tight">
+    Build your board game in TypeScript.
+  </h1>
+  <p className="mt-6 text-lg lg:text-xl text-stone-600 dark:text-stone-400 max-w-2xl mx-auto leading-relaxed">
+    Define your rules, test them locally, connect your frontend, and publish the finished game to Tableverse.
+  </p>
+  <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+    <a href="/quick-start/introduction" className="inline-flex px-6 py-3 rounded-full font-medium bg-[#d47c3a] text-white no-underline">
+      Get started
+    </a>
+    <a href="https://github.com/tableversehq/tableverse-kit" className="inline-flex px-6 py-3 rounded-full font-medium bg-stone-100 dark:bg-stone-800 no-underline">
+      View on GitHub
+    </a>
   </div>
 </div>
 
-{/* Feature 1 — state */}
 <div className="border-t border-stone-200 dark:border-stone-800">
-  <div className="max-w-6xl mx-auto px-6 py-20 lg:py-28">
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+  <div className="max-w-5xl mx-auto px-6 py-16">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
       <div>
-        <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight text-[#111110] dark:text-[#f0f0ee]">
-          Model state with decorators.
-        </h2>
-        <p className="mt-6 text-lg text-stone-600 dark:text-stone-400 leading-relaxed">
-          Describe your game's data model with `@State()` and `@field()`. The
-          engine compiles a type-safe canonical schema, hydrates a working
-          facade for execution, and projects per-player views for hidden
-          information — all from one declaration.
+        <h2 className="text-2xl font-semibold">Write the rules</h2>
+        <p className="mt-3 text-stone-600 dark:text-stone-400">
+          Model state, commands, hidden information, and turn flow with the engine package.
         </p>
-        <a
-          href="/engine/game-state"
-          className="mt-6 inline-block text-[#d47c3a] dark:text-[#e8893f] font-medium hover:underline"
-        >
-          Learn about state →
-        </a>
+        <a href="/engine/overview">Explore the engine →</a>
       </div>
       <div>
-```ts
-@State()
-class GameState {
-  @field(t.array(t.string()))
-  playerOrder: string[] = [];
-
-  @field(t.state(() => BoardState))
-  board!: BoardState;
-
-  getNextPlayer(playerId: string): string {
-    const index = this.playerOrder.indexOf(playerId);
-    if (index === -1) throw new Error(`unknown_player:${playerId}`);
-    return this.playerOrder[(index + 1) % this.playerOrder.length]!;
-  }
-}
-```
+        <h2 className="text-2xl font-semibold">Build any interface</h2>
+        <p className="mt-3 text-stone-600 dark:text-stone-400">
+          Use the renderer-independent client from a browser framework or plain TypeScript.
+        </p>
+        <a href="/client/overview">Connect a client →</a>
+      </div>
+      <div>
+        <h2 className="text-2xl font-semibold">Publish to Tableverse</h2>
+        <p className="mt-3 text-stone-600 dark:text-stone-400">
+          Preview locally, validate your game, and upload both source packages with the CLI.
+        </p>
+        <a href="/cli/overview">Use the CLI →</a>
       </div>
     </div>
   </div>
 </div>
 
-{/* Feature 2 — commands */}
-<div className="border-t border-stone-200 dark:border-stone-800 bg-[#f0f0ee]/40 dark:bg-stone-900/40">
-  <div className="max-w-6xl mx-auto px-6 py-20 lg:py-28">
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-      <div className="lg:order-2">
-        <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight text-[#111110] dark:text-[#f0f0ee]">
-          Author commands with validate and execute.
-        </h2>
-        <p className="mt-6 text-lg text-stone-600 dark:text-stone-400 leading-relaxed">
-          Every player action is a command with a `validate` step and an
-          `execute` step. The engine runs them transactionally, surfaces
-          structured errors, and emits semantic events you can stream to
-          clients.
-        </p>
-        <a
-          href="/engine/commands"
-          className="mt-6 inline-block text-[#d47c3a] dark:text-[#e8893f] font-medium hover:underline"
-        >
-          Learn about commands →
-        </a>
-      </div>
-      <div className="lg:order-1">
-```ts
-const defineGameCommand = createCommandFactory<GameState>();
+<div className="border-t border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/40">
+  <div className="max-w-3xl mx-auto px-6 py-16">
+    <h2 className="text-3xl font-semibold">Start a project</h2>
 
-const buyCard = defineGameCommand({
-  commandId: "buy_card",
-  commandSchema: t.object({ cardId: t.number() }),
-})
-  .validate(({ game, command }) => {
-    const card = game.getCard(command.input.cardId);
-    if (!card) return { ok: false, reason: "unknown_card" };
-    if (!game.canAfford(command.actorId, card)) {
-      return { ok: false, reason: "insufficient_funds" };
-    }
-    return { ok: true };
-  })
-  .execute(({ game, command }) => {
-    game.buyCard(command.actorId, command.input.cardId);
-  })
-  .build();
-```
-      </div>
-    </div>
-  </div>
-</div>
-
-{/* Feature 3 — executor */}
-<div className="border-t border-stone-200 dark:border-stone-800">
-  <div className="max-w-6xl mx-auto px-6 py-20 lg:py-28">
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-      <div>
-        <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight text-[#111110] dark:text-[#f0f0ee]">
-          One executor for your rules.
-        </h2>
-        <p className="mt-6 text-lg text-stone-600 dark:text-stone-400 leading-relaxed">
-          `createGameExecutor` gives you a single runtime that handles command
-          dispatch, stage progression, deterministic RNG, snapshots, and
-          replay. Use it to drive local tests, simulations, and game sessions
-          from the same rule definitions.
-        </p>
-        <a
-          href="/engine/executor"
-          className="mt-6 inline-block text-[#d47c3a] dark:text-[#e8893f] font-medium hover:underline"
-        >
-          Executor reference →
-        </a>
-      </div>
-      <div>
-```ts
-const executor = createGameExecutor(game);
-const initial = executor.createInitialState("seed_1");
-
-const result = executor.executeCommand(initial, {
-  type: "buy_card",
-  actorId: "player_1",
-  input: { cardId: 42 },
-});
-
-if (result.ok) {
-  result.state;   // next canonical state
-  result.events;  // semantic events to stream
-}
-
-executor.getView(result.state, "player_2"); // per-viewer sanitized state
-```
-      </div>
-    </div>
-  </div>
-</div>
-
-{/* Feature 4 — generated artifacts */}
-<div className="border-t border-stone-200 dark:border-stone-800 bg-[#f0f0ee]/40 dark:bg-stone-900/40">
-  <div className="max-w-6xl mx-auto px-6 py-20 lg:py-28">
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-      <div className="lg:order-2">
-        <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight text-[#111110] dark:text-[#f0f0ee]">
-          Generate schemas and types from your rules.
-        </h2>
-        <p className="mt-6 text-lg text-stone-600 dark:text-stone-400 leading-relaxed">
-          Use the CLI to derive JSON schemas and TypeScript declarations from
-          your game definition. Keep runtime validation, generated types, and
-          tests aligned with the rules your engine actually runs.
-        </p>
-        <a
-          href="/cli/overview"
-          className="mt-6 inline-block text-[#d47c3a] dark:text-[#e8893f] font-medium hover:underline"
-        >
-          CLI reference →
-        </a>
-      </div>
-      <div className="lg:order-1">
 ```bash
-$ tt-kit generate schemas
-generated schemas:./generated/schemas.generated.json
-
-$ tt-kit generate types
-generated types:./generated/canonical-state.generated.d.ts
+pnpm create @tableverse-kit@latest my-game
+cd my-game
+pnpm install
+pnpm dev:server
 ```
-      </div>
-    </div>
-  </div>
-</div>
 
-{/* What you get */}
-<div className="border-t border-stone-200 dark:border-stone-800">
-  <div className="max-w-6xl mx-auto px-6 py-20 lg:py-28">
-    <div className="text-center mb-14">
-      <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight text-[#111110] dark:text-[#f0f0ee]">
-        Built for real games.
-      </h2>
-      <p className="mt-4 text-lg text-stone-600 dark:text-stone-400 max-w-2xl mx-auto">
-        Everything you need to model rules end-to-end — from the first turn to
-        a reproducible runtime.
-      </p>
-    </div>
-    <Columns cols={3}>
-      <Card title="Hidden information" icon="eye-slash" href="/engine/hidden-information">
-        Project a different view of state to each player. The engine sanitizes
-        canonical state into per-seat views automatically.
-      </Card>
-      <Card title="Stage progression" icon="diagram-project" href="/engine/stages">
-        Model setup, draft, action, and scoring phases as a progression graph.
-        The engine handles transitions and lifecycle resolution.
-      </Card>
-      <Card title="Deterministic RNG" icon="dice" href="/engine/game-state">
-        Seeded, replayable randomness baked into the runtime — shuffle decks
-        and roll dice without breaking determinism.
-      </Card>
-      <Card title="Snapshots & replay" icon="clock-rotate-left" href="/engine/testing">
-        Capture any state, replay any sequence of commands. Reproduce bugs
-        from production logs in a single line.
-      </Card>
-      <Card title="Scenario testing" icon="flask" href="/engine/testing">
-        A test harness designed for game logic. Drive games through full flows
-        with concise, declarative scenarios.
-      </Card>
-      <Card title="Rules-first runtime" icon="plug" href="/engine/executor">
-        Run setup, commands, stages, visibility, snapshots, and replay through
-        one engine-owned execution path.
-      </Card>
-    </Columns>
-  </div>
-</div>
-
-{/* Final CTA */}
-<div className="border-t border-stone-200 dark:border-stone-800">
-  <div className="max-w-3xl mx-auto px-6 py-24 lg:py-32 text-center">
-    <h2 className="text-4xl lg:text-5xl font-semibold tracking-tight text-[#111110] dark:text-[#f0f0ee]">
-      Build your next game.
-    </h2>
-    <p className="mt-6 text-lg text-stone-600 dark:text-stone-400">
-      Install the package, define a state, write a command, and run it. The
-      first end-to-end game takes about ten minutes.
+    <p className="mt-6">
+      Continue with the <a href="/quick-start/create-your-project">project setup guide</a>.
     </p>
-    <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-      <a
-        href="/quick-start/create-your-project"
-        className="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium bg-[#d47c3a] text-white hover:bg-[#b86a30] transition-colors no-underline"
-      >
-        Install tabletop-engine
-      </a>
-      <a
-        href="/quick-start/build-your-game"
-        className="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium bg-stone-100 dark:bg-stone-800 text-[#111110] dark:text-[#f0f0ee] hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors no-underline"
-      >
-        Build your first game
-      </a>
-    </div>
   </div>
 </div>

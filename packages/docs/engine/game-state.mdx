@@ -1,6 +1,108 @@
 ---
 title: "Game state"
-description: "Model your game's state with defineGameState and the field decorators."
+description: "Model saved game data and the methods that work with it."
 ---
 
-Describe the data your game tracks with `defineGameState` and `@field`.
+A state definition joins two things:
+
+- A schema that describes serializable saved data.
+- A class that gives your rules convenient methods.
+
+```ts
+import { defineGameState, t } from "@tableverse-kit/engine";
+
+export class GameState {
+  playerOrder: string[] = [];
+  scores: Record<string, number> = {};
+  targetScore = 10;
+
+  getNextPlayer(playerId: string): string {
+    const index = this.playerOrder.indexOf(playerId);
+    if (index === -1) throw new Error(`unknown_player:${playerId}`);
+    return this.playerOrder[(index + 1) % this.playerOrder.length]!;
+  }
+}
+
+export const gameState = defineGameState()
+  .model({
+    playerOrder: t.array(t.string()),
+    scores: t.record(t.string(), t.number()),
+    targetScore: t.number(),
+  })
+  .stateClass(GameState)
+  .build();
+```
+
+The model and class must have matching fields. TypeScript reports a mismatch at `.stateClass(GameState)`.
+
+## Available field schemas
+
+| Schema | TypeScript value |
+| --- | --- |
+| `t.number()` | `number` |
+| `t.string()` | `string` |
+| `t.boolean()` | `boolean` |
+| `t.array(item)` | an array of `item` |
+| `t.record(key, value)` | a keyed object |
+| `t.object({ ... })` | a plain object |
+| `t.optional(item)` | `item` or `undefined` |
+| `t.state(definition)` | another state class |
+
+Use `t.object` for data that needs no methods. Use `t.state` when nested data benefits from its own class.
+
+## Nest state classes
+
+Define the child before its parent:
+
+```ts
+export class PlayerState {
+  id = "";
+  score = 0;
+}
+
+export const playerState = defineGameState()
+  .model({ id: t.string(), score: t.number() })
+  .stateClass(PlayerState)
+  .build();
+
+export class GameState {
+  players: Record<string, PlayerState> = {};
+
+  getPlayer(playerId: string): PlayerState {
+    const player = this.players[playerId];
+    if (!player) throw new Error(`unknown_player:${playerId}`);
+    return player;
+  }
+}
+
+export const gameState = defineGameState()
+  .model({
+    players: t.record(t.string(), t.state(playerState)),
+  })
+  .stateClass(GameState)
+  .build();
+```
+
+Commands receive hydrated `GameState` and `PlayerState` instances, so methods such as `getPlayer` are available while rules execute.
+
+## Initialize fields
+
+Class field values become the defaults for a new game. Use `.setup()` on the game definition for values that depend on players, setup input, or randomness.
+
+```ts
+.setup(({ game, input }) => {
+  game.players = Object.fromEntries(
+    input.playerIds.map((id) => [id, Object.assign(new PlayerState(), { id })]),
+  );
+})
+```
+
+<Note>
+  State must stay serializable. Do not store functions, class constructors, promises, dates, maps, or external service objects in fields.
+</Note>
+
+Use ordinary class methods for calculations and repeated rule operations. Only fields listed in `.model()` are persisted.
+
+<Card title="Protect secret fields" icon="lock" href="/engine/hidden-information">
+  Return a different state view to each player.
+</Card>

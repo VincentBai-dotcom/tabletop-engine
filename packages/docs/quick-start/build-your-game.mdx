@@ -1,6 +1,113 @@
 ---
 title: "Build your game"
-description: "Define your first state, command, and stage."
+description: "Define your first state, command, event, and turn."
 ---
 
-Define a minimal game — some state, a command, and a stage — to see the pieces fit together.
+The scaffold is already a complete game. This page shows how its four rule pieces connect.
+
+## 1. Define state
+
+`engine/src/state.ts` declares the saved data and the class your rules edit:
+
+```ts
+import { defineGameState, t } from "@tableverse-kit/engine";
+
+export class GameState {
+  score = 0;
+}
+
+export const gameState = defineGameState()
+  .model({ score: t.number() })
+  .stateClass(GameState)
+  .build();
+```
+
+Every field in `.model()` must exist on `GameState`. Give each field a valid initial value.
+
+## 2. Define an event and command
+
+Declare events once so their payloads are typed and checked:
+
+```ts
+import { defineEvents, t } from "@tableverse-kit/engine";
+
+export const events = defineEvents({
+  scored: t.object({ points: t.number() }),
+});
+```
+
+Then define what a player can do:
+
+```ts
+import { createCommandFactory, t } from "@tableverse-kit/engine";
+import { events } from "./events.ts";
+import { GameState } from "./state.ts";
+
+const defineCommand = createCommandFactory<GameState, typeof events>();
+
+export const score = defineCommand({
+  commandId: "score",
+  commandSchema: t.object({ points: t.number() }),
+})
+  .validate(({ command }) =>
+    command.input.points > 0
+      ? { ok: true as const }
+      : { ok: false as const, reason: "points_must_be_positive" },
+  )
+  .execute(({ game, command, emitEvent }) => {
+    game.score += command.input.points;
+    emitEvent({ type: "scored", payload: { points: command.input.points } });
+  })
+  .build();
+```
+
+Validation rejects an illegal attempt without changing state. Execution runs only after validation succeeds.
+
+## 3. Put the command in a stage
+
+A stage decides who may act and what happens next:
+
+```ts
+import {
+  createStageFactory,
+  type SingleActivePlayerStageDefinition,
+} from "@tableverse-kit/engine";
+import { score } from "./commands.ts";
+import { GameState } from "./state.ts";
+
+const defineStage = createStageFactory<GameState>();
+
+export const turn: SingleActivePlayerStageDefinition<GameState> =
+  defineStage("turn")
+    .singleActivePlayer()
+    .activePlayer(() => "p1")
+    .commands([score])
+    .nextStages(() => ({ turn }))
+    .transition(({ nextStages }) => nextStages.turn)
+    .build();
+```
+
+The explicit type lets the stage refer back to itself.
+
+## 4. Assemble the game
+
+```ts
+import { createGameExecutor, GameDefinitionBuilder } from "@tableverse-kit/engine";
+import { events } from "./events.ts";
+import { gameState } from "./state.ts";
+import { turn } from "./stages.ts";
+
+export const game = new GameDefinitionBuilder("token-race")
+  .state(gameState)
+  .events(events)
+  .initialStage(turn)
+  .build();
+
+export const executor = createGameExecutor(game);
+```
+
+Your config exports `game` to the CLI. Your client imports the type of `executor` to get typed views and commands.
+
+<Card title="Preview locally" icon="arrow-right" href="/quick-start/preview-locally">
+  Run the rules and frontend together.
+</Card>

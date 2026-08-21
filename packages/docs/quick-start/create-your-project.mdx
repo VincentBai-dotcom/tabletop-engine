@@ -1,6 +1,53 @@
 ---
 title: "Create your project"
-description: "Scaffold a new game workspace with the create-tableverse-kit starter."
+description: "Scaffold a game with a working engine and frontend."
 ---
 
-Run `npm create @tableverse-kit@latest` to scaffold a new game workspace.
+Create a project and install its dependencies:
+
+```bash
+pnpm create @tableverse-kit@latest token-race
+cd token-race
+pnpm install
+```
+
+The target directory must be empty. The scaffolder uses the directory name as the package and game name.
+
+## Project structure
+
+```text
+token-race/
+├── engine/
+│   ├── src/
+│   │   ├── commands.ts
+│   │   ├── events.ts
+│   │   ├── game.ts
+│   │   └── state.ts
+│   └── tableverse.config.ts
+├── client/
+│   └── src/main.ts
+├── package.json
+└── pnpm-workspace.yaml
+```
+
+The scaffold already contains a playable scoring command and a plain TypeScript frontend. Start it before changing anything:
+
+<CodeGroup>
+```bash Server
+pnpm dev:server
+```
+
+```bash Frontend
+pnpm dev:web
+```
+</CodeGroup>
+
+Keep both processes running. Open the URL printed by Vite, usually `http://localhost:5173`, and click **Score a point**. The displayed view should update.
+
+<Tip>
+  Edit files under `engine/src` for rules. Edit files under `client/src` for the interface.
+</Tip>
+
+<Card title="Build your game" icon="arrow-right" href="/quick-start/build-your-game">
+  Replace the starter counter with your first rule.
+</Card>

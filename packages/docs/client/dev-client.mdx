@@ -1,6 +1,85 @@
 ---
 title: "Dev client"
-description: "Talk to a local tvk dev server during development."
+description: "Connect your frontend to a local tvk dev server."
 ---
 
-The dev client talks to a local `tvk dev` server while you build your UI.
+Import `createDevClient` from the `/dev` entry point:
+
+```ts
+import { createDevClient } from "@tableverse-kit/client/dev";
+import type { executor } from "token-race-engine";
+
+type Game = typeof executor;
+
+const client = createDevClient<Game>("http://localhost:5100", {
+  viewer: "p1",
+});
+```
+
+Start `tvk dev` before loading the frontend:
+
+```bash
+pnpm -C engine dev
+```
+
+## Options
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `viewer` | `"p1"` | Player ID used for views and commands. |
+| `setupInput` | `undefined` | Input passed to game setup when the local session starts. |
+
+The `setupInput` type is derived from the executor:
+
+```ts
+const client = createDevClient<Game>("http://localhost:5100", {
+  viewer: "p1",
+  setupInput: {
+    playerIds: ["p1", "p2"],
+    targetScore: 10,
+  },
+});
+```
+
+The first connection initializes the one in-memory session. Restart `tvk dev` after changing setup input or when you want a clean game.
+
+## Wait for the connection
+
+```ts
+try {
+  await client.ready();
+  render(client.getView());
+} catch (error) {
+  renderConnectionError(error);
+}
+```
+
+Calls to `execute`, `discover`, or `getAvailableCommands` reject with a `TransportError` if the client is not ready.
+
+## Use a different port
+
+Start the server with `--port` and pass the same base URL to the client:
+
+```bash
+pnpm -C engine exec tvk dev --port 5200
+```
+
+```ts
+const client = createDevClient<Game>("http://localhost:5200");
+```
+
+## Switch automatically for production
+
+```ts
+const client = import.meta.env.DEV
+  ? createDevClient<Game>(
+      import.meta.env.VITE_TVK_DEV_URL ?? "http://localhost:5100",
+    )
+  : createBridgeClient<Game>();
+```
+
+Only import `createDevClient` from `@tableverse-kit/client/dev`. The default package entry contains the production bridge.
+
+<Card title="Render state changes" icon="arrow-right" href="/client/views-and-subscriptions">
+  Subscribe and update your interface.
+</Card>

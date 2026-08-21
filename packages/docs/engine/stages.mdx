@@ -1,6 +1,107 @@
 ---
 title: "Stages"
-description: "Model turn flow and the transitions between phases of play."
+description: "Control active players, allowed commands, and phase transitions."
 ---
 
-Stages model the flow of play and the transitions between phases of a turn.
+A stage describes the current phase of play. It decides who can act, which commands are accepted, and which stage comes next.
+
+Create one stage factory for your state and events:
+
+```ts
+const defineStage = createStageFactory<GameState, typeof events>();
+```
+
+## Single active player
+
+Use a single-player stage for ordinary turns:
+
+```ts
+const playerTurn: SingleActivePlayerStageDefinition<GameState> =
+  defineStage("player_turn")
+    .singleActivePlayer()
+    .activePlayer(({ game, runtime }) =>
+      runtime.progression.lastActingStage?.kind === "activePlayer"
+        ? game.getNextPlayer(runtime.progression.lastActingStage.activePlayerId)
+        : game.playerOrder[0]!,
+    )
+    .commands([advance, pass])
+    .nextStages(() => ({ playerTurn, checkWinner }))
+    .transition(({ game, nextStages }) =>
+      game.reachedTarget() ? nextStages.checkWinner : nextStages.playerTurn,
+    )
+    .build();
+```
+
+`.activePlayer()` runs whenever the engine enters the stage. `.transition()` runs after an accepted command.
+
+For self-references such as `playerTurn`, add an explicit stage type or create stages through functions that resolve references lazily.
+
+## Automatic stage
+
+Use an automatic stage for rule work that needs no player input:
+
+```ts
+const checkWinner = defineStage("check_winner")
+  .automatic()
+  .run(({ game, emitEvent }) => {
+    const winnerId = game.findWinner();
+    if (winnerId) {
+      game.winnerId = winnerId;
+      emitEvent({ type: "game_won", payload: { winnerId } });
+    }
+  })
+  .nextStages(() => ({ playerTurn, gameOver }))
+  .transition(({ game, nextStages }) =>
+    game.winnerId ? nextStages.gameOver : nextStages.playerTurn,
+  )
+  .build();
+```
+
+The engine runs `.run()` immediately, then follows `.transition()`. It continues through automatic stages until it reaches a stage waiting for players or an automatic stage with no transition.
+
+## Multiple active players
+
+Use a multi-active-player stage when several players may submit independently, such as choosing a card at the same time.
+
+```ts
+const simultaneousChoice = defineStage("simultaneous_choice")
+  .multiActivePlayer()
+  .memory(
+    t.object({ submitted: t.array(t.string()) }),
+    (): { submitted: string[] } => ({ submitted: [] }),
+  )
+  .activePlayers(({ game, memory }) =>
+    game.playerOrder.filter((id) => !memory.submitted.includes(id)),
+  )
+  .commands([chooseCard])
+  .onSubmit(({ memory, command, execute }) => {
+    execute(command);
+    memory.submitted.push(command.actorId);
+  })
+  .isComplete(({ game, memory }) =>
+    memory.submitted.length === game.playerOrder.length,
+  )
+  .nextStages(() => ({ revealChoices }))
+  .transition(({ nextStages }) => nextStages.revealChoices)
+  .build();
+```
+
+Stage memory tracks temporary progress and is saved in runtime state. Call `execute(command)` inside `.onSubmit()` when you want the submitted command's `.execute()` handler to run.
+
+## End a game
+
+A terminal automatic stage can omit `.transition()`:
+
+```ts
+const gameOver = defineStage("game_over").automatic().build();
+```
+
+It accepts no commands and leaves the final view available to clients.
+
+<Note>
+  Keep transitions short. Put state changes in command execution or `.run()` so it is clear where rules mutate the game.
+</Note>
+
+<Card title="Assemble the definition" icon="arrow-right" href="/engine/game-definition">
+  Connect state, events, setup, and the initial stage.
+</Card>

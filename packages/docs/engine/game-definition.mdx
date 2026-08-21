@@ -1,6 +1,104 @@
 ---
 title: "Game definition"
-description: "Assemble state, events, commands, and stages into one game."
+description: "Assemble state, events, setup, and the initial stage."
 ---
 
-A game definition ties together your state, events, commands, and stages.
+The game definition is the complete set of rules that the CLI validates and Tableverse runs.
+
+```ts
+import {
+  createGameExecutor,
+  GameDefinitionBuilder,
+  t,
+} from "@tableverse-kit/engine";
+import { events } from "./events.ts";
+import { gameState } from "./state.ts";
+import { playerTurn } from "./stages.ts";
+
+export const game = new GameDefinitionBuilder("token-race")
+  .state(gameState)
+  .events(events)
+  .setupInput(
+    t.object({
+      playerIds: t.array(t.string()),
+      targetScore: t.optional(t.number()),
+    }),
+  )
+  .setup(({ game, input }) => {
+    if (input.playerIds.length < 2) {
+      throw new Error("at_least_two_players_required");
+    }
+
+    game.playerOrder = [...input.playerIds];
+    game.scores = Object.fromEntries(input.playerIds.map((id) => [id, 0]));
+    game.targetScore = input.targetScore ?? 10;
+  })
+  .initialStage(playerTurn)
+  .build();
+
+export const executor = createGameExecutor(game);
+```
+
+## Builder methods
+
+| Method | Purpose |
+| --- | --- |
+| `.state(gameState)` | Sets the root state definition. |
+| `.events(events)` | Registers domain events available to commands and automatic stages. |
+| `.setupInput(schema)` | Defines values required to start a game. |
+| `.setup(callback)` | Initializes state before the first stage begins. |
+| `.initialStage(stage)` | Sets the first stage. |
+| `.build()` | Validates and creates the definition. |
+
+State and an initial stage are required. Events, setup input, and setup are optional.
+
+## Setup without input
+
+If every game starts the same way, omit `.setupInput()`:
+
+```ts
+export const game = new GameDefinitionBuilder("solo-puzzle")
+  .state(gameState)
+  .setup(({ game, rng }) => {
+    game.deck = rng.shuffle(createDeck());
+  })
+  .initialStage(playStage)
+  .build();
+```
+
+The executor signatures reflect this choice:
+
+```ts
+executorWithInput.createInitialState({ playerIds: ["p1", "p2"] }, "seed-1");
+executorWithoutInput.createInitialState("seed-1");
+```
+
+## Declare events
+
+Events tell clients what happened without asking them to infer it from state changes.
+
+```ts
+import { defineEvents, t } from "@tableverse-kit/engine";
+
+export const events = defineEvents({
+  advanced: t.object({
+    actorId: t.string(),
+    spaces: t.number(),
+  }),
+  game_won: t.object({ winnerId: t.string() }),
+});
+```
+
+Pass `typeof events` to your command and stage factories. `emitEvent` then accepts only declared event types and valid payloads.
+
+<Tip>
+  Export both `game` and `executor`. The CLI config uses `game`; the frontend imports `typeof executor` for end-to-end types.
+</Tip>
+
+```ts
+export { game, executor } from "./game.ts";
+```
+
+<Card title="Use the executor" icon="arrow-right" href="/engine/executor">
+  Start state, execute commands, and create safe views.
+</Card>

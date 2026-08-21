@@ -1,6 +1,75 @@
 ---
 title: "Engine overview"
-description: "Author game rules — state, commands, and stages — in plain TypeScript."
+description: "Author state, commands, events, and turn flow in TypeScript."
 ---
 
-The engine is where you author your game's rules: its state, the commands players issue, and the flow between stages.
+`@tableverse-kit/engine` is the rules package. It turns your game definition into one `GameExecutor` that Tableverse can run.
+
+Your frontend does not import or run these rules. It communicates with the executor through `@tableverse-kit/client`.
+
+## The four parts of a game
+
+<CardGroup cols={2}>
+  <Card title="State" icon="database" href="/engine/game-state">
+    The saved facts of the game, such as scores, pieces, decks, and player order.
+  </Card>
+  <Card title="Commands" icon="gamepad" href="/engine/commands">
+    The actions players can attempt, with input validation and execution rules.
+  </Card>
+  <Card title="Stages" icon="route" href="/engine/stages">
+    The current phase, allowed commands, active players, and next phase.
+  </Card>
+  <Card title="Game definition" icon="puzzle-piece" href="/engine/game-definition">
+    The state, events, setup, and initial stage assembled into one game.
+  </Card>
+</CardGroup>
+
+## Typical file layout
+
+Small games can keep everything in a few files:
+
+```text
+engine/src/
+├── state.ts
+├── events.ts
+├── commands.ts
+├── stages.ts
+├── game.ts
+└── index.ts
+```
+
+As the game grows, split commands, stages, and nested state classes into folders. Keep `game.ts` as the place that assembles them.
+
+## Main exports
+
+```ts
+import {
+  createCommandFactory,
+  createGameExecutor,
+  createStageFactory,
+  defineEvents,
+  defineGameState,
+  GameDefinitionBuilder,
+  t,
+} from "@tableverse-kit/engine";
+```
+
+- `t` defines serializable field and input schemas.
+- `defineGameState` pairs saved fields with a state class.
+- `createCommandFactory` creates commands for that class.
+- `createStageFactory` creates the flow between player actions.
+- `defineEvents` declares player-facing event payloads.
+- `GameDefinitionBuilder` assembles the game.
+- `createGameExecutor` produces the finished runtime surface.
+
+## Rules to keep in mind
+
+- Use the provided `rng` for every random choice. `Math.random()` cannot be replayed.
+- Store only values described by `t` schemas.
+- Put rule changes inside command execution, automatic stages, or setup.
+- Treat `game` as read-only in validation, availability, and transition callbacks.
+- Use hidden-information rules for secrets. Never send canonical state to a player.
+
+<Card title="Model game state" icon="arrow-right" href="/engine/game-state">
+  Define saved fields and rule methods.
+</Card>

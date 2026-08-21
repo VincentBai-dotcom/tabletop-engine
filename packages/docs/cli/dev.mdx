@@ -1,6 +1,76 @@
 ---
 title: "tvk dev"
-description: "Run a local development server for your game."
+description: "Run one in-memory game session for local frontend development."
 ---
 
-The `tvk dev` command runs a local development server for your game.
+Start the local rules server from the generated project root:
+
+```bash
+pnpm dev:server
+```
+
+This runs `tvk dev` in `engine/`, loads `tableverse.config.ts`, and listens at `http://localhost:5100`.
+
+Connect with the dev client:
+
+```ts
+import { createDevClient } from "@tableverse-kit/client/dev";
+import type { executor } from "token-race-engine";
+
+const client = createDevClient<typeof executor>("http://localhost:5100", {
+  viewer: "p1",
+  setupInput: { playerIds: ["p1", "p2"] },
+});
+```
+
+## Options
+
+```text
+tvk dev
+
+Optional flags:
+  --config <path>
+  --port <number>
+```
+
+Use another port when `5100` is busy:
+
+```bash
+pnpm -C engine exec tvk dev --port 5200
+```
+
+`--config` is resolved from your current directory:
+
+```bash
+pnpm exec tvk dev --config configs/demo.tableverse.config.ts
+```
+
+## Local session behavior
+
+- The first client connection initializes the game.
+- Every client connects to the same in-memory state.
+- Each connection can choose a `viewer` and receives that player's safe view.
+- Accepted commands send fresh snapshots to all connected clients.
+- Domain and stage events are delivered to connected clients.
+- Restarting the command clears the session.
+
+Restart `tvk dev` after changing engine source. The command loads the game definition when it starts.
+
+<Warning>
+  `tvk dev` is for local authoring only. It has no authentication or persistence and is not a production server.
+</Warning>
+
+## Troubleshooting
+
+If the client remains on `connecting`:
+
+1. Confirm `tvk dev` printed its listening URL.
+2. Confirm the frontend uses the same port.
+3. Check that setup input matches the schema in your game definition.
+4. Restart the server to clear a session initialized with old input.
+
+If config loading fails, run `tvk validate` from the same directory. Pass the same `--config` value to both commands.
+
+<Card title="Dev client" icon="arrow-right" href="/client/dev-client">
+  Configure viewers and setup input in the frontend.
+</Card>

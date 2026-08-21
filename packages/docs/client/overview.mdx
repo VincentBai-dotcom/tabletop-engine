@@ -1,6 +1,79 @@
 ---
 title: "Client overview"
-description: "Connect a user interface to a running game."
+description: "Connect any browser interface to a running game."
 ---
 
-The client connects your user interface to a running game.
+`@tableverse-kit/client` is the typed connection between your frontend and a running game. It does not render UI and does not run your rules.
+
+Use it from plain TypeScript, React, Vue, Svelte, or any other browser framework.
+
+## Create one typed client
+
+Import the executor as a type from your engine package:
+
+```ts
+import {
+  createBridgeClient,
+  type TableverseClient,
+} from "@tableverse-kit/client";
+import { createDevClient } from "@tableverse-kit/client/dev";
+import type { executor } from "token-race-engine";
+
+type Game = typeof executor;
+
+export function connect(): TableverseClient<Game> {
+  if (import.meta.env.DEV) {
+    return createDevClient<Game>("http://localhost:5100");
+  }
+
+  return createBridgeClient<Game>();
+}
+```
+
+This type parameter derives the game view, command inputs, discovery requests, and events from the executor. You do not maintain separate frontend types.
+
+## Client methods
+
+| Method | Use it to |
+| --- | --- |
+| `ready()` | Wait for the first state snapshot. |
+| `getStatus()` | Read `connecting`, `ready`, `reconnecting`, `error`, or `closed`. |
+| `getViewerId()` | Read the player ID assigned to this client. |
+| `getView()` | Read the latest viewer-safe state, or `null` before ready. |
+| `getStateVersion()` | Read the latest snapshot version. |
+| `getAvailableCommands()` | Ask which command IDs the viewer may use now. |
+| `discover(request)` | Ask the engine for legal choices for a command. |
+| `execute(command)` | Submit a typed command. |
+| `subscribe(listener)` | React to snapshots and connection-status changes. |
+| `onEvent(listener)` | React to domain and stage events. |
+| `dispose()` | Close the connection and remove listeners. |
+
+## Submit a command
+
+```ts
+await client.ready();
+
+const result = await client.execute({
+  type: "advance",
+  input: { spaces: 2 },
+});
+
+if (!result.accepted) {
+  showError(result.reason ?? "command_rejected");
+}
+```
+
+The client does not accept `actorId`. The host supplies the authenticated viewer identity.
+
+An accepted response means the rules accepted the command. The updated view arrives through the subscription separately.
+
+## Choose the right connection
+
+<CardGroup cols={2}>
+  <Card title="Dev client" icon="laptop-code" href="/client/dev-client">
+    Connect to `tvk dev` while building locally.
+  </Card>
+  <Card title="Bridge client" icon="cloud" href="/client/bridge-client">
+    Connect a published frontend to its Tableverse host.
+  </Card>
+</CardGroup>

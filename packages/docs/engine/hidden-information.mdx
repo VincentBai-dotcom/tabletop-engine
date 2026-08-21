@@ -1,6 +1,114 @@
 ---
 title: "Hidden information"
-description: "Model secret state and return sanitized views to each player."
+description: "Control what each player and spectator can see."
 ---
 
-Model secret state and return each player a view sanitized to what they may see.
+Canonical state contains every fact needed to run the game. A player view contains only what that viewer may see.
+
+Declare visibility on the state that owns the secret.
+
+## Hide a field from everyone
+
+Use `.hidden()` for deck order, unrevealed results, and similar secrets:
+
+```ts
+export class BoardState {
+  deck: number[] = [];
+  faceUpCards: number[] = [];
+}
+
+export const boardState = defineGameState()
+  .model({
+    deck: t.array(t.number()),
+    faceUpCards: t.array(t.number()),
+  })
+  .stateClass(BoardState)
+  .visibility((v) => [v.field("deck").hidden()])
+  .build();
+```
+
+Every viewer receives a hidden envelope instead of `deck`:
+
+```json
+{ "__hidden": true }
+```
+
+## Reveal a safe summary
+
+You can expose a derived value without exposing the secret itself:
+
+```ts
+.visibility((v) => [
+  v.field("deck").hidden({
+    schema: t.object({ count: t.number() }),
+    derive: (deck) => ({ count: deck.length }),
+  }),
+])
+```
+
+The view contains:
+
+```json
+{ "__hidden": true, "value": { "count": 18 } }
+```
+
+The summary schema is checked when the game definition is built and when a view is produced.
+
+## Show a field to its owner
+
+First identify the field that stores the owning player ID. Then mark private fields as visible to that player:
+
+```ts
+export class PlayerState {
+  id = "";
+  hand: number[] = [];
+}
+
+export const playerState = defineGameState()
+  .model({
+    id: t.string(),
+    hand: t.array(t.number()),
+  })
+  .stateClass(PlayerState)
+  .visibility((v) => [
+    v.ownedBy("id"),
+    v.field("hand").visibleToSelf({
+      hidden: {
+        schema: t.object({ count: t.number() }),
+        derive: (hand) => ({ count: hand.length }),
+      },
+    }),
+  ])
+  .build();
+```
+
+The owning player receives their full `hand`. Other players and spectators receive only its count.
+
+Use `visibleToSelf()` without options when non-owners should receive only `{ __hidden: true }`.
+
+## Create views
+
+The executor accepts a player or spectator viewer:
+
+```ts
+const playerView = executor.getView(state, {
+  kind: "player",
+  playerId: "p1",
+});
+
+const spectatorView = executor.getView(state, {
+  kind: "spectator",
+});
+```
+
+The returned object has `game` and `progression`. It never includes runtime RNG state or command history.
+
+<Warning>
+  Do not copy secrets into event payloads or visible fields. Visibility rules protect state projection, not data you deliberately emit elsewhere.
+</Warning>
+
+The client view type automatically includes the full value or hidden-envelope union. Narrow it with `"__hidden" in value` before rendering private fields.
+
+<Card title="Read views in the client" icon="arrow-right" href="/client/views-and-subscriptions">
+  Render the current viewer-safe state.
+</Card>

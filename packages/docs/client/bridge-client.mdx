@@ -1,6 +1,70 @@
 ---
 title: "Bridge client"
-description: "Connect to the Tableverse host over a postMessage bridge."
+description: "Connect a published frontend to the Tableverse host."
 ---
 
-The bridge client connects your published UI to the Tableverse host over a postMessage bridge.
+Use `createBridgeClient` in your production build:
+
+```ts
+import { createBridgeClient } from "@tableverse-kit/client";
+import type { executor } from "token-race-engine";
+
+type Game = typeof executor;
+
+const client = createBridgeClient<Game>();
+await client.ready();
+```
+
+Tableverse loads your frontend inside its game host. The bridge exchanges views, commands, discoveries, and events with that parent host. Your frontend does not need a platform URL, access token, room ID, or player ID.
+
+## Use the same client interface
+
+The bridge and dev clients both return `TableverseClient<Game>`. Keep the connection choice at the edge of your app:
+
+```ts
+export const client = import.meta.env.DEV
+  ? createDevClient<Game>("http://localhost:5100")
+  : createBridgeClient<Game>();
+```
+
+Everything that renders the game can depend on `TableverseClient<Game>` without knowing where it is running.
+
+## Handle connection errors
+
+```ts
+import { TransportError } from "@tableverse-kit/client";
+
+try {
+  await client.ready();
+} catch (error) {
+  if (error instanceof TransportError) {
+    showConnectionError(error.reason);
+  }
+}
+```
+
+Possible reasons are `not_ready`, `connection_lost`, `server_error`, and `closed`.
+
+## Custom embedding
+
+Most Tableverse frontends should call `createBridgeClient<Game>()` with no options. If you are testing the bridge in your own parent page, you can restrict message origins:
+
+```ts
+const client = createBridgeClient<Game>({
+  target: window.parent,
+  targetOrigin: "https://host.example.com",
+  allowedOrigin: "https://host.example.com",
+});
+```
+
+`targetOrigin` controls where requests are sent. `allowedOrigin` filters incoming messages.
+
+<Warning>
+  Do not hard-code your own player identity or send commands directly to a platform endpoint. The host owns session identity and transport.
+</Warning>
+
+Call `client.dispose()` when your application permanently unmounts the game. This closes the bridge and rejects pending requests.
+
+<Card title="Views and subscriptions" icon="arrow-right" href="/client/views-and-subscriptions">
+  Keep your interface synchronized with the host.
+</Card>

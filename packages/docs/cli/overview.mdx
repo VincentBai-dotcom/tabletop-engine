@@ -1,6 +1,76 @@
 ---
 title: "CLI overview"
-description: "The tvk command line for developing and publishing games."
+description: "Develop, validate, authenticate, and upload games with tvk."
 ---
 
-The `tvk` command line lets you develop and publish your games.
+The `tvk` command runs your game locally and hands finished source to Tableverse. The scaffold installs it in the engine package.
+
+From the project root, invoke it with:
+
+```bash
+pnpm -C engine exec tvk --help
+```
+
+From `engine/`, you can use `pnpm exec tvk` instead.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `tvk validate` | Load and validate the game definition. |
+| `tvk dev` | Run one local in-memory game server. |
+| `tvk login` | Sign in to Tableverse in your browser. |
+| `tvk whoami` | Print the signed-in account. |
+| `tvk logout` | Revoke and remove the saved login. |
+| `tvk upload` | Package engine and frontend source and start a platform build. |
+
+Use `--help` after any command to see its current options:
+
+```bash
+pnpm -C engine exec tvk upload --help
+```
+
+## Config file
+
+`tvk validate`, `tvk dev`, and `tvk upload` load `tableverse.config.ts` from the current working directory by default.
+
+```ts
+import { defineConfig } from "@tableverse-kit/config";
+import { game } from "./src/game.ts";
+
+export default defineConfig({
+  game,
+  publish: {
+    engine: { root: "." },
+    frontend: {
+      root: "../client",
+      buildCommand: "pnpm build",
+      outDir: "dist",
+    },
+  },
+});
+```
+
+Pass a different path with `--config`:
+
+```bash
+pnpm exec tvk validate --config configs/demo.tableverse.config.ts
+```
+
+## Recommended checks
+
+Run TypeScript before CLI validation. The CLI loads the built definition, while TypeScript catches mistakes in code paths that may not run during definition assembly.
+
+```bash
+pnpm typecheck
+pnpm -C engine exec tvk validate
+```
+
+<CardGroup cols={2}>
+  <Card title="Local server" icon="server" href="/cli/dev">
+    Run `tvk dev` and connect your frontend.
+  </Card>
+  <Card title="Upload" icon="cloud-arrow-up" href="/cli/publish">
+    Link a project and start a platform build.
+  </Card>
+</CardGroup>

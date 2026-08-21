@@ -1,6 +1,110 @@
 ---
 title: "Views and subscriptions"
-description: "Read player-facing views and subscribe to state changes."
+description: "Render safe state, connection changes, commands, and events."
 ---
 
-Read the player-facing view of the game and subscribe to changes as they happen.
+The client stores the latest snapshot in memory. Read it synchronously with `getView()` and subscribe to know when to render again.
+
+## Render the current view
+
+```ts
+function render(): void {
+  const status = client.getStatus();
+  const view = client.getView();
+
+  if (view === null) {
+    showLoading(status);
+    return;
+  }
+
+  showScores(view.game.scores);
+  showCurrentStage(view.progression.currentStage);
+}
+
+const unsubscribe = client.subscribe(render);
+render();
+```
+
+Call `render()` once after subscribing. `subscribe` only calls the listener for future snapshots or status changes.
+
+The listener receives no arguments. Read all current values from the client inside it.
+
+## Clean up subscriptions
+
+Both subscription methods return an unsubscribe function:
+
+```ts
+const unsubscribeView = client.subscribe(render);
+const unsubscribeEvents = client.onEvent(showEvent);
+
+function unmount(): void {
+  unsubscribeView();
+  unsubscribeEvents();
+  client.dispose();
+}
+```
+
+## Refresh available actions
+
+Available commands are not part of the state view. Ask for them after a ready snapshot:
+
+```ts
+async function renderActions(): Promise<void> {
+  if (client.getStatus() !== "ready") return;
+
+  const available = await client.getAvailableCommands();
+  setAdvanceEnabled(available.includes("advance"));
+  setPassEnabled(available.includes("pass"));
+}
+
+client.subscribe(() => {
+  render();
+  void renderActions();
+});
+```
+
+Treat this list as presentation guidance. The engine validates every submitted command again.
+
+## Render hidden values
+
+Private fields are typed as the real value or a hidden envelope:
+
+```ts
+const hand = view.game.players[client.getViewerId()!]?.hand;
+
+if (hand && "__hidden" in hand) {
+  showCardBacks(hand.value?.count ?? 0);
+} else if (hand) {
+  showCards(hand);
+}
+```
+
+## Listen for events
+
+Use events for transient effects such as animations, sounds, and activity messages:
+
+```ts
+client.onEvent((event) => {
+  if (event.category === "domain" && event.type === "advanced") {
+    animateMove(event.payload.actorId, event.payload.spaces);
+  }
+
+  if (event.category === "runtime" && event.type === "stage_entered") {
+    announceStage(event.payload.stageId);
+  }
+});
+```
+
+Events are not a replacement for state. A frontend that reconnects receives the current view, not every past event.
+
+## Track connection state
+
+`getStatus()` returns:
+
+- `connecting` before the first snapshot.
+- `ready` when requests can be sent.
+- `reconnecting` while a local event stream retries.
+- `error` after an unrecoverable connection problem.
+- `closed` after the host ends the game or you call `dispose()`.
+
+Use `getStateVersion()` when you need to identify the snapshot currently rendered. It returns `null` before the first view.
