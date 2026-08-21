@@ -1,194 +1,126 @@
 # tableverse-kit
 
-## Purpose
+Context for an agent working in this repo. Toolchain rules (pnpm, `tsx`,
+Vitest, decorators, casting/comment conventions) live in `CLAUDE.md` and are
+authoritative — read it first. This file explains _what_ the project is, where
+its boundaries are, and how the packages fit together.
 
-`tableverse-kit` is the public open-source game-authoring SDK for Tableverse.
+## What this is
 
-It ships the authoring surface only: you model game state, define and execute
-player commands, and project hidden information, then hand Tableverse a single
-`GameExecutor`. Everything downstream of that executor — transport, HTTP/
-WebSocket servers, rooms, matchmaking, persistence, deployment, hosting — is
-Tableverse's job and is out of scope for this repo.
+`tableverse-kit` is the public, open-source game-authoring SDK for **Tableverse**
+(the hosted product). It ships the authoring surface only: you model game state,
+define and execute player commands, project hidden information, and hand
+Tableverse a single `GameExecutor`. The repo is public so customers can inspect
+exactly how their game executes.
 
-The repo is open and public so customers can inspect exactly how their game
-executes and give feedback on the authoring surface. Requests aimed at transport
-or standalone hosting are intentionally out of charter, not features we are
-declining to build yet.
+The boundary between this repo and the platform is the **`GameExecutor`**. This
+repo owns everything needed to author a game and produce that executor.
+Tableverse owns everything downstream of it — transport, HTTP/WebSocket servers,
+rooms, matchmaking, auth, persistence, deployment, hosting, billing. Those are
+not features we're declining to build yet; they are out of charter.
 
-The repo currently contains the rules/runtime engine, the CLI tooling that
-inspects game definitions and generates local artifacts, and reference Splendor
-packages that exercise the engine in realistic consumers.
+Bring-your-own-server / transport-agnostic usage is **not** a supported path. A
+`GameExecutor` is plain enough that a determined user could drive it from their
+own transport, but the repo does not document or build toward that.
 
-The intended public package family is:
+## Packages
 
-- `@tableverse-kit/engine`
-  rules/runtime package that compiles a game into a `GameExecutor`
-- `@tableverse-kit/cli`
-  local authoring tooling, installed with the `tvk` command
-- `@tableverse-kit/client`
-  the frontend client. Ships the renderer-agnostic `TableverseClient` interface
-  and the `GameShapeOf` type machinery that derives a game's view/command/
-  discovery/event shapes from its `GameExecutor` — nothing hand-authored. No
-  concrete adapter ships yet: local/dev usage runs a real local server rather
-  than an in-process, same-process client. Thin React hooks
-  (`@tableverse-kit/client/react`) remain a deferral — see Active Deferrals
-  below. Renamed from the former `@tableverse-kit/ui`; the previously planned
-  shadcn-style styled/copy-in component kit is cancelled — see
-  `docs/design/2026-07-05-frontend-runtime-agnostic-client.md`.
+Workspaces are `packages/*` and `examples/*/*` (see `pnpm-workspace.yaml`).
+Cross-package deps use `workspace:*`.
 
-## Platform Boundary
+Published `@tableverse-kit/*` family:
 
-Tableverse Kit is the authoring layer for the hosted product, Tableverse. The
-boundary between them is the `GameExecutor`: this repo owns everything needed to
-author a game and produce that executor; Tableverse owns everything downstream
-of it.
+- **`engine`** (`packages/engine`) — the rules/runtime core. Compiles a game
+  definition into a `GameExecutor`. Runtime-agnostic and portable: it runs
+  inside the platform's `isolated-vm` sandbox, so it must not depend on
+  `@types/node` or any Node/Bun globals. Single entry (`.`); the former
+  `engine/config` subpath is gone — publish config now lives in the `config`
+  package.
+- **`cli`** (`packages/cli`) — the `tvk` command. Local authoring plus the
+  platform handoff: `validate`, `dev` (local dev server), `login` / `logout` /
+  `whoami` (platform auth), and `upload` (publish source to Tableverse).
+- **`client`** (`packages/client`) — the renderer-agnostic `TableverseClient`
+  interface and the `GameShapeOf` type machinery that derives a game's
+  view/command/discovery/event shapes from its `GameExecutor`. No concrete
+  adapter ships yet; local/dev usage runs a real local server. Renamed from the
+  former `@tableverse-kit/ui`; the styled component kit is cancelled. Thin React
+  hooks (`client/react`) are deferred.
+- **`config`** (`packages/config`) — the publish-config contract shared by the
+  CLI and platform: `PublishConfig` with an `engine` half (source `root` the
+  platform builds into the sandbox bundle) and a `frontend` half (`root`,
+  `buildCommand`, `outDir` the platform builds and serves). Both halves are
+  source — nothing points at a compiled artifact.
+- **`create`** (`packages/create`) — the `create-tableverse-kit` scaffolder.
+  `templates/` ships **verbatim** to the generated project (it's in
+  `.prettierignore`; formatting it would rewrite emitted files and break
+  `{{token}}` placeholders).
+- **`docs`** (`packages/docs`) — the Mintlify docs site (`@tableverse-kit/docs`,
+  private). MDX pages + `docs.json`. The `mint` CLI is **not** a workspace dep
+  (install globally: `npm i -g mint`). MDX is `.prettierignore`d — Prettier
+  corrupts fenced code inside Mintlify components. See `packages/docs/AGENTS.md`.
 
-Keep authoring tooling in this repo. Hosting and platform concerns belong to
-Tableverse and stay out of this repository, including transport, HTTP/WebSocket
-servers, auth, rooms, matchmaking, deployment, upload flows, persistence
-products, billing, private hosted protocols, and platform-targeted SDK
-generation.
+Examples (real consumer documentation, not throwaway):
 
-We no longer target transport-agnostic, bring-your-own-server usage as a
-supported feature. A `GameExecutor` is plain enough that a determined user can
-drive it from their own transport, but that is not a path this repo supports,
-documents, or builds toward.
+- `examples/splendor/engine` — a reference game built on the engine.
+- `examples/splendor/terminal` — terminal client exercising discovery and
+  hosted-style gameplay locally (`pnpm start:splendor`).
+- `examples/splendor/web` — web frontend example.
 
-The public CLI may provide authoring commands such as:
+## Engine internals (`packages/engine/src`)
 
-```bash
-tvk generate client-sdk
-tvk validate
-```
+- `runtime/` — command execution, progression orchestration, runtime events,
+  transactional execution against a cloned working state.
+- `state/`, `state-facade/` — canonical `{ game, runtime }` state, and the
+  class-authored facade (`GameState`, `@field(...)`, `t`) with hydration and
+  viewer-specific visibility projection (`getView`, `configureVisibility`,
+  `hidden`, `visibleToSelf`).
+- `schema/` — the shared runtime schema API `t` (TypeBox-backed).
+- `rng/` — deterministic RNG with persisted cursor state.
+- `snapshot/`, `replay/`, `testing/` — snapshots, replay helpers, and
+  scenario-style test harness support.
+- `command-factory.ts`, `stage-factory.ts`, `game-definition.ts` — the
+  `GameDefinitionBuilder` / `createGameExecutor` authoring entry points.
 
-Future platform commands such as `tvk lab deploy` should be implemented in
-private Tableverse-owned packages or through a command handoff mechanism.
+## CLI internals (`packages/cli/src`)
 
-## Implemented Runtime Surface
+- `commands/` — `dev`, `validate`, `upload`, `login`, `logout`, `whoami`.
+- `lib/` — config loading, game-descriptor extraction, generation context,
+  packaging/upload, platform + auth clients, dev server, arg parsing, output
+  helpers. Keep generic generation logic here, not in the engine runtime.
 
-`@tableverse-kit/engine` currently supports:
+## Architectural direction
 
-- canonical `{ game, runtime }` state
-- `GameDefinitionBuilder`
-- `createGameExecutor(...)`
-- command validation, execution, availability, and discovery
-- deterministic RNG with persisted cursor state
-- progression definition, normalization, and lifecycle hooks
-- transactional execution against a cloned working state
-- class-authored state facades via `GameState`, `@field(...)`, and `t`
-- viewer-specific state projection through `getView(...)`
-- visibility configuration through `configureVisibility(...)`, `hidden(...)`,
-  and `visibleToSelf(...)`
-- snapshots, replay helpers, and scenario-style test harness support
-- config-file-driven artifact generation support through
-  `@tableverse-kit/engine/config`
+- Prefer explicit engine semantics over framework magic.
+- Keep authoritative canonical state separate from viewer-facing visible state;
+  games author against facade classes while the executor persists plain
+  canonical data.
+- Keep execution deterministic and replayable.
+- The engine's output is a `GameExecutor`; transport and hosting live in
+  Tableverse, not here. Keep hosted-platform details out of public packages.
+- Prefer plain serializable outputs for hosted/client-facing data.
+- Preserve the public naming direction (`GameExecutor`, `GameEvent`,
+  `GameState`, the scoped `@tableverse-kit/*` family); avoid reintroducing
+  vague low-level naming in the consumer API.
 
-Protocol descriptors and AsyncAPI generation are no longer engine-owned public
-runtime surface. Current generic generation logic lives in the CLI where it is
-needed for local artifacts.
+## Non-goals and deferrals
 
-## Repo Layout
+Out of charter (platform's job): transport, web-framework integration, auth,
+lobby/matchmaking, persistence products, UI rendering, deployment, hosted
+protocol contracts, platform SDK generation.
 
-Important workspace areas:
+Deferred (not yet built): trigger engine; stack/queue resolution model; richer
+event-resolution model distinct from player-facing logs; persistence adapters;
+`client/react` hooks; private platform command handoff.
 
-- `packages/engine`
-  source for the published `@tableverse-kit/engine` package
-- `packages/cli`
-  source for the `@tableverse-kit/cli` package and `tvk` command
-- `examples/splendor/engine`
-  reference game package built on `@tableverse-kit/engine`
-- `examples/splendor/terminal`
-  terminal client for exercising command discovery and hosted-style gameplay
-  locally
-- `docs/design`
-  current design decisions and historical design records
-
-Inside the engine package:
-
-- `src/runtime`
-  command execution, progression orchestration, runtime events, transactions
-- `src/state-facade`
-  facade metadata, compilation, hydration, and visibility projection
-- `src/schema`
-  shared runtime schema API `t`
-
-Inside the CLI package:
-
-- `src/commands`
-  `generate` and `validate` command implementations
-- `src/lib`
-  config loading, game descriptor extraction, rendering, argument parsing, and
-  output helpers
-
-## Current Architectural Direction
-
-Prefer explicit engine semantics over framework magic.
-
-That currently means:
-
-- keep authoritative canonical state separate from viewer-facing visible state
-- let games author logic against facade classes while the executor still
-  persists plain canonical data
-- keep execution deterministic and replayable
-- colocate runtime schemas with the game code that owns them
-- the engine's output is a `GameExecutor`; transport and hosting live in
-  Tableverse, not here
-- keep hosted platform details out of public packages
-- treat examples as real consumer documentation, not throwaway code
-
-## Current Non-Goals
-
-Still out of scope for the public engine package:
-
-- transport-agnostic / bring-your-own-server integration as a supported feature
-- web framework integration
-- auth, lobby, matchmaking, or hosting product decisions
-- persistence product decisions
-- UI rendering concerns
-- deployment assumptions
-- hosted protocol contracts or platform SDK generation
-
-## Active Deferrals
-
-The following are intentionally not complete yet:
-
-- trigger engine
-- stack / queue resolution model
-- richer event-resolution model distinct from player-facing logs
-- persistence adapters
-- `@tableverse-kit/client/react` hooks implementation (thin React binding over
-  the framework-neutral client; no styled component kit)
-- private Tabletop Lab command handoff
-
-## Guidance For Future Work
-
-When editing this repo:
-
-- preserve the public naming direction around `GameExecutor`, `GameEvent`,
-  `GameState`, and the scoped `@tableverse-kit/*` package family
-- avoid reintroducing vague low-level naming in the consumer-facing API
-- the supported contract is the `GameExecutor` handed to Tableverse; keep
-  transport out of the engine, but do not build toward bring-your-own-transport
-  as a supported path
-- prefer plain serializable outputs for hosted/client-facing data
-- keep generic generation in `@tableverse-kit/cli`, not in the engine runtime
-- keep platform-specific generation, deployment, auth, rooms, and persistence
-  outside the public repo
-- treat examples as real consumer documentation
-- update design docs when architecture decisions change materially
+When an architecture decision changes materially, update the design docs in
+`docs/design/` (dated `YYYY-MM-DD-*.md`).
 
 ## Verification
 
-Common verification commands:
-
 ```bash
-pnpm lint
+pnpm install
 pnpm exec tsc -b
-pnpm test                 # run every package's tests via Vitest
-# or per package:
-pnpm -C packages/engine test
-pnpm -C packages/cli test
-pnpm -C packages/client test
-pnpm -C examples/splendor/engine test
-pnpm -C examples/splendor/terminal test
+pnpm lint
+pnpm test                 # every package, via Vitest
+pnpm start:splendor       # decorator-using entry, runs under tsx
 ```
