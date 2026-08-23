@@ -40,20 +40,28 @@ The local client initializes one in-memory session, receives a player-safe view,
 
 ## Try multiple players
 
-Choose a different viewer for another browser build or local entry point:
+The first connection initializes the session, so give it the full roster. Other browsers pick a different `viewer` from that roster:
 
 ```ts
-const client = createDevClient<Game>("http://localhost:5100", {
+// First client — initializes the match
+createDevClient<Game>("http://localhost:5100", {
+  viewer: "p1",
+  players: ["p1", "p2"],
+});
+
+// Second browser — same match, different viewer
+createDevClient<Game>("http://localhost:5100", {
   viewer: "p2",
 });
 ```
 
-If your game defines setup input, pass it from the first client:
+If your game defines setup input, pass it from the first client too:
 
 ```ts
 const client = createDevClient<Game>("http://localhost:5100", {
   viewer: "p1",
-  setupInput: { playerIds: ["p1", "p2"] },
+  players: ["p1", "p2"],
+  setupInput: { targetScore: 10 },
 });
 ```
 

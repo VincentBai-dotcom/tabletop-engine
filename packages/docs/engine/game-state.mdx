@@ -90,9 +90,9 @@ Commands receive hydrated `GameState` and `PlayerState` instances, so methods su
 Class field values become the defaults for a new game. Use `.setup()` on the game definition for values that depend on players, setup input, or randomness.
 
 ```ts
-.setup(({ game, input }) => {
+.setup(({ game, players }) => {
   game.players = Object.fromEntries(
-    input.playerIds.map((id) => [id, Object.assign(new PlayerState(), { id })]),
+    players.map((id) => [id, Object.assign(new PlayerState(), { id })]),
   );
 })
 ```
