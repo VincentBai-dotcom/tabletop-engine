@@ -1,15 +1,16 @@
-# ui
+# @tableverse-kit/client
 
-To install dependencies:
+Create one typed client for a Tableverse game frontend:
 
-```bash
-bun install
+```ts
+import { createTableverseClient } from "@tableverse-kit/client";
+import type { executor } from "my-game-engine";
+
+type Game = typeof executor;
+
+export const client = createTableverseClient<Game>();
 ```
 
-To run:
+The client selects the supported connection automatically, so the same construction call works locally and after publishing.
 
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.3.9. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+Read the [client documentation](../docs/client/overview.mdx) for methods, local session options, and subscriptions.

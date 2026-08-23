@@ -13,7 +13,7 @@ interface ReadyWaiter {
   reject: (error: unknown) => void;
 }
 
-class TransportClient<
+export class TransportClient<
   E extends AnyGameExecutor,
 > implements TableverseClient<E> {
   #status: ConnectionStatus = "connecting";
@@ -181,10 +181,4 @@ class TransportClient<
       listener();
     }
   }
-}
-
-export function createTableverseClient<E extends AnyGameExecutor>(
-  transport: Transport<E>,
-): TableverseClient<E> {
-  return new TransportClient(transport);
 }

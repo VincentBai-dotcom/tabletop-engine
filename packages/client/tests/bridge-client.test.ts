@@ -9,12 +9,13 @@ import {
   t,
 } from "@tableverse-kit/engine";
 import type { GameShapeOf } from "../src/client/game-shape.ts";
+import { TransportClient } from "../src/client/client-core.ts";
 import {
+  BridgeTransport,
   bridgeMessages,
-  createBridgeClient,
-  TransportError,
   type BridgeEndpoint,
-} from "../src/index.ts";
+} from "../src/bridge/bridge-transport.ts";
+import { TransportError } from "../src/index.ts";
 
 class DemoState {
   count = 0;
@@ -111,7 +112,9 @@ const snapshotPayload = {
 
 function makeClient() {
   const bridge = new FakeBridge();
-  const client = createBridgeClient<Executor>({ endpoint: bridge });
+  const client = new TransportClient(
+    new BridgeTransport<Executor>({ endpoint: bridge }),
+  );
   return { client, bridge };
 }
 

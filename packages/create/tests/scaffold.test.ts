@@ -76,6 +76,24 @@ describe("scaffold", () => {
     expect(clientManifest.dependencies["my-game-engine"]).toBe("workspace:*");
   });
 
+  test("creates one client that selects its connection", async () => {
+    const target = join(workspace, "game");
+    await scaffold({
+      targetDir: target,
+      projectName: "my-game",
+      tableverseVersion: "^1.2.3",
+    });
+
+    const clientSource = await readFile(
+      join(target, "client", "src", "main.ts"),
+      "utf8",
+    );
+    expect(clientSource).toContain("createTableverseClient<Game>()");
+    expect(clientSource).not.toContain("createDevClient");
+    expect(clientSource).not.toContain("createBridgeClient");
+    expect(clientSource).not.toContain("import.meta.env");
+  });
+
   test("leaves no unresolved placeholder tokens", async () => {
     const target = join(workspace, "game");
     await scaffold({

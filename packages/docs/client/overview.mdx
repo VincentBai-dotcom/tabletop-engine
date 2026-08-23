@@ -12,25 +12,17 @@ Use it from plain TypeScript, React, Vue, Svelte, or any other browser framework
 Import the executor as a type from your engine package:
 
 ```ts
-import {
-  createBridgeClient,
-  type TableverseClient,
-} from "@tableverse-kit/client";
-import { createDevClient } from "@tableverse-kit/client/dev";
+import { createTableverseClient } from "@tableverse-kit/client";
 import type { executor } from "token-race-engine";
 
 type Game = typeof executor;
 
-export function connect(): TableverseClient<Game> {
-  if (import.meta.env.DEV) {
-    return createDevClient<Game>("http://localhost:5100");
-  }
-
-  return createBridgeClient<Game>();
-}
+export const client = createTableverseClient<Game>();
 ```
 
 This type parameter derives the game view, command inputs, discovery requests, and events from the executor. You do not maintain separate frontend types.
+
+Use the same client locally and after publishing. A top-level local page connects to `tvk dev`. A game loaded by Tableverse connects to its host.
 
 ## Client methods
 
@@ -67,13 +59,13 @@ The client does not accept `actorId`. The host supplies the authenticated viewer
 
 An accepted response means the rules accepted the command. The updated view arrives through the subscription separately.
 
-## Choose the right connection
+## Continue building
 
 <CardGroup cols={2}>
-  <Card title="Dev client" icon="laptop-code" href="/client/dev-client">
-    Connect to `tvk dev` while building locally.
+  <Card title="Local sessions" icon="laptop-code" href="/client/local-sessions">
+    Configure players and setup input for a local preview.
   </Card>
-  <Card title="Bridge client" icon="cloud" href="/client/bridge-client">
-    Connect a published frontend to its Tableverse host.
+  <Card title="Published games" icon="cloud" href="/client/published-games">
+    Use your client after publishing to Tableverse.
   </Card>
 </CardGroup>

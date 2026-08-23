@@ -9,7 +9,8 @@ import {
   t,
 } from "@tableverse-kit/engine";
 import type { GameShapeOf } from "../src/client/game-shape.ts";
-import { createTableverseClient, TransportError } from "../src/index.ts";
+import { TransportClient } from "../src/client/client-core.ts";
+import { TransportError } from "../src/index.ts";
 import {
   FakeTransport,
   type FakeTransportOptions,
@@ -83,7 +84,7 @@ function makeClient(overrides: Partial<FakeTransportOptions<Executor>> = {}) {
     } as unknown as GameShapeOf<Executor>["discovery"]["result"],
     ...overrides,
   });
-  const client = createTableverseClient<Executor>(transport);
+  const client = new TransportClient<Executor>(transport);
   return { client, transport };
 }
 

@@ -53,8 +53,8 @@
         "tab": "Client",
         "pages": [
           "client/overview",
-          "client/dev-client",
-          "client/bridge-client",
+          "client/local-sessions",
+          "client/published-games",
           "client/views-and-subscriptions"
         ]
       },

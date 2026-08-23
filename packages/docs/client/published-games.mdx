@@ -1,0 +1,54 @@
+---
+title: "Published games"
+description: "Use the same client after publishing to Tableverse."
+---
+
+Use the client already created in your frontend:
+
+```ts
+import { createTableverseClient } from "@tableverse-kit/client";
+import type { executor } from "token-race-engine";
+
+type Game = typeof executor;
+
+const client = createTableverseClient<Game>();
+await client.ready();
+```
+
+Tableverse loads your frontend inside its game host. The client receives the session and player identity from that host. It exchanges views, commands, discoveries, and events through the connection Tableverse provides.
+
+## Keep one connection setup
+
+The same line connects your local preview and published game:
+
+```ts
+export const client = createTableverseClient<Game>();
+```
+
+Your rendering code can use `TableverseClient<Game>` without managing connection modes, platform URLs, access tokens, room IDs, or player IDs.
+
+## Handle connection errors
+
+```ts
+import { TransportError } from "@tableverse-kit/client";
+
+try {
+  await client.ready();
+} catch (error) {
+  if (error instanceof TransportError) {
+    showConnectionError(error.reason);
+  }
+}
+```
+
+Possible reasons are `not_ready`, `connection_lost`, `server_error`, and `closed`.
+
+<Warning>
+  Do not hard-code your own player identity or send commands directly to a platform endpoint. The host owns session identity and transport.
+</Warning>
+
+Call `client.dispose()` when your application permanently unmounts the game. This closes the connection and rejects pending requests.
+
+<Card title="Views and subscriptions" icon="arrow-right" href="/client/views-and-subscriptions">
+  Keep your interface synchronized with the host.
+</Card>

@@ -21,14 +21,10 @@ export type {
   TransportHandlers,
   TransportSnapshot,
 } from "../client/transport.ts";
-export { createTableverseClient } from "../client/client-core.ts";
+export { TransportClient } from "../client/client-core.ts";
 export {
   DevTransport,
   type DevTransportOptions,
   type SseConnection,
   type SseFactory,
 } from "./dev-transport.ts";
-export {
-  createDevClient,
-  type CreateDevClientOptions,
-} from "./create-dev-client.ts";

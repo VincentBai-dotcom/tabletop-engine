@@ -1,18 +1,9 @@
-import { createBridgeClient, type TableverseClient } from "@tableverse-kit/client";
-import { createDevClient } from "@tableverse-kit/client/dev";
+import { createTableverseClient } from "@tableverse-kit/client";
 import type { executor } from "{{projectName}}-engine";
 
 type Game = typeof executor;
 
-function connect(): TableverseClient<Game> {
-  if (import.meta.env.DEV) {
-    const url = import.meta.env.VITE_TVK_DEV_URL ?? "http://localhost:5100";
-    return createDevClient<Game>(url);
-  }
-  return createBridgeClient<Game>();
-}
-
-const client = connect();
+const client = createTableverseClient<Game>();
 const app = document.querySelector<HTMLElement>("#app");
 
 const scoreButton = document.createElement("button");

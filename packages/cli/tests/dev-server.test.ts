@@ -10,10 +10,10 @@ import {
   t,
 } from "@tableverse-kit/engine";
 import {
-  createTableverseClient,
   DevTransport,
   type GameShapeOf,
   type TableverseClient,
+  TransportClient,
 } from "@tableverse-kit/client/dev";
 import {
   startDevServer,
@@ -100,7 +100,7 @@ test("game builds a runnable executor", () => {
 
 test("dev client connects, executes, and receives snapshots + events over the wire", async () => {
   handle = await startDevServer(game, { port: 0 });
-  const client = createTableverseClient(
+  const client = new TransportClient(
     new DevTransport<Executor>(handle.url, { viewer: "p1", sse: nodeSse }),
   );
 

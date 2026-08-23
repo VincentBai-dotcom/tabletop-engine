@@ -11,13 +11,13 @@ pnpm dev:server
 
 This runs `tvk dev` in `engine/`, loads `tableverse.config.ts`, and listens at `http://localhost:5100`.
 
-Connect with the dev client:
+Create your frontend client:
 
 ```ts
-import { createDevClient } from "@tableverse-kit/client/dev";
+import { createTableverseClient } from "@tableverse-kit/client";
 import type { executor } from "token-race-engine";
 
-const client = createDevClient<typeof executor>("http://localhost:5100", {
+const client = createTableverseClient<typeof executor>({
   viewer: "p1",
   players: ["p1", "p2"],
 });
@@ -71,6 +71,6 @@ If the client remains on `connecting`:
 
 If config loading fails, run `tvk validate` from the same directory. Pass the same `--config` value to both commands.
 
-<Card title="Dev client" icon="arrow-right" href="/client/dev-client">
+<Card title="Local sessions" icon="arrow-right" href="/client/local-sessions">
   Configure viewers, the roster, and setup input in the frontend.
 </Card>

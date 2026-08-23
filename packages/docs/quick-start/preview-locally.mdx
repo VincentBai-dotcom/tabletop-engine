@@ -17,40 +17,32 @@ pnpm dev:web
 
 `pnpm dev:server` runs `tvk dev` from the engine package. It loads `engine/tableverse.config.ts` and listens at `http://localhost:5100` by default.
 
-The scaffold connects with `createDevClient` during development:
+The scaffold creates one client for local previews and published games:
 
 ```ts
-import { createBridgeClient, type TableverseClient } from "@tableverse-kit/client";
-import { createDevClient } from "@tableverse-kit/client/dev";
+import { createTableverseClient } from "@tableverse-kit/client";
 import type { executor } from "token-race-engine";
 
 type Game = typeof executor;
 
-function connect(): TableverseClient<Game> {
-  if (import.meta.env.DEV) {
-    const url = import.meta.env.VITE_TVK_DEV_URL ?? "http://localhost:5100";
-    return createDevClient<Game>(url, { viewer: "p1" });
-  }
-
-  return createBridgeClient<Game>();
-}
+const client = createTableverseClient<Game>();
 ```
 
-The local client initializes one in-memory session, receives a player-safe view, and sends commands over HTTP. It updates all connected browser windows after an accepted command.
+During a local preview, the client connects to `http://localhost:5100`. It initializes one in-memory session, receives a player-safe view, and updates all connected browser windows after an accepted command.
 
 ## Try multiple players
 
 The first connection initializes the session, so give it the full roster. Other browsers pick a different `viewer` from that roster:
 
 ```ts
-// First client — initializes the match
-createDevClient<Game>("http://localhost:5100", {
+// First browser — initializes the match
+createTableverseClient<Game>({
   viewer: "p1",
   players: ["p1", "p2"],
 });
 
 // Second browser — same match, different viewer
-createDevClient<Game>("http://localhost:5100", {
+createTableverseClient<Game>({
   viewer: "p2",
 });
 ```
@@ -58,7 +50,7 @@ createDevClient<Game>("http://localhost:5100", {
 If your game defines setup input, pass it from the first client too:
 
 ```ts
-const client = createDevClient<Game>("http://localhost:5100", {
+const client = createTableverseClient<Game>({
   viewer: "p1",
   players: ["p1", "p2"],
   setupInput: { targetScore: 10 },
@@ -75,7 +67,13 @@ const client = createDevClient<Game>("http://localhost:5100", {
 pnpm -C engine exec tvk dev --port 5200
 ```
 
-Set `VITE_TVK_DEV_URL=http://localhost:5200` for the frontend as well.
+Pass the same URL when you create the client:
+
+```ts
+const client = createTableverseClient<Game>({
+  serverUrl: "http://localhost:5200",
+});
+```
 
 <Card title="Publish to Tableverse" icon="arrow-right" href="/quick-start/publish">
   Validate and upload your project.

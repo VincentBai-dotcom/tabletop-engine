@@ -1,17 +1,17 @@
 ---
-title: "Dev client"
-description: "Connect your frontend to a local tvk dev server."
+title: "Local sessions"
+description: "Configure your client for a local tvk dev session."
 ---
 
-Import `createDevClient` from the `/dev` entry point:
+Create your client with the function you use throughout your frontend:
 
 ```ts
-import { createDevClient } from "@tableverse-kit/client/dev";
+import { createTableverseClient } from "@tableverse-kit/client";
 import type { executor } from "token-race-engine";
 
 type Game = typeof executor;
 
-const client = createDevClient<Game>("http://localhost:5100", {
+const client = createTableverseClient<Game>({
   viewer: "p1",
 });
 ```
@@ -26,15 +26,16 @@ pnpm -C engine dev
 
 | Option | Default | Purpose |
 | --- | --- | --- |
-| `viewer` | `"p1"` | Player ID used for views and commands. |
+| `serverUrl` | `"http://localhost:5100"` | URL printed by `tvk dev`. |
+| `viewer` | `"p1"` | Player ID used for local views and commands. |
 | `players` | `["p1"]` | Authoritative roster for the local match, in seating order. |
 | `seed` | `"dev"` | Deterministic RNG seed for the local match. |
 | `setupInput` | `undefined` | Game configuration passed to `.setup()` when the local session starts. |
 
-The first connection initializes the one in-memory session, so give it the roster and any setup input. The `setupInput` type is derived from the executor:
+The first local connection initializes the in-memory session. Give it the roster and any setup input. The `setupInput` type is derived from the executor:
 
 ```ts
-const client = createDevClient<Game>("http://localhost:5100", {
+const client = createTableverseClient<Game>({
   viewer: "p1",
   players: ["p1", "p2"],
   setupInput: {
@@ -67,20 +68,12 @@ pnpm -C engine exec tvk dev --port 5200
 ```
 
 ```ts
-const client = createDevClient<Game>("http://localhost:5200");
+const client = createTableverseClient<Game>({
+  serverUrl: "http://localhost:5200",
+});
 ```
 
-## Switch automatically for production
-
-```ts
-const client = import.meta.env.DEV
-  ? createDevClient<Game>(
-      import.meta.env.VITE_TVK_DEV_URL ?? "http://localhost:5100",
-    )
-  : createBridgeClient<Game>();
-```
-
-Only import `createDevClient` from `@tableverse-kit/client/dev`. The default package entry contains the production bridge.
+Tableverse supplies the session URL, player identity, roster, seed, and setup input for published games. These options configure your local session.
 
 <Card title="Render state changes" icon="arrow-right" href="/client/views-and-subscriptions">
   Subscribe and update your interface.

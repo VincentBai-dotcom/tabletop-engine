@@ -40,10 +40,10 @@ Published `@tableverse-kit/*` family:
   `whoami` (platform auth), and `upload` (publish source to Tableverse).
 - **`client`** (`packages/client`) — the renderer-agnostic `TableverseClient`
   interface and the `GameShapeOf` type machinery that derives a game's
-  view/command/discovery/event shapes from its `GameExecutor`. No concrete
-  adapter ships yet; local/dev usage runs a real local server. Renamed from the
-  former `@tableverse-kit/ui`; the styled component kit is cancelled. Thin React
-  hooks (`client/react`) are deferred.
+  view/command/discovery/event shapes from its `GameExecutor`.
+  `createTableverseClient` connects a top-level local frontend to `tvk dev` and
+  an embedded published frontend to its Tableverse host. The connection choice
+  stays inside the package. Thin React hooks (`client/react`) are deferred.
 - **`config`** (`packages/config`) — the publish-config contract shared by the
   CLI and platform: `PublishConfig` with an `engine` half (source `root` the
   platform builds into the sandbox bundle) and a `frontend` half (`root`,
