@@ -1,9 +1,8 @@
 # tableverse-kit
 
-Context for an agent working in this repo. Toolchain rules (pnpm, `tsx`,
-Vitest, decorators, casting/comment conventions) live in `CLAUDE.md` and are
-authoritative — read it first. This file explains _what_ the project is, where
-its boundaries are, and how the packages fit together.
+Context for an agent working in this repo: what the project is, where its
+boundaries are, how the packages fit together, and how to build and verify it.
+This file is the single source of truth for that context.
 
 ## What this is
 
@@ -65,6 +64,63 @@ Examples (real consumer documentation, not throwaway):
 - `examples/splendor/terminal` — terminal client exercising discovery and
   hosted-style gameplay locally (`pnpm start:splendor`).
 - `examples/splendor/web` — web frontend example.
+
+## Toolchain
+
+Develop and test on the runtime we ship to: **Node.js**, managed with **pnpm
+workspaces**.
+
+- **Package manager: pnpm.** Use `pnpm install`, `pnpm run <script>`,
+  `pnpm -C <pkg> <script>`, `pnpm -r <script>`, `pnpm exec <bin>`,
+  `pnpm dlx <pkg>`. Stick to pnpm; workspaces are declared in
+  `pnpm-workspace.yaml` and cross-package deps use the `workspace:*` protocol.
+- **Runtime: Node via `tsx`.** Run/watch TypeScript with `tsx <file>` /
+  `tsx watch <file>`. The engine's state-authoring facade (`GameState`,
+  `@field(...)`) uses **legacy decorators** (`experimentalDecorators` in
+  `tsconfig.json`); `tsx` (esbuild) transpiles them, and bare `node`
+  type-stripping leaves them in place, so run through `tsx`.
+- **Tests: Vitest.** `pnpm test` runs every package; a single package runs
+  `vitest run`. Import test APIs from `vitest`
+  (`import { describe, it, test, expect } from "vitest"`). Vitest (esbuild)
+  honors `experimentalDecorators`, so decorator-based tests work unchanged.
+- **Typecheck:** `pnpm exec tsc -b` (project references) or `pnpm -r typecheck`.
+- **Lint / format:** `pnpm lint` (ESLint) and `pnpm format` (Prettier), wired
+  through Husky + lint-staged on commit.
+
+## Conventions
+
+- Keep `@tableverse-kit/engine` runtime-agnostic and portable — free of Node- or
+  Bun-specific globals. It runs inside the platform's `isolated-vm` sandbox
+  (a stricter bar than Node), so it stays off `@types/node`. Packages that
+  genuinely need Node globals (`cli`, `client`, `terminal`) depend on
+  `@types/node` explicitly.
+- Prefer standard/Node APIs over runtime-specific ones: `node:crypto`,
+  `node:fs`, `fileURLToPath(new URL(".", import.meta.url))` for the current
+  directory, and `process.argv[1] === fileURLToPath(import.meta.url)` for the
+  "run as main" check.
+- **Avoid casting; treat an unavoidable cast as a bug in a dependency.** Type
+  assertions (`as`, and especially `as unknown as`) silence the compiler rather
+  than satisfy it, so a later change in the thing being cast breaks the code
+  silently. Reach for a cast only when there is genuinely no typed path — and
+  when you must, recognize that the need is usually a design issue in the code
+  being depended on (a missing overload, an unexported type, a signature that
+  doesn't accept the value you have). Prefer fixing that underlying type surface
+  over papering it with a cast at the call site.
+- **Comments are a last resort, not a default.** They drift out of sync with the
+  code and mislead both humans and agents; self-explanatory code (clear names,
+  small functions, expressive types) is the goal. Reserve a comment for the rare
+  thing code cannot express — a non-obvious _why_, a subtle constraint. In
+  particular, **do not document behavior on an interface** (e.g. "rejects with
+  `X`", "fires on every change"): an interface only constrains types, an
+  implementation is free to diverge from the prose, and the comment silently
+  becomes a lie.
+- **Write affirmatively, for a reader with no memory of past designs.** This
+  covers customer-facing docs and code comments alike. Describe what a thing is
+  and does right now, and state it directly. Skip definition-by-contrast with an
+  earlier or alternative design ("X is not Y", "no longer", "instead of the old
+  …", "formerly", "renamed from"): a negation presupposes the reader already
+  holds the idea it corrects, and the reader holds none. Prefer "the roster
+  arrives as `players`" over "the roster is not setup input".
 
 ## Engine internals (`packages/engine/src`)
 
