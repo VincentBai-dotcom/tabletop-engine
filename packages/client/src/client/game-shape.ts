@@ -61,7 +61,7 @@ export type GameShapeOf<E extends AnyGameExecutor> = {
   command: CommandFor<CommandDefsOf<E>>;
   discovery: {
     payload: DiscoveryPayloadFor<CommandDefsOf<E>>;
-    result: CommandDiscoveryResultFor<CommandDefsOf<E>>;
+    result: CommandDiscoveryResultFor<CommandDefsOf<E>> | null;
   };
   event: EventsOf<E>;
 };

@@ -15,6 +15,7 @@ import {
 
 export const bridgeMessages = {
   ready: "game_ready",
+  reconnecting: "game_reconnecting",
   snapshot: "game_snapshot",
   event: "game_event",
   ended: "game_ended",
@@ -128,6 +129,9 @@ export class BridgeTransport<
 
     try {
       switch (type) {
+        case bridgeMessages.reconnecting:
+          handlers.onReconnecting();
+          return;
         case bridgeMessages.snapshot:
           assertSnapshotEnvelope(payload);
           handlers.onSnapshot({

@@ -72,7 +72,10 @@ export function assertEventEnvelope(
 
 export function assertDiscoveryResult(
   value: unknown,
-): asserts value is Record<string, unknown> {
+): asserts value is Record<string, unknown> | null {
+  if (value === null) {
+    return;
+  }
   if (!isRecord(value) || typeof value.complete !== "boolean") {
     fail();
   }

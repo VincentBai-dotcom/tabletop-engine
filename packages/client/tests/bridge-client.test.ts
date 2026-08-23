@@ -146,6 +146,22 @@ describe("bridge client", () => {
     expect(client.getStateVersion()).toBe(1);
   });
 
+  test("moves from ready through reconnecting and back on a fresh snapshot", async () => {
+    const { client, bridge } = makeClient();
+    bridge.send({ type: bridgeMessages.snapshot, payload: snapshotPayload });
+    await client.ready();
+
+    bridge.send({ type: bridgeMessages.reconnecting });
+    expect(client.getStatus()).toBe("reconnecting");
+
+    bridge.send({
+      type: bridgeMessages.snapshot,
+      payload: { ...snapshotPayload, version: 2 },
+    });
+    expect(client.getStatus()).toBe("ready");
+    expect(client.getStateVersion()).toBe(2);
+  });
+
   test("execute posts a correlated request and resolves on the matching result", async () => {
     const { client, bridge } = makeClient();
     bridge.send({ type: bridgeMessages.snapshot, payload: snapshotPayload });
@@ -191,6 +207,26 @@ describe("bridge client", () => {
       payload: ["score"],
     });
     expect(await listing).toEqual(["score"]);
+  });
+
+  test("discover preserves an executor's null result", async () => {
+    const { client, bridge } = makeClient();
+    bridge.send({ type: bridgeMessages.snapshot, payload: snapshotPayload });
+    await client.ready();
+
+    const discovering = client.discover({
+      type: "score",
+      step: "pick",
+      input: {},
+    });
+    const request = bridge.lastRequest(bridgeMessages.discover);
+    bridge.send({
+      type: bridgeMessages.discoveryResult,
+      requestId: request?.requestId,
+      payload: null,
+    });
+
+    expect(await discovering).toBeNull();
   });
 
   test("an error response rejects the correlated request with its reason", async () => {
