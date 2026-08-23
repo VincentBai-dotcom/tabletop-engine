@@ -166,7 +166,7 @@ test("executor infers discovery result from command definitions", () => {
     .build();
 
   const executor = createGameExecutor(game);
-  const state = executor.createInitialState("seed");
+  const state = executor.createInitialState({ seed: "seed", players: ["p1"] });
   const result = executor.discoverCommand(state, {
     type: "increment",
     actorId: "p1",

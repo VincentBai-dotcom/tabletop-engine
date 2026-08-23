@@ -48,6 +48,7 @@ export interface GameSetupContextWithoutInput<HydratedState extends object> {
   game: HydratedState;
   runtime: RuntimeState;
   rng: RNGApi;
+  players: readonly string[];
 }
 
 export interface GameSetupContextWithInput<
@@ -57,6 +58,7 @@ export interface GameSetupContextWithInput<
   game: HydratedState;
   runtime: RuntimeState;
   rng: RNGApi;
+  players: readonly string[];
   input: SetupInput;
 }
 

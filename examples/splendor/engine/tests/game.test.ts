@@ -19,7 +19,10 @@ function createTestInitialState(playerIds: string[]) {
 
   return {
     gameExecutor,
-    state: gameExecutor.createInitialState({ playerIds }, TEST_SEED),
+    state: gameExecutor.createInitialState({
+      seed: TEST_SEED,
+      players: playerIds,
+    }),
   };
 }
 

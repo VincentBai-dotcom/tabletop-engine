@@ -103,6 +103,7 @@ export type {
   CanonicalState,
   HistoryEntry,
   HistoryState,
+  MatchInit,
   RuntimeState,
 } from "./types/state";
 export type {

@@ -90,6 +90,10 @@ export function compileRuntimeStateSchema(
       seed: seedSchema,
       cursor: Type.Number(),
     }),
+    players: Type.Array(Type.String({ minLength: 1 }), {
+      minItems: 1,
+      uniqueItems: true,
+    }),
     history: Type.Object({
       entries: Type.Array(
         Type.Object({

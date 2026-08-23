@@ -157,7 +157,10 @@ test("hydration exposes nested state classes and guards direct mutation", () => 
 test("executor executes commands and projects visible state", () => {
   const game = createCounterGame();
   const executor = createGameExecutor(game);
-  const initialState = executor.createInitialState("seed");
+  const initialState = executor.createInitialState({
+    seed: "seed",
+    players: ["p1"],
+  });
   const result = executor.executeCommand(initialState, {
     type: "draw",
     actorId: "p1",
@@ -217,12 +220,17 @@ test("setup input is validated and passed to setup", () => {
   );
 
   expect(() =>
-    executor.createInitialState(
-      { playerIds: [1] as unknown as string[] },
-      "seed",
-    ),
+    executor.createInitialState({
+      seed: "seed",
+      players: ["p1"],
+      setup: { playerIds: [1] as unknown as string[] },
+    }),
   ).toThrow("invalid_schema_value");
 
-  const state = executor.createInitialState({ playerIds: ["p1"] }, "seed");
+  const state = executor.createInitialState({
+    seed: "seed",
+    players: ["p1"],
+    setup: { playerIds: ["p1"] },
+  });
   expect(state.game.playerIds).toEqual(["p1"]);
 });
