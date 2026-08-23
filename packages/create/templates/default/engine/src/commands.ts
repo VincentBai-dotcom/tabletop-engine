@@ -14,7 +14,8 @@ export const score = defineCommand({
       : { ok: false as const, reason: "points_must_be_positive" },
   )
   .execute(({ game, command, emitEvent }) => {
-    game.count += command.input.points;
+    game.scores[command.actorId] =
+      (game.scores[command.actorId] ?? 0) + command.input.points;
     emitEvent({ type: "scored", payload: { points: command.input.points } });
   })
   .build();

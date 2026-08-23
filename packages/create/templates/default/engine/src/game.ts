@@ -12,7 +12,8 @@ const defineStage = createStageFactory<GameState, typeof events>();
 
 const turn: SingleActivePlayerStageDefinition<GameState> = defineStage("turn")
   .singleActivePlayer()
-  .activePlayer(() => "p1")
+  // The roster comes from the match's init contract; the first seat acts.
+  .activePlayer(({ runtime }) => runtime.players[0]!)
   .commands([score])
   .nextStages(() => ({ turn }))
   .transition(({ nextStages }) => nextStages.turn)
@@ -21,6 +22,12 @@ const turn: SingleActivePlayerStageDefinition<GameState> = defineStage("turn")
 export const game = new GameDefinitionBuilder("{{projectName}}")
   .state(gameState)
   .events(events)
+  // Copy the authoritative roster into game state so `getView` exposes it (and a
+  // per-seat score) to every client.
+  .setup(({ game, players }) => {
+    game.players = [...players];
+    game.scores = Object.fromEntries(players.map((playerId) => [playerId, 0]));
+  })
   .initialStage(turn)
   .build();
 

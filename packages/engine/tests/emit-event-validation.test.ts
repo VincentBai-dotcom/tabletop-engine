@@ -68,7 +68,10 @@ function buildCounterExecutor(options?: { emitUndeclared?: boolean }) {
 describe("emitEvent runtime validation", () => {
   it("stamps category:domain and keeps the payload for a declared event", () => {
     const executor = buildCounterExecutor();
-    const state = executor.createInitialState("seed");
+    const state = executor.createInitialState({
+      seed: "seed",
+      players: ["p1"],
+    });
     const result = executor.executeCommand(state, {
       type: "increment",
       actorId: "p1",
@@ -84,7 +87,10 @@ describe("emitEvent runtime validation", () => {
 
   it("throws when emitting an undeclared event type", () => {
     const executor = buildCounterExecutor({ emitUndeclared: true });
-    const state = executor.createInitialState("seed");
+    const state = executor.createInitialState({
+      seed: "seed",
+      players: ["p1"],
+    });
     expect(() =>
       executor.executeCommand(state, {
         type: "increment",

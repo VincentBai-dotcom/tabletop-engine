@@ -18,10 +18,10 @@ import { expect, test } from "vitest";
 import { executor } from "../src/game.ts";
 
 test("the active player advances", () => {
-  const initial = executor.createInitialState(
-    { playerIds: ["p1", "p2"] },
-    "test-seed",
-  );
+  const initial = executor.createInitialState({
+    seed: "test-seed",
+    players: ["p1", "p2"],
+  });
 
   const result = executor.executeCommand(initial, {
     type: "advance",
@@ -41,10 +41,10 @@ Use a fixed seed in every test. A failure then reproduces the same shuffles and 
 
 ```ts
 test("a player cannot move out of turn", () => {
-  const state = executor.createInitialState(
-    { playerIds: ["p1", "p2"] },
-    "test-seed",
-  );
+  const state = executor.createInitialState({
+    seed: "test-seed",
+    players: ["p1", "p2"],
+  });
 
   const result = executor.executeCommand(state, {
     type: "advance",
@@ -76,15 +76,14 @@ const scenario = runScenario(
     { type: "advance", actorId: "p1", input: { spaces: 2 } },
     { type: "advance", actorId: "p2", input: { spaces: 1 } },
   ],
-  { playerIds: ["p1", "p2"] },
-  "scenario-seed",
+  { seed: "scenario-seed", players: ["p1", "p2"] },
 );
 
 expect(scenario.results.every((result) => result.ok)).toBe(true);
 expect(scenario.finalState.game.positions).toEqual({ p1: 2, p2: 1 });
 ```
 
-For a game without setup input, pass only the seed after the command array.
+The argument after the command array is the same init object you pass to `createInitialState`. Add `setup` to it when your definition declares setup input.
 
 ## Test hidden information
 

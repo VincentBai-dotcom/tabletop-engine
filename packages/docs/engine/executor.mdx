@@ -14,16 +14,23 @@ export const executor = createGameExecutor(game);
 
 ## Start a game
 
-Pass setup input when your definition has `.setupInput()` and always provide a deterministic seed:
+`createInitialState` takes one init object:
 
 ```ts
-const state = executor.createInitialState(
-  { playerIds: ["p1", "p2"] },
-  "match-42",
-);
+const state = executor.createInitialState({
+  seed: "match-42",
+  players: ["p1", "p2"],
+  setup: { targetScore: 15 },
+});
 ```
 
-Without setup input, call `createInitialState("match-42")`.
+- `seed` — a deterministic RNG seed. The same seed reproduces the same shuffles and rolls.
+- `players` — the authoritative roster, in seating order. These identity strings are what the engine matches against a command's `actorId` and a view's `playerId`.
+- `setup` — matches your `.setupInput()` schema. Omit it when your definition declares no setup input:
+
+```ts
+executor.createInitialState({ seed: "match-42", players: ["p1", "p2"] });
+```
 
 ## Public methods
 

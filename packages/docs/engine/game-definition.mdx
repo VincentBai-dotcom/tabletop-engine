@@ -20,17 +20,16 @@ export const game = new GameDefinitionBuilder("token-race")
   .events(events)
   .setupInput(
     t.object({
-      playerIds: t.array(t.string()),
       targetScore: t.optional(t.number()),
     }),
   )
-  .setup(({ game, input }) => {
-    if (input.playerIds.length < 2) {
+  .setup(({ game, players, input }) => {
+    if (players.length < 2) {
       throw new Error("at_least_two_players_required");
     }
 
-    game.playerOrder = [...input.playerIds];
-    game.scores = Object.fromEntries(input.playerIds.map((id) => [id, 0]));
+    game.playerOrder = [...players];
+    game.scores = Object.fromEntries(players.map((id) => [id, 0]));
     game.targetScore = input.targetScore ?? 10;
   })
   .initialStage(playerTurn)
@@ -45,12 +44,14 @@ export const executor = createGameExecutor(game);
 | --- | --- |
 | `.state(gameState)` | Sets the root state definition. |
 | `.events(events)` | Registers domain events available to commands and automatic stages. |
-| `.setupInput(schema)` | Defines values required to start a game. |
+| `.setupInput(schema)` | Declares game configuration a client chooses at start, such as a variant or option. |
 | `.setup(callback)` | Initializes state before the first stage begins. |
 | `.initialStage(stage)` | Sets the first stage. |
 | `.build()` | Validates and creates the definition. |
 
 State and an initial stage are required. Events, setup input, and setup are optional.
+
+The player roster arrives as `players` on `createInitialState` and reaches `.setup()` through the context, alongside `rng`. Use `.setupInput()` for game configuration a client chooses, such as a variant or option.
 
 ## Setup without input
 
@@ -66,11 +67,18 @@ export const game = new GameDefinitionBuilder("solo-puzzle")
   .build();
 ```
 
-The executor signatures reflect this choice:
+The executor signatures reflect this choice. Both start from an init object carrying the deterministic `seed` and the `players` roster; a definition with setup input also requires `setup`:
 
 ```ts
-executorWithInput.createInitialState({ playerIds: ["p1", "p2"] }, "seed-1");
-executorWithoutInput.createInitialState("seed-1");
+executorWithInput.createInitialState({
+  seed: "seed-1",
+  players: ["p1", "p2"],
+  setup: { targetScore: 15 },
+});
+executorWithoutInput.createInitialState({
+  seed: "seed-1",
+  players: ["p1", "p2"],
+});
 ```
 
 ## Declare events

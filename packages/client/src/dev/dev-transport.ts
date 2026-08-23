@@ -21,6 +21,10 @@ export type SseFactory = (url: string) => SseConnection;
 export interface DevTransportOptions {
   viewer: string;
   setupInput?: unknown;
+  // The authoritative roster and seed the dev server hands the engine's init
+  // contract. Omitted, the server defaults to a single-seat dev match.
+  players?: string[];
+  seed?: string | number;
   sse?: SseFactory;
 }
 
@@ -28,6 +32,8 @@ export class DevTransport<E extends AnyGameExecutor> implements Transport<E> {
   readonly #baseUrl: string;
   readonly #viewer: string;
   readonly #setupInput: unknown;
+  readonly #players: string[] | undefined;
+  readonly #seed: string | number | undefined;
   readonly #sse: SseFactory;
   #connection: SseConnection | null = null;
 
@@ -35,6 +41,8 @@ export class DevTransport<E extends AnyGameExecutor> implements Transport<E> {
     this.#baseUrl = baseUrl.replace(/\/$/, "");
     this.#viewer = options.viewer;
     this.#setupInput = options.setupInput;
+    this.#players = options.players;
+    this.#seed = options.seed;
     this.#sse = options.sse ?? browserSse;
   }
 
@@ -75,7 +83,11 @@ export class DevTransport<E extends AnyGameExecutor> implements Transport<E> {
       await this.#fetch(`${this.#baseUrl}/initialize`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ setupInput: this.#setupInput }),
+        body: JSON.stringify({
+          setupInput: this.#setupInput,
+          players: this.#players,
+          seed: this.#seed,
+        }),
       });
     } catch (error) {
       handlers.onError(

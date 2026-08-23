@@ -80,14 +80,14 @@ const defineStage = createStageFactory<GameState>();
 export const turn: SingleActivePlayerStageDefinition<GameState> =
   defineStage("turn")
     .singleActivePlayer()
-    .activePlayer(() => "p1")
+    .activePlayer(({ runtime }) => runtime.players[0]!)
     .commands([score])
     .nextStages(() => ({ turn }))
     .transition(({ nextStages }) => nextStages.turn)
     .build();
 ```
 
-The explicit type lets the stage refer back to itself.
+The explicit type lets the stage refer back to itself. `runtime.players` is the authoritative roster the match starts with, in seating order.
 
 ## 4. Assemble the game
 

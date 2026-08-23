@@ -54,7 +54,7 @@ export class SplendorGameState {
         playerId,
         SplendorPlayerState.create(playerId),
       ]),
-    ) as Record<string, SplendorPlayerState>;
+    );
   }
 
   initializeBank(playerCount: number): void {

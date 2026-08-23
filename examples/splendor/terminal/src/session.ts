@@ -101,12 +101,10 @@ export function createLocalSplendorSession(options?: {
   seed?: string | number;
 }) {
   const gameExecutor = createSplendorExecutor();
-  const initialState = gameExecutor.createInitialState(
-    {
-      playerIds: [...DEFAULT_PLAYER_IDS],
-    },
-    options?.seed ?? "splendor-terminal-seed",
-  );
+  const initialState = gameExecutor.createInitialState({
+    seed: options?.seed ?? "splendor-terminal-seed",
+    players: [...DEFAULT_PLAYER_IDS],
+  });
 
   return new SplendorTerminalSession(gameExecutor, initialState, "you");
 }

@@ -27,21 +27,23 @@ pnpm -C engine dev
 | Option | Default | Purpose |
 | --- | --- | --- |
 | `viewer` | `"p1"` | Player ID used for views and commands. |
-| `setupInput` | `undefined` | Input passed to game setup when the local session starts. |
+| `players` | `["p1"]` | Authoritative roster for the local match, in seating order. |
+| `seed` | `"dev"` | Deterministic RNG seed for the local match. |
+| `setupInput` | `undefined` | Game configuration passed to `.setup()` when the local session starts. |
 
-The `setupInput` type is derived from the executor:
+The first connection initializes the one in-memory session, so give it the roster and any setup input. The `setupInput` type is derived from the executor:
 
 ```ts
 const client = createDevClient<Game>("http://localhost:5100", {
   viewer: "p1",
+  players: ["p1", "p2"],
   setupInput: {
-    playerIds: ["p1", "p2"],
     targetScore: 10,
   },
 });
 ```
 
-The first connection initializes the one in-memory session. Restart `tvk dev` after changing setup input or when you want a clean game.
+Restart `tvk dev` after changing the roster or setup input, or when you want a clean game.
 
 ## Wait for the connection
 

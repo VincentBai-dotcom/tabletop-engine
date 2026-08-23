@@ -19,7 +19,7 @@ import type { executor } from "token-race-engine";
 
 const client = createDevClient<typeof executor>("http://localhost:5100", {
   viewer: "p1",
-  setupInput: { playerIds: ["p1", "p2"] },
+  players: ["p1", "p2"],
 });
 ```
 
@@ -72,5 +72,5 @@ If the client remains on `connecting`:
 If config loading fails, run `tvk validate` from the same directory. Pass the same `--config` value to both commands.
 
 <Card title="Dev client" icon="arrow-right" href="/client/dev-client">
-  Configure viewers and setup input in the frontend.
+  Configure viewers, the roster, and setup input in the frontend.
 </Card>

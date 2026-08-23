@@ -84,8 +84,16 @@ export async function startDevServer(
     }
 
     if (method === "POST" && url.pathname === "/initialize") {
-      const body = (await readJson(req)) as { setupInput?: unknown };
-      session.initialize(body.setupInput);
+      const body = (await readJson(req)) as {
+        setupInput?: unknown;
+        players?: string[];
+        seed?: string | number;
+      };
+      session.initialize({
+        setup: body.setupInput,
+        players: body.players,
+        seed: body.seed,
+      });
       broadcastSnapshots();
       sendJson(res, 200, { version: session.version });
       return;

@@ -46,21 +46,25 @@ export class DevSession {
     return this.#version;
   }
 
-  initialize(setupInput: unknown, seed: string | number = "dev"): void {
+  initialize(
+    init: {
+      setup?: unknown;
+      players?: string[];
+      seed?: string | number;
+    } = {},
+  ): void {
     if (this.#state) {
       return;
     }
-    // `createInitialState` is dual-arity: `(seed)` without setup input, `(input,
-    // seed)` with it. The loose executor's type surfaces only the former, so the
-    // setup-input branch reaches for the latter explicitly.
-    const withSetup = this.#executor.createInitialState as (
-      input: unknown,
-      rngSeed: string | number,
-    ) => CanonicalState;
-    this.#state =
-      setupInput === undefined
-        ? this.#executor.createInitialState(seed)
-        : withSetup(setupInput, seed);
+    // One uniform, cast-free call (see `AnyGameExecutor`): the dynamic host builds a
+    // single init object and lets the runtime validate `setup` against the schema.
+    // Dev defaults to a single "p1" seat; a multiplayer game's dev client passes an
+    // explicit roster.
+    this.#state = this.#executor.createInitialState({
+      seed: init.seed ?? "dev",
+      players: init.players ?? ["p1"],
+      setup: init.setup,
+    });
     this.#version = 1;
   }
 

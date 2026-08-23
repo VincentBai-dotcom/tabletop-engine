@@ -33,7 +33,7 @@ import type {
   ExecutionResult,
   ExecutionSuccess,
 } from "../types/result";
-import type { CanonicalState, RuntimeState } from "../types/state";
+import type { CanonicalState, MatchInit, RuntimeState } from "../types/state";
 import type { Viewer, VisibleState } from "../types/visibility";
 import { createRNGService } from "../rng/service";
 import type {
@@ -81,17 +81,29 @@ export interface GameExecutor<
   ): ExecutionResult<CanonicalState<CanonicalStateOf<RootState>>>;
 }
 
-/** Structural upper bound for any game's executor, for dynamic hosts. */
-export type AnyGameExecutor = GameExecutor<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any
->;
+/**
+ * Structural upper bound for any game's executor, for dynamic hosts (a host that
+ * loads arbitrary bundles and calls through this type). `createInitialState` is
+ * overridden to one uniform, cast-free signature — a single `init` object whose
+ * `setup` is optional — so the host builds one argument for every game and lets the
+ * runtime validate `setup` against the schema. The precise, setup-gated signature
+ * lives on the concrete `GameExecutor<...>` for statically-typed callers.
+ */
+export type AnyGameExecutor = Omit<
+  GameExecutor<
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any
+  >,
+  "createInitialState"
+> & {
+  createInitialState(init: MatchInit & { setup?: unknown }): CanonicalState;
+};
 
 /**
  * Wraps the raw event collector with the author-facing `emitEvent`: it stamps
@@ -131,12 +143,21 @@ function createCommandGameView<
   });
 }
 
+// The `createInitialState` input: host-authoritative facts (`MatchInit`) plus the
+// developer-defined `setup`, in one object. The type gates `setup` on whether the
+// game declares a setup schema — required when it does, absent when it does not —
+// so a statically-typed caller cannot forget it, while the runtime signature stays
+// a single object for the dynamic host (see `AnyGameExecutor`).
+type CreateInitialStateInput<SetupInput extends object | undefined> = [
+  SetupInput,
+] extends [undefined]
+  ? MatchInit
+  : MatchInit & { setup: SetupInput };
+
 type CreateInitialStateFn<
   GameState extends object,
   SetupInput extends object | undefined,
-> = [SetupInput] extends [undefined]
-  ? (rngSeed: string | number) => CanonicalState<GameState>
-  : (input: SetupInput, rngSeed: string | number) => CanonicalState<GameState>;
+> = (init: CreateInitialStateInput<SetupInput>) => CanonicalState<GameState>;
 
 function createInitialRuntimeState<
   RootState extends AnyGameStateDefinition,
@@ -144,6 +165,7 @@ function createInitialRuntimeState<
 >(
   gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
   rngSeed: string | number,
+  players: string[],
 ): RuntimeState {
   const runtime: RuntimeState = {
     progression: {
@@ -157,6 +179,7 @@ function createInitialRuntimeState<
       seed: rngSeed,
       cursor: 0,
     },
+    players: [...players],
     history: {
       entries: [],
     },
@@ -170,11 +193,25 @@ function initializeGameState<
   TCommandDefinition extends CommandDefinition<StateClassOf<RootState>>,
 >(
   gameDefinition: AnyGameDefinition<RootState, TCommandDefinition>,
-  input: object | undefined,
-  rngSeed: string | number,
+  init: MatchInit & { setup?: object },
 ): CanonicalState<CanonicalStateOf<RootState>> {
-  if (typeof rngSeed !== "string" && typeof rngSeed !== "number") {
+  const { seed, players } = init;
+  const input = init.setup;
+
+  if (typeof seed !== "string" && typeof seed !== "number") {
     throw new Error("rng_seed_required");
+  }
+
+  if (
+    !Array.isArray(players) ||
+    players.length === 0 ||
+    !players.every((player) => typeof player === "string" && player.length > 0)
+  ) {
+    throw new Error("players_required");
+  }
+
+  if (new Set(players).size !== players.length) {
+    throw new Error("players_not_unique");
   }
 
   if (gameDefinition.setupInputSchema && input === undefined) {
@@ -186,7 +223,7 @@ function initializeGameState<
   }
 
   const gameState = structuredClone(gameDefinition.defaultCanonicalGameState);
-  const runtime = createInitialRuntimeState(gameDefinition, rngSeed);
+  const runtime = createInitialRuntimeState(gameDefinition, seed, players);
   const rng = createRNGService(runtime.rng);
 
   validateCanonicalGameState(gameDefinition, gameState);
@@ -209,6 +246,7 @@ function initializeGameState<
       ),
       runtime,
       rng,
+      players: runtime.players,
       input,
     });
   } else {
@@ -225,6 +263,7 @@ function initializeGameState<
       ),
       runtime,
       rng,
+      players: runtime.players,
     });
   }
 
@@ -480,8 +519,8 @@ function createGameExecutorWithSetup<
   >,
 ): GameExecutor<RootState, object, TCommandDefinition, TEventRegistry> {
   return {
-    createInitialState(input, rngSeed) {
-      return initializeGameState(gameDefinition, input, rngSeed);
+    createInitialState(init) {
+      return initializeGameState(gameDefinition, init);
     },
     ...createExecutorMethods(gameDefinition),
   };
@@ -499,8 +538,8 @@ function createGameExecutorWithoutSetup<
   >,
 ): GameExecutor<RootState, undefined, TCommandDefinition, TEventRegistry> {
   return {
-    createInitialState(rngSeed) {
-      return initializeGameState(gameDefinition, undefined, rngSeed);
+    createInitialState(init) {
+      return initializeGameState(gameDefinition, init);
     },
     ...createExecutorMethods(gameDefinition),
   };
