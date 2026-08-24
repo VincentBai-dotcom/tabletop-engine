@@ -27,6 +27,7 @@ describe("GameDefinitionBuilder.events", () => {
     const def = new GameDefinitionBuilder("counter")
       .state(buildCounterState())
       .events(counterEvents)
+      .players({ min: 1, max: 8 })
       .initialStage(createTerminalStage<CounterStateClass>())
       .build();
 
@@ -36,6 +37,7 @@ describe("GameDefinitionBuilder.events", () => {
   it("defaults eventDefinitions to an empty object when .events() is not called", () => {
     const def = new GameDefinitionBuilder("counter")
       .state(buildCounterState())
+      .players({ min: 1, max: 8 })
       .initialStage(createTerminalStage<CounterStateClass>())
       .build();
 

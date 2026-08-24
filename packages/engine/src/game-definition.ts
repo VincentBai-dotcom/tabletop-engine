@@ -44,6 +44,11 @@ type SetupInputFromSchema<
     ? ObjectSchemaStatic<TProperties>
     : undefined;
 
+export interface PlayerBounds {
+  min: number;
+  max: number;
+}
+
 export interface GameSetupContextWithoutInput<HydratedState extends object> {
   game: HydratedState;
   runtime: RuntimeState;
@@ -68,6 +73,7 @@ interface BaseGameDefinition<
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
   name: string;
+  playerBounds: PlayerBounds;
   rootState: RootState;
   commands: CommandDefinitionMap<StateClassOf<RootState>>;
   stateFacade: CompiledStateFacadeDefinition;
@@ -148,12 +154,18 @@ export class GameDefinitionBuilder<
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
   private readonly name: string;
+  private playerBounds?: PlayerBounds;
   private rootStateDefinition?: RootState;
   private initialStageDefinition?: StageDefinition<StateClassOf<RootState>>;
   private eventDefinitionsRegistry: EventRegistry = {};
 
   constructor(name: string) {
     this.name = name;
+  }
+
+  players(playerBounds: PlayerBounds): this {
+    this.playerBounds = validatePlayerBounds(playerBounds);
+    return this;
   }
 
   state<NextRootState extends AnyGameStateDefinition>(
@@ -212,6 +224,7 @@ export class GameDefinitionBuilder<
       this.initialStageDefinition,
       undefined,
       this.eventDefinitionsRegistry,
+      this.playerBounds,
     );
   }
 
@@ -230,6 +243,7 @@ export class GameDefinitionBuilder<
       this.initialStageDefinition,
       setup,
       this.eventDefinitionsRegistry,
+      this.playerBounds,
     );
   }
 
@@ -247,6 +261,7 @@ export class GameDefinitionBuilder<
       this.rootStateDefinition,
       this.initialStageDefinition,
       this.eventDefinitionsRegistry,
+      requirePlayerBounds(this.playerBounds),
     );
     return {
       ...base,
@@ -262,6 +277,7 @@ export class GameDefinitionBuilderWithoutSetupInput<
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
   private readonly name: string;
+  private playerBounds?: PlayerBounds;
   private rootStateDefinition?: RootState;
   private initialStageDefinition?: StageDefinition<StateClassOf<RootState>>;
   private setupCallback?: (
@@ -279,12 +295,19 @@ export class GameDefinitionBuilderWithoutSetupInput<
         ) => void)
       | undefined,
     eventDefinitions: EventRegistry = {},
+    playerBounds?: PlayerBounds,
   ) {
     this.name = name;
     this.rootStateDefinition = rootState;
     this.initialStageDefinition = initialStage;
     this.setupCallback = setup;
     this.eventDefinitionsRegistry = eventDefinitions;
+    this.playerBounds = playerBounds;
+  }
+
+  players(playerBounds: PlayerBounds): this {
+    this.playerBounds = validatePlayerBounds(playerBounds);
+    return this;
   }
 
   state<NextRootState extends AnyGameStateDefinition>(
@@ -355,6 +378,7 @@ export class GameDefinitionBuilderWithoutSetupInput<
       this.rootStateDefinition,
       this.initialStageDefinition,
       this.eventDefinitionsRegistry,
+      requirePlayerBounds(this.playerBounds),
     );
     return {
       ...base,
@@ -371,6 +395,7 @@ export class GameDefinitionBuilderWithSetupInput<
   TEventRegistry extends EventRegistry = EmptyEventRegistry,
 > {
   private readonly name: string;
+  private playerBounds?: PlayerBounds;
   private readonly setupInputSchema: ObjectFieldType<Record<string, FieldType>>;
   private rootStateDefinition?: RootState;
   private initialStageDefinition?: StageDefinition<StateClassOf<RootState>>;
@@ -393,6 +418,7 @@ export class GameDefinitionBuilderWithSetupInput<
         ) => void)
       | undefined,
     eventDefinitions: EventRegistry = {},
+    playerBounds?: PlayerBounds,
   ) {
     this.name = name;
     this.setupInputSchema = setupInputSchema;
@@ -400,6 +426,12 @@ export class GameDefinitionBuilderWithSetupInput<
     this.initialStageDefinition = initialStage;
     this.setupCallback = setup;
     this.eventDefinitionsRegistry = eventDefinitions;
+    this.playerBounds = playerBounds;
+  }
+
+  players(playerBounds: PlayerBounds): this {
+    this.playerBounds = validatePlayerBounds(playerBounds);
+    return this;
   }
 
   state<NextRootState extends AnyGameStateDefinition>(
@@ -477,6 +509,7 @@ export class GameDefinitionBuilderWithSetupInput<
       this.rootStateDefinition,
       this.initialStageDefinition,
       this.eventDefinitionsRegistry,
+      requirePlayerBounds(this.playerBounds),
     );
     return {
       ...base,
@@ -495,6 +528,7 @@ function assembleBaseDefinition<
   rootState: RootState | undefined,
   initialStage: StageDefinition<StateClassOf<RootState>> | undefined,
   eventDefinitions: EventRegistry,
+  playerBounds: PlayerBounds,
 ): BaseGameDefinition<RootState, TCommandDefinition, TEventRegistry> {
   if (!rootState) {
     throw new Error("root_state_required");
@@ -519,6 +553,7 @@ function assembleBaseDefinition<
 
   return {
     name,
+    playerBounds,
     rootState,
     commands,
     stateFacade,
@@ -532,6 +567,29 @@ function assembleBaseDefinition<
     __commandDefinitions: undefined as unknown as TCommandDefinition,
     __eventDefinitions: undefined as unknown as TEventRegistry,
   };
+}
+
+function validatePlayerBounds(playerBounds: PlayerBounds): PlayerBounds {
+  if (
+    !Number.isInteger(playerBounds.min) ||
+    !Number.isInteger(playerBounds.max) ||
+    playerBounds.min < 1 ||
+    playerBounds.max < playerBounds.min
+  ) {
+    throw new Error("invalid_player_bounds");
+  }
+
+  return { ...playerBounds };
+}
+
+function requirePlayerBounds(
+  playerBounds: PlayerBounds | undefined,
+): PlayerBounds {
+  if (!playerBounds) {
+    throw new Error("player_bounds_required");
+  }
+
+  return playerBounds;
 }
 
 function collectReachableStages<HydratedState extends object>(

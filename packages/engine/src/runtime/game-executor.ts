@@ -214,6 +214,13 @@ function initializeGameState<
     throw new Error("players_not_unique");
   }
 
+  if (
+    players.length < gameDefinition.playerBounds.min ||
+    players.length > gameDefinition.playerBounds.max
+  ) {
+    throw new Error("players_out_of_bounds");
+  }
+
   if (gameDefinition.setupInputSchema && input === undefined) {
     throw new Error("setup_input_required");
   }

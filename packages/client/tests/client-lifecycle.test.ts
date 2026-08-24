@@ -62,6 +62,7 @@ function buildExecutor() {
     new GameDefinitionBuilder("demo")
       .state(state)
       .events(events)
+      .players({ min: 1, max: 8 })
       .initialStage(turn)
       .build(),
   );

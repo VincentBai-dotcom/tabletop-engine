@@ -23,6 +23,7 @@ function createSampleGame() {
   const stage = createStageFactory<SampleState>();
   return new GameDefinitionBuilder("sample")
     .state(SampleGameState)
+    .players({ min: 1, max: 8 })
     .initialStage(stage("done").automatic().build())
     .build();
 }

@@ -59,6 +59,7 @@ function buildCounterExecutor(options?: { emitUndeclared?: boolean }) {
   const game = new GameDefinitionBuilder("counter")
     .state(CounterState)
     .events(events)
+    .players({ min: 1, max: 8 })
     .initialStage(turnStage)
     .build();
 

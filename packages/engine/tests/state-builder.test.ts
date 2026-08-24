@@ -103,6 +103,7 @@ function createCounterGame() {
 
   return new GameDefinitionBuilder("builder-game")
     .state(RootState)
+    .players({ min: 1, max: 8 })
     .initialStage(turnStage)
     .setup(({ game }) => {
       game.players = {
@@ -211,6 +212,7 @@ test("setup input is validated and passed to setup", () => {
   const executor = createGameExecutor(
     new GameDefinitionBuilder("setup-game")
       .state(SetupState)
+      .players({ min: 1, max: 8 })
       .initialStage(stage)
       .setupInput(t.object({ playerIds: t.array(t.string()) }))
       .setup(({ game, input }) => {

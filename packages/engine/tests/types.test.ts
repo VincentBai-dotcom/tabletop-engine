@@ -162,6 +162,7 @@ test("executor infers discovery result from command definitions", () => {
 
   const game = new GameDefinitionBuilder("counter")
     .state(CounterState)
+    .players({ min: 1, max: 8 })
     .initialStage(turnStage)
     .build();
 

@@ -21,6 +21,7 @@ export function createFixtureGame() {
 
   return new GameDefinitionBuilder("fixture-named")
     .state(FixtureGameState)
+    .players({ min: 1, max: 8 })
     .initialStage(stageFactory("done").automatic().build())
     .build();
 }

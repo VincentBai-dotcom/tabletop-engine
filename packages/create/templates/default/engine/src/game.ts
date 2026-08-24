@@ -22,6 +22,7 @@ const turn: SingleActivePlayerStageDefinition<GameState> = defineStage("turn")
 export const game = new GameDefinitionBuilder("{{projectName}}")
   .state(gameState)
   .events(events)
+  .players({ min: 2, max: 4 })
   // Copy the authoritative roster into game state so `getView` exposes it (and a
   // per-seat score) to every client.
   .setup(({ game, players }) => {

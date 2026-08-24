@@ -46,6 +46,7 @@ function createRosterGame() {
 
   return new GameDefinitionBuilder("roster-game")
     .state(RootState)
+    .players({ min: 1, max: 8 })
     .initialStage(turn)
     .setup(({ game, players }) => {
       game.firstSeat = players[0]!;
@@ -62,12 +63,23 @@ function createSetupRosterGame() {
 
   return new GameDefinitionBuilder("setup-roster-game")
     .state(RootState)
+    .players({ min: 1, max: 8 })
     .initialStage(bootstrap)
     .setupInput(t.object({ label: t.string() }))
     .setup(({ game, players, input }) => {
       game.firstSeat = `${players[0]!}:${input.label}`;
       game.seatCount = players.length;
     })
+    .build();
+}
+
+function createBoundedRosterGame() {
+  return new GameDefinitionBuilder("bounded-roster-game")
+    .players({ min: 2, max: 3 })
+    .state(RootState)
+    .initialStage(
+      createStageFactory<RootStateClass>()("done").automatic().build(),
+    )
     .build();
 }
 
@@ -128,6 +140,34 @@ test("rejects a roster with duplicate seats", () => {
   expect(() =>
     executor.createInitialState({ seed: "seed", players: ["a", "a"] }),
   ).toThrow("players_not_unique");
+});
+
+test("enforces declared player bounds", () => {
+  const executor = createGameExecutor(createBoundedRosterGame());
+
+  expect(() =>
+    executor.createInitialState({ seed: "seed", players: ["a"] }),
+  ).toThrow("players_out_of_bounds");
+  expect(() =>
+    executor.createInitialState({
+      seed: "seed",
+      players: ["a", "b", "c", "d"],
+    }),
+  ).toThrow("players_out_of_bounds");
+  expect(() =>
+    executor.createInitialState({ seed: "seed", players: ["a", "b"] }),
+  ).not.toThrow();
+});
+
+test("rejects a game definition without player bounds at build time", () => {
+  expect(() =>
+    new GameDefinitionBuilder("missing-player-bounds")
+      .state(RootState)
+      .initialStage(
+        createStageFactory<RootStateClass>()("done").automatic().build(),
+      )
+      .build(),
+  ).toThrow("player_bounds_required");
 });
 
 test("a with-setup game receives both the roster and the validated setup", () => {
@@ -194,17 +234,16 @@ test("the init type gates setup at compile time", () => {
   const setupExecutor = createGameExecutor(createSetupRosterGame());
   const rosterExecutor = createGameExecutor(createRosterGame());
 
-  // Never invoked — these assert the compile-time gate, not runtime behavior. Each
-  // createInitialState call is one line so the directive lands on the exact error.
+  // Never invoked — these assert the compile-time gate, not runtime behavior.
   const missingSetup = () =>
     // @ts-expect-error a with-setup game requires `setup` in the init object.
     setupExecutor.createInitialState({ seed: "seed", players: ["a"] });
 
   const excessSetup = () =>
-    // @ts-expect-error a no-setup game does not accept a `setup` field.
     rosterExecutor.createInitialState({
       seed: "seed",
       players: ["a"],
+      // @ts-expect-error a no-setup game does not accept a `setup` field.
       setup: {},
     });
 

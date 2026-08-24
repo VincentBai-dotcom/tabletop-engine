@@ -24,6 +24,7 @@ export default function createOptionalFixtureGame(
 
   return new GameDefinitionBuilder("fixture-optional")
     .state(OptionalFactoryGameState)
+    .players({ min: 1, max: 8 })
     .initialStage(stageFactory("done").automatic().build())
     .build();
 }
