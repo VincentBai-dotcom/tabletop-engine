@@ -24,6 +24,7 @@ import { failure, success, type RunResult } from "../lib/command-result.ts";
 import { createUploadHelpText } from "../lib/help-text.ts";
 import { isHelpFlag, parseCommandArguments } from "../lib/parse-args.ts";
 import type { PublishConfig } from "@tableverse-kit/config";
+import { serializeSetupSchema } from "@tableverse-kit/engine";
 
 const LOGGED_OUT_MESSAGE = "Not logged in. Run `tvk login`.";
 const EXPIRED_MESSAGE = "Session expired. Run `tvk login`.";
@@ -223,6 +224,11 @@ export async function runUploadCommand(
       engineSourceSizeBytes: engineSource.sizeBytes,
       frontendSourceSha256: frontendSource.sha256,
       frontendSourceSizeBytes: frontendSource.sizeBytes,
+      metadata: {
+        setupInputSchema: serializeSetupSchema(config.game.setupInputSchema),
+        minPlayers: config.game.playerBounds.min,
+        maxPlayers: config.game.playerBounds.max,
+      },
     });
 
     // The two uploads are independent, so run them together: it roughly halves

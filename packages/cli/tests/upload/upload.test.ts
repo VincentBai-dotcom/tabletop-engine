@@ -165,6 +165,11 @@ describe("tvk upload", () => {
     expect(input.gameId).toBe("game-123");
     expect(input.engineSourceSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(input.frontendSourceSha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(input.metadata).toEqual({
+      setupInputSchema: null,
+      minPlayers: 2,
+      maxPlayers: 5,
+    });
     // The bytes PUT are exactly the sizes declared to /versions.
     expect(byUrl.get("https://sink.example/engine")).toBe(
       input.engineSourceSizeBytes,

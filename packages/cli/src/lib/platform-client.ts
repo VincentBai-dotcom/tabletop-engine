@@ -1,4 +1,5 @@
 import type { TSchema, Static } from "@sinclair/typebox";
+import type { SerializedSetupSchema } from "@tableverse-kit/engine";
 import { Value } from "@sinclair/typebox/value";
 import { MeResponseSchema, type MeResponse } from "./api/me.ts";
 import { OAuthTokenResponseSchema } from "./api/oauth-token.ts";
@@ -30,6 +31,11 @@ export interface CreateVersionInput {
   engineSourceSizeBytes: number;
   frontendSourceSha256: string;
   frontendSourceSizeBytes: number;
+  metadata: {
+    setupInputSchema: SerializedSetupSchema | null;
+    minPlayers: number;
+    maxPlayers: number;
+  };
 }
 
 export interface PlatformClient {
