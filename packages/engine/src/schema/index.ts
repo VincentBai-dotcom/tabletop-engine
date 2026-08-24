@@ -32,6 +32,23 @@ export type {
   SerializableFieldType,
   StringFieldType,
 } from "./types";
+export {
+  serializeSetupSchema,
+  type SerializedSetupField,
+  type SerializedSetupSchema,
+} from "./serialize";
+
+export interface NumberFieldOptions {
+  min?: number;
+  max?: number;
+  enum?: readonly number[];
+}
+
+export interface StringFieldOptions {
+  min?: number;
+  max?: number;
+  enum?: readonly string[];
+}
 
 function toTypeBoxSchema(field: FieldType): TSchema {
   if (field.kind === "state") {
@@ -78,15 +95,15 @@ export function assertSerializableSchema(
 }
 
 export const t = {
-  number(): NumberFieldType {
-    return Object.assign(Type.Number(), {
+  number(options: NumberFieldOptions = {}): NumberFieldType {
+    return Object.assign(Type.Number(toNumberSchemaOptions(options)), {
       [fieldKind]: "number" as const,
       kind: "number" as const,
     });
   },
 
-  string(): StringFieldType {
-    return Object.assign(Type.String(), {
+  string(options: StringFieldOptions = {}): StringFieldType {
+    return Object.assign(Type.String(toStringSchemaOptions(options)), {
       [fieldKind]: "string" as const,
       kind: "string" as const,
     });
@@ -163,6 +180,22 @@ export const t = {
     ) as unknown as RecordFieldType<TKey, TValue>;
   },
 };
+
+function toNumberSchemaOptions(options: NumberFieldOptions) {
+  return {
+    minimum: options.min,
+    maximum: options.max,
+    enum: options.enum ? [...options.enum] : undefined,
+  };
+}
+
+function toStringSchemaOptions(options: StringFieldOptions) {
+  return {
+    minLength: options.min,
+    maxLength: options.max,
+    enum: options.enum ? [...options.enum] : undefined,
+  };
+}
 
 function toTypeBoxRecordKeySchema(key: PrimitiveFieldType): TSchema {
   if (key.kind === "string") {

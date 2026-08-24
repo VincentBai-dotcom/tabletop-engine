@@ -7,7 +7,7 @@ export { createCommandFactory } from "./command-factory";
 export { createStageFactory } from "./stage-factory";
 export { createGameExecutor } from "./runtime/game-executor";
 export { assertSchemaValue } from "./runtime/validation";
-export { t } from "./schema";
+export { serializeSetupSchema, t } from "./schema";
 export { defineGameState } from "./state/game-state";
 export {
   appendReplayStep,
@@ -25,7 +25,9 @@ export type {
   GameDefinitionWithoutSetupInput,
   GameSetupContextWithInput,
   GameSetupContextWithoutInput,
+  PlayerBounds,
 } from "./game-definition";
+export type { SerializedSetupField, SerializedSetupSchema } from "./schema";
 export type { AnyGameExecutor, GameExecutor } from "./runtime/game-executor";
 export type {
   AnyGameStateDefinition,
@@ -41,6 +43,7 @@ export type {
   BooleanFieldType,
   FieldType,
   NumberFieldType,
+  NumberFieldOptions,
   ObjectSchemaStatic,
   ObjectFieldType,
   OptionalSchemaStatic,
@@ -50,6 +53,7 @@ export type {
   SerializableFieldStatic,
   SerializableFieldType,
   StringFieldType,
+  StringFieldOptions,
 } from "./schema";
 export type {
   CommandAvailabilityContext,
