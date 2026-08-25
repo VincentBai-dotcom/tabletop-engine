@@ -1,3 +1,4 @@
+import { Value } from "@sinclair/typebox/value";
 import type {
   AnyGameDefinition,
   GameDefinitionWithSetupInput,
@@ -229,7 +230,7 @@ function initializeGameState<
     assertSchemaValue(gameDefinition.setupInputSchema, input);
   }
 
-  const gameState = structuredClone(gameDefinition.defaultCanonicalGameState);
+  const gameState = Value.Clone(gameDefinition.defaultCanonicalGameState);
   const runtime = createInitialRuntimeState(gameDefinition, seed, players);
   const rng = createRNGService(runtime.rng);
 
@@ -925,7 +926,7 @@ function createExecutorMethods<
         return failure;
       }
 
-      const workingState = structuredClone(state);
+      const workingState = Value.Clone(state);
       const collector = createEventCollector();
       const domainEmit = createDomainEmit(
         collector.emit,

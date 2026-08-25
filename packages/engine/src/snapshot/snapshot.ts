@@ -1,3 +1,4 @@
+import { Value } from "@sinclair/typebox/value";
 import type { CanonicalState } from "../types/state";
 import type { Snapshot } from "../types/snapshot";
 
@@ -6,12 +7,12 @@ export function createSnapshot<State extends CanonicalState>(
 ): Snapshot<State> {
   return {
     version: 1,
-    state: structuredClone(state),
+    state: Value.Clone(state),
   };
 }
 
 export function restoreSnapshot<State extends CanonicalState>(
   snapshot: Snapshot<State>,
 ): State {
-  return structuredClone(snapshot.state);
+  return Value.Clone(snapshot.state);
 }

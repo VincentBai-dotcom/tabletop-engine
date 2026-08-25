@@ -178,7 +178,7 @@ function createUncheckedCanonicalFieldValue(
     );
   }
 
-  return structuredClone(value);
+  return Value.Clone(value);
 }
 
 function assertDefaultFieldSchema(

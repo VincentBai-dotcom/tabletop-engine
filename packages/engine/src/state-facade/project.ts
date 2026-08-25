@@ -1,3 +1,4 @@
+import { Value } from "@sinclair/typebox/value";
 import type { CompiledStateFacadeDefinition } from "./compile";
 import type { FieldType } from "../schema";
 import type {
@@ -30,14 +31,14 @@ export function getView(
 ): VisibleState<object> {
   if (!compiled) {
     return {
-      game: structuredClone(state.game),
-      progression: structuredClone(state.runtime.progression),
+      game: Value.Clone(state.game),
+      progression: Value.Clone(state.runtime.progression),
     };
   }
 
   return {
     game: projectStateNode(compiled, compiled.root, state.game, viewer),
-    progression: structuredClone(state.runtime.progression),
+    progression: Value.Clone(state.runtime.progression),
   };
 }
 
