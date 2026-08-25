@@ -49,7 +49,7 @@ export interface TableverseConfig {
   game: AnyGameDefinition;
   /** Output directory for `tvk generate` (e.g. the client SDK). */
   outDir?: string;
-  /** How `tvk upload` packages the project. Required only for publishing. */
+  /** Project source and frontend build settings. */
   publish?: PublishConfig;
 }
 

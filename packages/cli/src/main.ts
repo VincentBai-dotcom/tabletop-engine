@@ -58,8 +58,8 @@ export async function run(
   return failure(`unknown_command:${command}`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const result = await run(process.argv.slice(2));
+export async function main(argv = process.argv.slice(2)): Promise<void> {
+  const result = await run(argv);
 
   if (result.stdout) {
     console.log(result.stdout);
@@ -70,4 +70,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
 
   process.exitCode = result.exitCode;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  await main();
 }

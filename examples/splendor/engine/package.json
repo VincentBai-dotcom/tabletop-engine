@@ -9,12 +9,9 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "generate:client-sdk": "tsx ../../../packages/cli/src/main.ts generate client-sdk --outDir generated",
-    "tvk": "tsx --env-file=.env ../../../packages/cli/src/main.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tableverse-kit/config": "workspace:*",
     "@tableverse-kit/engine": "workspace:*"
   },
   "peerDependencies": {

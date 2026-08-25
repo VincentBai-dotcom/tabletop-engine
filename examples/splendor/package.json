@@ -1,0 +1,15 @@
+{
+  "name": "splendor-project",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "tvk dev",
+    "validate": "tvk validate",
+    "upload": "tvk upload"
+  },
+  "devDependencies": {
+    "@tableverse-kit/cli": "workspace:*",
+    "@tableverse-kit/config": "workspace:*"
+  }
+}

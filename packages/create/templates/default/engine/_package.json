@@ -7,17 +7,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "dev": "tvk dev",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tableverse-kit/config": "{{tableverseVersion}}",
     "@tableverse-kit/engine": "{{tableverseVersion}}"
-  },
-  "devDependencies": {
-    "@tableverse-kit/cli": "{{tableverseVersion}}",
-    "vitest": "^4.1.9"
   },
   "peerDependencies": {
     "typescript": "^5"

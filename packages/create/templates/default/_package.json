@@ -4,14 +4,13 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev:server": "pnpm -C engine dev",
-    "dev:web": "pnpm -C client dev",
+    "dev": "tvk dev",
     "build": "pnpm -C client build",
-    "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
     "@tableverse-kit/cli": "{{tableverseVersion}}",
+    "@tableverse-kit/config": "{{tableverseVersion}}",
     "typescript": "^5"
   }
 }

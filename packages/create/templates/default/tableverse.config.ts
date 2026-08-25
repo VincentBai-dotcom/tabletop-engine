@@ -1,12 +1,12 @@
 import { defineConfig } from "@tableverse-kit/config";
-import { game } from "./src/game.ts";
+import { game } from "./engine/src/game.ts";
 
 export default defineConfig({
   game,
   publish: {
-    engine: { root: "." },
+    engine: { root: "./engine" },
     frontend: {
-      root: "../client",
+      root: "./client",
       buildCommand: "pnpm build",
       outDir: "dist",
     },

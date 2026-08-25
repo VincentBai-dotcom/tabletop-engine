@@ -47,6 +47,8 @@ describe("scaffold", () => {
     expect(names).toContain("engine/package.json");
     expect(names).toContain("engine/tsconfig.json");
     expect(names).toContain("engine/src/game.ts");
+    expect(names).toContain("tableverse.config.ts");
+    expect(names).not.toContain("engine/tableverse.config.ts");
     expect(names).toContain("client/package.json");
     expect(names).toContain("client/tsconfig.json");
     expect(names).toContain("client/src/main.ts");
@@ -68,6 +70,29 @@ describe("scaffold", () => {
     );
     expect(rootManifest.name).toBe("my-game");
     expect(rootManifest.devDependencies["@tableverse-kit/cli"]).toBe("^1.2.3");
+    expect(rootManifest.devDependencies["@tableverse-kit/config"]).toBe(
+      "^1.2.3",
+    );
+    expect(rootManifest.scripts.dev).toBe("tvk dev");
+    expect(rootManifest.scripts["dev:server"]).toBeUndefined();
+    expect(rootManifest.scripts["dev:client"]).toBeUndefined();
+
+    const engineManifest = JSON.parse(
+      await readFile(join(target, "engine", "package.json"), "utf8"),
+    );
+    expect(
+      engineManifest.dependencies["@tableverse-kit/config"],
+    ).toBeUndefined();
+    expect(engineManifest.devDependencies).toBeUndefined();
+    expect(engineManifest.scripts.dev).toBeUndefined();
+
+    const configSource = await readFile(
+      join(target, "tableverse.config.ts"),
+      "utf8",
+    );
+    expect(configSource).toContain('from "./engine/src/game.ts"');
+    expect(configSource).toContain('engine: { root: "./engine" }');
+    expect(configSource).toContain('root: "./client"');
 
     const clientManifest = JSON.parse(
       await readFile(join(target, "client", "package.json"), "utf8"),
@@ -94,6 +119,31 @@ describe("scaffold", () => {
     expect(clientSource).not.toContain("import.meta.env");
   });
 
+  test("emits defaults without a test setup", async () => {
+    const target = join(workspace, "game");
+    await scaffold({
+      targetDir: target,
+      projectName: "my-game",
+      tableverseVersion: "^1.2.3",
+    });
+
+    const workspaceConfig = await readFile(
+      join(target, "pnpm-workspace.yaml"),
+      "utf8",
+    );
+    expect(workspaceConfig).toContain("allowBuilds:\n  esbuild: true");
+
+    const engineManifest = JSON.parse(
+      await readFile(join(target, "engine", "package.json"), "utf8"),
+    );
+    const rootManifest = JSON.parse(
+      await readFile(join(target, "package.json"), "utf8"),
+    );
+    expect(rootManifest.scripts.test).toBeUndefined();
+    expect(engineManifest.scripts.test).toBeUndefined();
+    expect(engineManifest.devDependencies).toBeUndefined();
+  });
+
   test("leaves no unresolved placeholder tokens", async () => {
     const target = join(workspace, "game");
     await scaffold({
@@ -110,6 +160,17 @@ describe("scaffold", () => {
 });
 
 describe("run", () => {
+  test("loads the TypeScript entry through tsx", async () => {
+    const launcher = await readFile(
+      new URL("../bin/create-tableverse.js", import.meta.url),
+      "utf8",
+    );
+
+    expect(launcher.startsWith("#!/usr/bin/env node\n")).toBe(true);
+    expect(launcher).toContain('import "tsx";');
+    expect(launcher).toContain('import("../src/main.ts")');
+  });
+
   test("scaffolds into a named directory and derives the project slug", async () => {
     const result = await run([join(workspace, "My Cool Game")]);
 

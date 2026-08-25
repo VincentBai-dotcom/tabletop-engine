@@ -6,7 +6,7 @@ import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scaffold } from "./scaffold.ts";
 
-const usage = `Usage: create-tableverse-kit <directory>
+const usage = `Usage: create-tableverse <directory>
 
 Scaffolds a Tableverse project: a pnpm workspace with an engine package (your
 game's rules) and a client package (the frontend that renders them).`;
@@ -76,12 +76,11 @@ function nextSteps(target: string): string {
 Next steps:
   cd ${target}
   pnpm install
-  pnpm dev:server   # runs the game rules on tvk dev
-  pnpm dev:web      # serves the frontend`;
+  pnpm dev`;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const result = await run(process.argv.slice(2));
+export async function main(argv = process.argv.slice(2)): Promise<void> {
+  const result = await run(argv);
   if (result.stdout) {
     console.log(result.stdout);
   }
@@ -89,4 +88,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.error(result.stderr);
   }
   process.exitCode = result.exitCode;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  await main();
 }

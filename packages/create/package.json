@@ -1,15 +1,23 @@
 {
-  "name": "@tableverse-kit/create",
-  "version": "0.0.0",
+  "name": "create-tableverse",
+  "version": "0.1.0-beta.0",
   "type": "module",
   "private": false,
   "bin": {
-    "create-tableverse-kit": "./src/main.ts"
+    "create-tableverse": "./bin/create-tableverse.js"
   },
   "files": [
+    "bin",
     "src",
     "templates/default"
   ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  },
+  "dependencies": {
+    "tsx": "^4.23.0"
+  },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

@@ -1,6 +1,6 @@
 {
   "name": "@tableverse-kit/client",
-  "version": "0.0.0",
+  "version": "0.1.0-beta.0",
   "type": "module",
   "private": false,
   "exports": {
@@ -18,6 +18,10 @@
   "files": [
     "src"
   ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

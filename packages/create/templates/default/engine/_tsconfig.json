@@ -13,5 +13,5 @@
     "noUncheckedIndexedAccess": true,
     "types": []
   },
-  "include": ["src", "tests", "tableverse.config.ts"]
+  "include": ["src"]
 }

@@ -22,8 +22,7 @@ export function createDevHelpText(): string {
   return [
     "tvk dev",
     "",
-    "Run the game locally: an in-memory server executes the game out of process",
-    "and the client talks to it over SSE/HTTP.",
+    "Start the local rules server and frontend.",
     "",
     "Optional flags:",
     "  --config <path>",
