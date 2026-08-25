@@ -13,20 +13,20 @@ Make sure your config has a `publish` block and your project has a lockfile:
 
 ```bash
 pnpm typecheck
-pnpm -C engine exec tvk validate
-pnpm -C engine exec tvk login
+pnpm exec tvk validate
+pnpm exec tvk login
 ```
 
 Check the active account at any time:
 
 ```bash
-pnpm -C engine exec tvk whoami
+pnpm exec tvk whoami
 ```
 
 ## Upload
 
 ```bash
-pnpm -C engine exec tvk upload
+pnpm exec tvk upload
 ```
 
 For an unlinked project, the CLI asks you to create a game or choose one already in your account. It then writes the selected ID to:
@@ -71,7 +71,7 @@ The dashboard shows the platform build of:
 An unlinked non-interactive job cannot answer the first-run prompt. Set the game explicitly:
 
 ```bash
-TABLEVERSE_GAME_ID=game_123 pnpm -C engine exec tvk upload
+TABLEVERSE_GAME_ID=game_123 pnpm exec tvk upload
 ```
 
 `TABLEVERSE_GAME_ID` overrides the saved project link. Authentication must already be available for the same platform API environment.

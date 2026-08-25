@@ -6,7 +6,7 @@ description: "Scaffold a game with a working engine and frontend."
 Create a project and install its dependencies:
 
 ```bash
-pnpm create @tableverse-kit@latest token-race
+pnpm create tableverse@beta token-race
 cd token-race
 pnpm install
 ```
@@ -23,26 +23,20 @@ token-race/
 │   │   ├── events.ts
 │   │   ├── game.ts
 │   │   └── state.ts
-│   └── tableverse.config.ts
 ├── client/
 │   └── src/main.ts
 ├── package.json
-└── pnpm-workspace.yaml
+├── pnpm-workspace.yaml
+└── tableverse.config.ts
 ```
 
 The scaffold already contains a playable scoring command and a plain TypeScript frontend. Start it before changing anything:
 
-<CodeGroup>
-```bash Server
-pnpm dev:server
+```bash
+pnpm dev
 ```
 
-```bash Frontend
-pnpm dev:web
-```
-</CodeGroup>
-
-Keep both processes running. Open the URL printed by Vite, usually `http://localhost:5173`, and click **Score a point**. The displayed view should update.
+Open the URL printed by Vite, usually `http://localhost:5173`, and click **Score a point**. The displayed view should update.
 
 <Tip>
   Edit files under `engine/src` for rules. Edit files under `client/src` for the interface.

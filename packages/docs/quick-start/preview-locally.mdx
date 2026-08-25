@@ -3,19 +3,13 @@ title: "Preview locally"
 description: "Run your rules locally and connect your frontend."
 ---
 
-Run the rules server and frontend in separate terminals.
+Start the rules server and frontend:
 
-<CodeGroup>
-```bash Rules server
-pnpm dev:server
+```bash
+pnpm dev
 ```
 
-```bash Frontend
-pnpm dev:web
-```
-</CodeGroup>
-
-`pnpm dev:server` runs `tvk dev` from the engine package. It loads `engine/tableverse.config.ts` and listens at `http://localhost:5100` by default.
+`pnpm dev` loads `tableverse.config.ts`, starts the rules server at `http://localhost:5100`, and runs the frontend's `dev` script from `publish.frontend.root`.
 
 The scaffold creates one client for local previews and published games:
 
@@ -64,7 +58,7 @@ const client = createTableverseClient<Game>({
 ## Change the port
 
 ```bash
-pnpm -C engine exec tvk dev --port 5200
+pnpm exec tvk dev --port 5200
 ```
 
 Pass the same URL when you create the client:

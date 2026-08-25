@@ -3,20 +3,20 @@ title: "Configuration"
 description: "Configure the game and publish source in tableverse.config.ts."
 ---
 
-Create `tableverse.config.ts` in your engine package and export `defineConfig(...)` as the default value.
+Create `tableverse.config.ts` in your project root and export `defineConfig(...)` as the default value.
 
 ```ts
 import { defineConfig } from "@tableverse-kit/config";
-import { game } from "./src/game.ts";
+import { game } from "./engine/src/game.ts";
 
 export default defineConfig({
   game,
   publish: {
     engine: {
-      root: ".",
+      root: "./engine",
     },
     frontend: {
-      root: "../client",
+      root: "./client",
       buildCommand: "pnpm build",
       outDir: "dist",
     },
@@ -31,15 +31,15 @@ export default defineConfig({
 | Field | Required | Description |
 | --- | --- | --- |
 | `game` | Yes | A built game definition from `GameDefinitionBuilder`. |
-| `publish` | For upload | Engine and frontend source build settings. |
+| `publish` | For dev and upload | Engine and frontend source build settings. |
 
-You can use `tvk validate` and `tvk dev` without `publish`. `tvk upload` requires it.
+You can use `tvk validate` without `publish`. `tvk dev` uses `publish.frontend.root` to start the frontend, and `tvk upload` uses both publish roots.
 
 ## Engine publish settings
 
 ```ts
 engine: {
-  root: ".",
+  root: "./engine",
 }
 ```
 
@@ -51,7 +51,7 @@ Point it at source, not a compiled file or output directory. Tableverse creates 
 
 ```ts
 frontend: {
-  root: "../client",
+  root: "./client",
   buildCommand: "pnpm build",
   outDir: "dist",
 }

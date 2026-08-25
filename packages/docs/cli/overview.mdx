@@ -3,22 +3,20 @@ title: "CLI overview"
 description: "Develop, validate, authenticate, and upload games with tvk."
 ---
 
-The `tvk` command runs your game locally and hands finished source to Tableverse. The scaffold installs it in the engine package.
+The `tvk` command runs your game locally and hands finished source to Tableverse. The scaffold installs it in the project root.
 
 From the project root, invoke it with:
 
 ```bash
-pnpm -C engine exec tvk --help
+pnpm exec tvk --help
 ```
-
-From `engine/`, you can use `pnpm exec tvk` instead.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
 | `tvk validate` | Load and validate the game definition. |
-| `tvk dev` | Run one local in-memory game server. |
+| `tvk dev` | Start the local rules server and frontend. |
 | `tvk login` | Sign in to Tableverse in your browser. |
 | `tvk whoami` | Print the signed-in account. |
 | `tvk logout` | Revoke and remove the saved login. |
@@ -27,7 +25,7 @@ From `engine/`, you can use `pnpm exec tvk` instead.
 Use `--help` after any command to see its current options:
 
 ```bash
-pnpm -C engine exec tvk upload --help
+pnpm exec tvk upload --help
 ```
 
 ## Config file
@@ -36,14 +34,14 @@ pnpm -C engine exec tvk upload --help
 
 ```ts
 import { defineConfig } from "@tableverse-kit/config";
-import { game } from "./src/game.ts";
+import { game } from "./engine/src/game.ts";
 
 export default defineConfig({
   game,
   publish: {
-    engine: { root: "." },
+    engine: { root: "./engine" },
     frontend: {
-      root: "../client",
+      root: "./client",
       buildCommand: "pnpm build",
       outDir: "dist",
     },
@@ -63,12 +61,12 @@ Run TypeScript before CLI validation. The CLI loads the built definition, while 
 
 ```bash
 pnpm typecheck
-pnpm -C engine exec tvk validate
+pnpm exec tvk validate
 ```
 
 <CardGroup cols={2}>
   <Card title="Local server" icon="server" href="/cli/dev">
-    Run `tvk dev` and connect your frontend.
+    Start your complete local development environment.
   </Card>
   <Card title="Upload" icon="cloud-arrow-up" href="/cli/publish">
     Link a project and start a platform build.

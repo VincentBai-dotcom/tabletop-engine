@@ -1,15 +1,15 @@
 ---
 title: "tvk dev"
-description: "Run one in-memory game session for local frontend development."
+description: "Start the local rules server and frontend."
 ---
 
-Start the local rules server from the generated project root:
+Start the complete development environment from the generated project root:
 
 ```bash
-pnpm dev:server
+pnpm dev
 ```
 
-This runs `tvk dev` in `engine/`, loads `tableverse.config.ts`, and listens at `http://localhost:5100`.
+This loads `tableverse.config.ts`, starts the rules server at `http://localhost:5100`, and runs the frontend's `dev` script from `publish.frontend.root`.
 
 Create your frontend client:
 
@@ -36,7 +36,7 @@ Optional flags:
 Use another port when `5100` is busy:
 
 ```bash
-pnpm -C engine exec tvk dev --port 5200
+pnpm exec tvk dev --port 5200
 ```
 
 `--config` is resolved from your current directory:

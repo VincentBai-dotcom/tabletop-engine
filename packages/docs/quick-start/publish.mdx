@@ -3,18 +3,18 @@ title: "Publish to Tableverse"
 description: "Validate and upload your engine and frontend source."
 ---
 
-The generated `engine/tableverse.config.ts` already describes both packages:
+The generated `tableverse.config.ts` already describes both packages:
 
 ```ts
 import { defineConfig } from "@tableverse-kit/config";
-import { game } from "./src/game.ts";
+import { game } from "./engine/src/game.ts";
 
 export default defineConfig({
   game,
   publish: {
-    engine: { root: "." },
+    engine: { root: "./engine" },
     frontend: {
-      root: "../client",
+      root: "./client",
       buildCommand: "pnpm build",
       outDir: "dist",
     },
@@ -33,14 +33,14 @@ From the project root:
 
 ```bash
 pnpm typecheck
-pnpm -C engine exec tvk validate
+pnpm exec tvk validate
 ```
 
   </Step>
   <Step title="Sign in">
 
 ```bash
-pnpm -C engine exec tvk login
+pnpm exec tvk login
 ```
 
     The CLI opens your browser to authenticate.
@@ -48,7 +48,7 @@ pnpm -C engine exec tvk login
   <Step title="Upload">
 
 ```bash
-pnpm -C engine exec tvk upload
+pnpm exec tvk upload
 ```
 
     On the first upload, choose an existing game or create one. The CLI saves that choice in `.tableverse/game.json`.

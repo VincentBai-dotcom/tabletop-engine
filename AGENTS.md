@@ -36,7 +36,7 @@ Published `@tableverse-kit/*` family:
   `engine/config` subpath is gone — publish config now lives in the `config`
   package.
 - **`cli`** (`packages/cli`) — the `tvk` command. Local authoring plus the
-  platform handoff: `validate`, `dev` (local dev server), `login` / `logout` /
+  platform handoff: `validate`, `dev` (local rules server and frontend), `login` / `logout` /
   `whoami` (platform auth), and `upload` (publish source to Tableverse).
 - **`client`** (`packages/client`) — the renderer-agnostic `TableverseClient`
   interface and the `GameShapeOf` type machinery that derives a game's
@@ -49,7 +49,7 @@ Published `@tableverse-kit/*` family:
   platform builds into the sandbox bundle) and a `frontend` half (`root`,
   `buildCommand`, `outDir` the platform builds and serves). Both halves are
   source — nothing points at a compiled artifact.
-- **`create`** (`packages/create`) — the `create-tableverse-kit` scaffolder.
+- **`create`** (`packages/create`) — the `create-tableverse` scaffolder.
   `templates/` ships **verbatim** to the generated project (it's in
   `.prettierignore`; formatting it would rewrite emitted files and break
   `{{token}}` placeholders).
@@ -60,6 +60,8 @@ Published `@tableverse-kit/*` family:
 
 Examples (real consumer documentation, not throwaway):
 
+- `examples/splendor` — the project root: CLI/config ownership and publish
+  layout for the engine and frontend packages.
 - `examples/splendor/engine` — a reference game built on the engine.
 - `examples/splendor/terminal` — terminal client exercising discovery and
   hosted-style gameplay locally (`pnpm start:splendor`).
