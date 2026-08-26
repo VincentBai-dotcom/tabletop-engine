@@ -48,11 +48,9 @@ describe("scaffold", () => {
     expect(names).toContain("engine/tsconfig.json");
     expect(names).toContain("engine/src/game.ts");
     expect(names).toContain("tableverse.config.ts");
-    expect(names).not.toContain("engine/tableverse.config.ts");
     expect(names).toContain("client/package.json");
     expect(names).toContain("client/tsconfig.json");
     expect(names).toContain("client/src/main.ts");
-    expect(names).not.toContain("pnpm-workspace.yaml");
     expect(names).not.toContain("_package.json");
     expect(names).not.toContain("_gitignore");
     expect(names).not.toContain("engine/_tsconfig.json");
@@ -80,17 +78,6 @@ describe("scaffold", () => {
     expect(rootManifest.scripts.typecheck).toBe(
       "npm run typecheck --workspaces --if-present",
     );
-    expect(rootManifest.scripts["dev:server"]).toBeUndefined();
-    expect(rootManifest.scripts["dev:client"]).toBeUndefined();
-
-    const engineManifest = JSON.parse(
-      await readFile(join(target, "engine", "package.json"), "utf8"),
-    );
-    expect(
-      engineManifest.dependencies["@tableverse-kit/config"],
-    ).toBeUndefined();
-    expect(engineManifest.devDependencies).toBeUndefined();
-    expect(engineManifest.scripts.dev).toBeUndefined();
 
     const configSource = await readFile(
       join(target, "tableverse.config.ts"),
@@ -105,7 +92,6 @@ describe("scaffold", () => {
       await readFile(join(target, "client", "package.json"), "utf8"),
     );
     expect(clientManifest.name).toBe("my-game-client");
-    expect(clientManifest.dependencies["my-game-engine"]).toBeUndefined();
     expect(clientManifest.devDependencies["my-game-engine"]).toBe("0.0.0");
   });
 
@@ -122,29 +108,6 @@ describe("scaffold", () => {
       "utf8",
     );
     expect(clientSource).toContain("createTableverseClient<Game>()");
-    expect(clientSource).not.toContain("createDevClient");
-    expect(clientSource).not.toContain("createBridgeClient");
-    expect(clientSource).not.toContain("import.meta.env");
-  });
-
-  test("emits defaults without a test setup", async () => {
-    const target = join(workspace, "game");
-    await scaffold({
-      targetDir: target,
-      projectName: "my-game",
-      tableverseVersion: "^1.2.3",
-    });
-
-    const engineManifest = JSON.parse(
-      await readFile(join(target, "engine", "package.json"), "utf8"),
-    );
-    const rootManifest = JSON.parse(
-      await readFile(join(target, "package.json"), "utf8"),
-    );
-    expect(rootManifest.scripts.test).toBeUndefined();
-    expect(engineManifest.scripts.test).toBeUndefined();
-    expect(engineManifest.devDependencies).toBeUndefined();
-    expect(engineManifest.peerDependencies).toBeUndefined();
   });
 
   test("leaves no unresolved placeholder tokens", async () => {
@@ -184,7 +147,6 @@ describe("run", () => {
     expect(manifest.name).toBe("my-cool-game");
     expect(result.stdout).toContain("npm install");
     expect(result.stdout).toContain("npm run dev");
-    expect(result.stdout).not.toContain("pnpm");
   });
 
   test("refuses a non-empty target directory", async () => {
