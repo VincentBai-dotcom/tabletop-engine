@@ -1,6 +1,0 @@
-packages:
-  - "engine"
-  - "client"
-
-allowBuilds:
-  esbuild: true

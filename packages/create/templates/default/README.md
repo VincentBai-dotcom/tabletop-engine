@@ -1,7 +1,7 @@
 # {{projectName}}
 
-A Tableverse project scaffolded with `create-tableverse`. It is a pnpm
-workspace with two packages:
+A Tableverse project scaffolded with `create-tableverse`. It is an npm workspace
+with two packages:
 
 - **`engine/`** — your game's rules: state, commands, events, and stage flow,
   built with `@tableverse-kit/engine`. This is what the platform runs.
@@ -12,13 +12,13 @@ workspace with two packages:
 ## Develop
 
 ```sh
-pnpm install
+npm install
 ```
 
 Start the local rules server and frontend:
 
 ```sh
-pnpm dev
+npm run dev
 ```
 
 The frontend connects to the local server and re-renders on every state change.

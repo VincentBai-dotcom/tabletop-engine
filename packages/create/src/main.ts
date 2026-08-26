@@ -8,7 +8,7 @@ import { scaffold } from "./scaffold.ts";
 
 const usage = `Usage: create-tableverse <directory>
 
-Scaffolds a Tableverse project: a pnpm workspace with an engine package (your
+Scaffolds a Tableverse project: an npm workspace with an engine package (your
 game's rules) and a client package (the frontend that renders them).`;
 
 export interface RunResult {
@@ -75,8 +75,8 @@ function nextSteps(target: string): string {
 
 Next steps:
   cd ${target}
-  pnpm install
-  pnpm dev`;
+  npm install
+  npm run dev`;
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {

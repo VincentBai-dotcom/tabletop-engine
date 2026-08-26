@@ -7,7 +7,7 @@ export default defineConfig({
     engine: { root: "./engine" },
     frontend: {
       root: "./client",
-      buildCommand: "pnpm build",
+      buildCommand: "npm run build",
       outDir: "dist",
     },
   },

@@ -11,8 +11,5 @@
   },
   "dependencies": {
     "@tableverse-kit/engine": "{{tableverseVersion}}"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
   }
 }

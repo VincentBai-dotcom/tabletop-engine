@@ -9,10 +9,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tableverse-kit/client": "{{tableverseVersion}}",
-    "{{projectName}}-engine": "workspace:*"
+    "@tableverse-kit/client": "{{tableverseVersion}}"
   },
   "devDependencies": {
+    "{{projectName}}-engine": "0.0.0",
     "typescript": "^5",
     "vite": "^7.1.12"
   }

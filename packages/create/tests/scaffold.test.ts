@@ -52,6 +52,7 @@ describe("scaffold", () => {
     expect(names).toContain("client/package.json");
     expect(names).toContain("client/tsconfig.json");
     expect(names).toContain("client/src/main.ts");
+    expect(names).not.toContain("pnpm-workspace.yaml");
     expect(names).not.toContain("_package.json");
     expect(names).not.toContain("_gitignore");
     expect(names).not.toContain("engine/_tsconfig.json");
@@ -73,7 +74,12 @@ describe("scaffold", () => {
     expect(rootManifest.devDependencies["@tableverse-kit/config"]).toBe(
       "^1.2.3",
     );
+    expect(rootManifest.workspaces).toEqual(["engine", "client"]);
     expect(rootManifest.scripts.dev).toBe("tvk dev");
+    expect(rootManifest.scripts.build).toBe("npm run build --workspace=client");
+    expect(rootManifest.scripts.typecheck).toBe(
+      "npm run typecheck --workspaces --if-present",
+    );
     expect(rootManifest.scripts["dev:server"]).toBeUndefined();
     expect(rootManifest.scripts["dev:client"]).toBeUndefined();
 
@@ -93,12 +99,14 @@ describe("scaffold", () => {
     expect(configSource).toContain('from "./engine/src/game.ts"');
     expect(configSource).toContain('engine: { root: "./engine" }');
     expect(configSource).toContain('root: "./client"');
+    expect(configSource).toContain('buildCommand: "npm run build"');
 
     const clientManifest = JSON.parse(
       await readFile(join(target, "client", "package.json"), "utf8"),
     );
     expect(clientManifest.name).toBe("my-game-client");
-    expect(clientManifest.dependencies["my-game-engine"]).toBe("workspace:*");
+    expect(clientManifest.dependencies["my-game-engine"]).toBeUndefined();
+    expect(clientManifest.devDependencies["my-game-engine"]).toBe("0.0.0");
   });
 
   test("creates one client that selects its connection", async () => {
@@ -127,12 +135,6 @@ describe("scaffold", () => {
       tableverseVersion: "^1.2.3",
     });
 
-    const workspaceConfig = await readFile(
-      join(target, "pnpm-workspace.yaml"),
-      "utf8",
-    );
-    expect(workspaceConfig).toContain("allowBuilds:\n  esbuild: true");
-
     const engineManifest = JSON.parse(
       await readFile(join(target, "engine", "package.json"), "utf8"),
     );
@@ -142,6 +144,7 @@ describe("scaffold", () => {
     expect(rootManifest.scripts.test).toBeUndefined();
     expect(engineManifest.scripts.test).toBeUndefined();
     expect(engineManifest.devDependencies).toBeUndefined();
+    expect(engineManifest.peerDependencies).toBeUndefined();
   });
 
   test("leaves no unresolved placeholder tokens", async () => {
@@ -179,6 +182,9 @@ describe("run", () => {
       await readFile(join(workspace, "My Cool Game", "package.json"), "utf8"),
     );
     expect(manifest.name).toBe("my-cool-game");
+    expect(result.stdout).toContain("npm install");
+    expect(result.stdout).toContain("npm run dev");
+    expect(result.stdout).not.toContain("pnpm");
   });
 
   test("refuses a non-empty target directory", async () => {
