@@ -5,10 +5,12 @@ description: "Test setup, commands, views, events, and complete game flows."
 
 Test the executor your game exports. This covers input schemas, validation, execution, stage transitions, events, and visibility together.
 
-The generated engine package uses Vitest:
+Add Vitest when you are ready to write engine tests:
 
 ```bash
-pnpm -C engine test
+npm install --save-dev --workspace=engine vitest
+npm pkg set scripts.test="vitest run" --workspace=engine
+npm test --workspace=engine
 ```
 
 ## Test one command

@@ -27,18 +27,6 @@ describe("tvk", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("tvk validate");
-    expect(result.stdout).toContain("--config");
-  });
-
-  it("rejects deprecated game-selection flags", async () => {
-    const result = await run([
-      "validate",
-      "--game",
-      "packages/cli/tests/fixtures/game-default.ts",
-    ]);
-
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("deprecated_flag:--game");
   });
 
   it("rejects unexpected positional arguments after command parsing begins", async () => {

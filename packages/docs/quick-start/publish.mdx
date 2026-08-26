@@ -1,6 +1,6 @@
 ---
 title: "Publish to Tableverse"
-description: "Validate and upload your engine and frontend source."
+description: "Validate and upload your project source."
 ---
 
 The generated `tableverse.config.ts` already describes both packages:
@@ -15,14 +15,14 @@ export default defineConfig({
     engine: { root: "./engine" },
     frontend: {
       root: "./client",
-      buildCommand: "pnpm build",
+      buildCommand: "npm run build",
       outDir: "dist",
     },
   },
 });
 ```
 
-Paths are relative to the config file. Each configured source root must contain a supported lockfile.
+Paths are relative to the config file. Keep `package-lock.json` beside `tableverse.config.ts`; Tableverse installs the complete npm workspace from this project root.
 
 ## Upload your game
 
@@ -32,15 +32,15 @@ From the project root:
   <Step title="Check the project">
 
 ```bash
-pnpm typecheck
-pnpm exec tvk validate
+npm run typecheck
+npx tvk validate
 ```
 
   </Step>
   <Step title="Sign in">
 
 ```bash
-pnpm exec tvk login
+npx tvk login
 ```
 
     The CLI opens your browser to authenticate.
@@ -48,13 +48,13 @@ pnpm exec tvk login
   <Step title="Upload">
 
 ```bash
-pnpm exec tvk upload
+npx tvk upload
 ```
 
     On the first upload, choose an existing game or create one. The CLI saves that choice in `.tableverse/game.json`.
   </Step>
   <Step title="Follow the build">
-    The CLI prints a deployment dashboard URL and opens it when possible. Tableverse builds your engine and frontend from the uploaded source.
+    The CLI prints a deployment dashboard URL and opens it when possible. Tableverse builds your engine and frontend from the uploaded workspace.
   </Step>
 </Steps>
 
@@ -62,9 +62,9 @@ pnpm exec tvk upload
   Check the game name and ID printed before every upload. A copied project may still contain a link to the original game.
 </Warning>
 
-Local `.env` files are skipped during packaging. Configure deployment secrets in Tableverse instead of relying on local environment files.
+Local `.env` files stay on your machine. Configure deployment secrets in Tableverse.
 
-For CI, set `TABLEVERSE_GAME_ID` so the CLI does not need an interactive project-link prompt.
+For CI, set `TABLEVERSE_GAME_ID` to select the game without an interactive prompt.
 
 <Card title="Upload reference" icon="arrow-right" href="/cli/publish">
   Learn about project linking and upload behavior.

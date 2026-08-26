@@ -19,7 +19,7 @@ const client = createTableverseClient<Game>({
 Start the local server and frontend from the project root:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 ## Options
@@ -64,7 +64,7 @@ Calls to `execute`, `discover`, or `getAvailableCommands` reject with a `Transpo
 Start the server with `--port` and pass the same base URL to the client:
 
 ```bash
-pnpm exec tvk dev --port 5200
+npx tvk dev --port 5200
 ```
 
 ```ts

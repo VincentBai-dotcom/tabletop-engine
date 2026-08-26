@@ -17,7 +17,7 @@ export default defineConfig({
     },
     frontend: {
       root: "./client",
-      buildCommand: "pnpm build",
+      buildCommand: "npm run build",
       outDir: "dist",
     },
   },
@@ -33,7 +33,7 @@ export default defineConfig({
 | `game` | Yes | A built game definition from `GameDefinitionBuilder`. |
 | `publish` | For dev and upload | Engine and frontend source build settings. |
 
-You can use `tvk validate` without `publish`. `tvk dev` uses `publish.frontend.root` to start the frontend, and `tvk upload` uses both publish roots.
+You can use `tvk validate` without `publish`. `tvk dev` uses `publish.frontend.root` to start the frontend. `tvk upload` packages the project root and sends the publish settings to Tableverse.
 
 ## Engine publish settings
 
@@ -43,16 +43,16 @@ engine: {
 }
 ```
 
-`root` is the engine source directory, relative to `tableverse.config.ts`. It must contain the engine's `package.json` and have access to a lockfile.
+`root` is the engine workspace directory, relative to `tableverse.config.ts`.
 
-Point it at source, not a compiled file or output directory. Tableverse creates the sandbox bundle.
+Point it at the engine workspace source. Tableverse creates the sandbox bundle.
 
 ## Frontend publish settings
 
 ```ts
 frontend: {
   root: "./client",
-  buildCommand: "pnpm build",
+  buildCommand: "npm run build",
   outDir: "dist",
 }
 ```
@@ -63,34 +63,35 @@ frontend: {
 
 The CLI excludes `outDir` from upload because the platform recreates it.
 
-## Monorepo paths and lockfiles
+## Workspace and lockfile
 
-Each configured source root must contain a package-manager lockfile. Make sure your publish roots match the directories the platform can install and build independently.
+Keep `tableverse.config.ts`, `package.json`, and `package-lock.json` in the project root. The root `package.json` declares the engine and client as npm workspaces:
 
-Keep workspace dependencies declared with `workspace:*`:
+```json
+{
+  "private": true,
+  "workspaces": ["engine", "client"]
+}
+```
+
+The client can depend on the engine workspace for compile-time game types:
 
 ```json
 {
   "dependencies": {
-    "token-race-engine": "workspace:*"
+    "token-race-engine": "0.0.0"
   }
 }
 ```
 
-This lets the frontend import `typeof executor` during development and gives the platform enough source to reproduce the workspace build.
+The project source archive includes the root lockfile and both workspaces, so Tableverse installs one dependency graph before building the engine and frontend.
 
-## Alternate config files
+## Config discovery
 
-Every config-aware CLI command accepts `--config`:
+Keep one `tableverse.config.ts` in the project root. The CLI searches the current directory and its parents until it finds that file.
 
-```bash
-pnpm exec tvk validate --config configs/demo.tableverse.config.ts
-pnpm exec tvk dev --config configs/demo.tableverse.config.ts
-pnpm exec tvk upload --config configs/production.tableverse.config.ts
-```
-
-Relative `root` paths always resolve from the selected config file, not from the shell's current directory.
+You can run `tvk` from the project root, `engine/`, `client/`, or another directory inside the project. Relative `root` paths resolve from the project root.
 
 <Note>
-  Game identity does not belong in this file. `tvk upload` stores it in `.tableverse/game.json`, or you can override it with `TABLEVERSE_GAME_ID`.
+  `tvk upload` stores game identity in `.tableverse/game.json`. `TABLEVERSE_GAME_ID` overrides the saved identity.
 </Note>

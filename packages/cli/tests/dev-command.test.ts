@@ -1,13 +1,24 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { runDevCommand, type DevCommandRuntime } from "../src/commands/dev.ts";
+import {
+  FRONTEND_DEV_COMMAND,
+  runDevCommand,
+  type DevCommandRuntime,
+} from "../src/commands/dev.ts";
 
 const currentDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = join(currentDir, "..", "..", "..");
 const projectRoot = join(repoRoot, "examples", "splendor");
 
 describe("tvk dev", () => {
+  it("starts the frontend through npm", () => {
+    expect(FRONTEND_DEV_COMMAND).toEqual({
+      executable: "npm",
+      args: ["run", "dev"],
+    });
+  });
+
   it("starts the server and frontend from the project config", async () => {
     let frontendRoot: string | undefined;
     let serverClosed = false;

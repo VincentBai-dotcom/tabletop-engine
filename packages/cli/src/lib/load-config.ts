@@ -1,10 +1,13 @@
 import type { AnyGameDefinition } from "@tableverse-kit/engine";
 import type { PublishConfig } from "@tableverse-kit/config";
+import { access } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+const DEFAULT_CONFIG_NAME = "tableverse.config.ts";
+
 interface LoadConfigOptions {
   cwd: string;
-  configPath?: string;
 }
 
 interface RuntimeCliConfig {
@@ -24,9 +27,7 @@ export interface LoadedCliConfig {
 export async function loadConfig(
   options: LoadConfigOptions,
 ): Promise<LoadedCliConfig> {
-  const configFilePath = options.configPath
-    ? resolve(options.cwd, options.configPath)
-    : resolve(options.cwd, "tableverse.config.ts");
+  const configFilePath = await findConfigFile(options.cwd);
   const module = (await import(pathToFileURL(configFilePath).href)) as {
     default?: unknown;
   };
@@ -37,10 +38,41 @@ export async function loadConfig(
   }
 
   return {
-    ...config,
+    game: config.game,
+    outDir: config.outDir,
+    publish: config.publish
+      ? {
+          engine: {
+            root: normalizeRelativePath(config.publish.engine.root),
+          },
+          frontend: {
+            root: normalizeRelativePath(config.publish.frontend.root),
+            buildCommand: config.publish.frontend.buildCommand.trim(),
+            outDir: normalizeRelativePath(config.publish.frontend.outDir),
+          },
+        }
+      : undefined,
     configFilePath,
     configDirectory: dirname(configFilePath),
   };
+}
+
+async function findConfigFile(startDirectory: string): Promise<string> {
+  let directory = resolve(startDirectory);
+
+  while (true) {
+    const candidate = resolve(directory, DEFAULT_CONFIG_NAME);
+    try {
+      await access(candidate);
+      return candidate;
+    } catch {
+      const parent = dirname(directory);
+      if (parent === directory) {
+        throw new Error(`tableverse_config_not_found:${startDirectory}`);
+      }
+      directory = parent;
+    }
+  }
 }
 
 function isCliConfig(value: unknown): value is RuntimeCliConfig {
@@ -72,24 +104,70 @@ function isPublishConfig(value: unknown): value is PublishConfig {
     return false;
   }
 
-  const { engine, frontend } = value as Record<string, unknown>;
-
-  const engineOk =
-    !!engine &&
-    typeof engine === "object" &&
-    typeof (engine as Record<string, unknown>).root === "string";
-
-  if (!engineOk || !frontend || typeof frontend !== "object") {
+  if (!("engine" in value) || !isEnginePublishConfig(value.engine)) {
     return false;
   }
 
-  const f = frontend as Record<string, unknown>;
+  return "frontend" in value && isFrontendPublishConfig(value.frontend);
+}
 
+function isEnginePublishConfig(
+  value: unknown,
+): value is PublishConfig["engine"] {
   return (
-    typeof f.root === "string" &&
-    typeof f.buildCommand === "string" &&
-    typeof f.outDir === "string"
+    !!value &&
+    typeof value === "object" &&
+    "root" in value &&
+    isContainedRelativePath(value.root)
   );
+}
+
+function isFrontendPublishConfig(
+  value: unknown,
+): value is PublishConfig["frontend"] {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "root" in value &&
+    isContainedRelativePath(value.root) &&
+    "buildCommand" in value &&
+    typeof value.buildCommand === "string" &&
+    value.buildCommand.trim().length > 0 &&
+    "outDir" in value &&
+    isContainedRelativePath(value.outDir)
+  );
+}
+
+function isContainedRelativePath(value: unknown): value is string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return false;
+  }
+
+  const path = value.trim().replace(/\\/g, "/");
+  if (path.startsWith("/") || /^[a-zA-Z]:/.test(path)) {
+    return false;
+  }
+
+  let depth = 0;
+  for (const segment of path.split("/")) {
+    if (segment === "" || segment === ".") {
+      continue;
+    }
+    if (segment === "..") {
+      depth -= 1;
+      if (depth < 0) {
+        return false;
+      }
+    } else {
+      depth += 1;
+    }
+  }
+
+  return true;
+}
+
+function normalizeRelativePath(path: string): string {
+  return path.trim().replace(/\\/g, "/");
 }
 
 function isGameDefinition(value: unknown): value is AnyGameDefinition {

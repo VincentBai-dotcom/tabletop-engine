@@ -22,11 +22,6 @@ function makeClient(fetchImpl: FetchLike) {
   });
 }
 
-// The platform's real contract lives in a private repo the CLI cannot depend
-// on, so these schemas are a second statement of it and can drift. Validating
-// at the boundary means drift is reported here, against the endpoint that
-// caused it, instead of silently entering the token store and resurfacing
-// later as "your credentials file is corrupt".
 describe("platform client response validation", () => {
   it("rejects a /me response missing a required field", async () => {
     const client = makeClient(
@@ -48,8 +43,6 @@ describe("platform client response validation", () => {
     });
   });
 
-  // Null email is legal per the platform contract, so validation must not be
-  // the thing that rejects it.
   it("accepts a /me response with a null email", async () => {
     const client = makeClient(
       vi.fn<FetchLike>(async () => jsonResponse({ id: "u1", email: null })),
@@ -61,8 +54,6 @@ describe("platform client response validation", () => {
     });
   });
 
-  // Requiring only what we read is what lets the platform add fields without
-  // breaking a CLI that is already released.
   it("accepts responses carrying fields the CLI does not know about", async () => {
     const client = makeClient(
       vi.fn<FetchLike>(async () =>
@@ -100,9 +91,6 @@ describe("platform client response validation", () => {
   });
 });
 
-// The wire format and the credentials file are separate contracts. `/me` is
-// allowed to grow fields; the file must only ever hold what its own schema
-// defines, or a platform release would start rewriting files on disk.
 describe("wire format does not leak into the file format", () => {
   it("stores only the account fields the file format defines", async () => {
     const client = makeClient(
@@ -115,8 +103,6 @@ describe("wire format does not leak into the file format", () => {
       ),
     );
 
-    // No cast: the unknown field arrives over the network, exactly as it would
-    // the day the platform ships it.
     const account = await client.me({ accessToken: "a" });
 
     const credentials = credentialsFromTokens(
@@ -172,6 +158,66 @@ describe("platform client", () => {
     expect(url).toBe("https://api-dev.tableverse.io/auth/logout");
     expect(init?.method).toBe("POST");
     expect(JSON.parse(String(init?.body))).toEqual({ refreshToken: "r" });
+  });
+
+  it("creates a version from one project source and its build config", async () => {
+    const fetchImpl = vi.fn<FetchLike>(async () =>
+      jsonResponse({
+        versionId: "version-1",
+        versionNumber: 2,
+        putUrls: {
+          projectSource: {
+            url: "https://storage.example/project",
+            headers: { "x-checksum": "digest" },
+          },
+        },
+        expiresAt: "2026-08-26T00:00:00.000Z",
+      }),
+    );
+
+    const result = await makeClient(fetchImpl).createVersion({
+      accessToken: "tok",
+      gameId: "game-1",
+      projectSourceSha256: "a".repeat(64),
+      projectSourceSizeBytes: 123,
+      buildConfig: {
+        engine: { root: "./engine" },
+        frontend: {
+          root: "./client",
+          buildCommand: "npm run build",
+          outDir: "dist",
+        },
+      },
+      metadata: {
+        setupInputSchema: null,
+        minPlayers: 2,
+        maxPlayers: 4,
+      },
+    });
+
+    expect(result.putUrls.projectSource.url).toBe(
+      "https://storage.example/project",
+    );
+    const [url, init] = fetchImpl.mock.calls[0]!;
+    expect(url).toBe("https://api-dev.tableverse.io/versions");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      gameId: "game-1",
+      projectSourceSha256: "a".repeat(64),
+      projectSourceSizeBytes: 123,
+      buildConfig: {
+        engine: { root: "./engine" },
+        frontend: {
+          root: "./client",
+          buildCommand: "npm run build",
+          outDir: "dist",
+        },
+      },
+      metadata: {
+        setupInputSchema: null,
+        minPlayers: 2,
+        maxPlayers: 4,
+      },
+    });
   });
 
   it("sends the bearer token for /me", async () => {

@@ -34,13 +34,14 @@ async function setupProject(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "tvk-upload-proj-"));
   dirs.push(root);
 
+  await writeFile(
+    join(root, "package.json"),
+    JSON.stringify({ private: true, workspaces: ["engine", "web"] }),
+  );
+  await writeFile(join(root, "package-lock.json"), "{}");
   for (const pkg of ["engine", "web"]) {
     await mkdir(join(root, pkg), { recursive: true });
     await writeFile(join(root, pkg, "package.json"), "{}");
-    await writeFile(
-      join(root, pkg, "pnpm-lock.yaml"),
-      "lockfileVersion: '9.0'",
-    );
     await writeFile(join(root, pkg, "index.ts"), `export const ${pkg} = 1;`);
   }
   return root;
@@ -110,8 +111,7 @@ function harness(
         versionId: "v1",
         versionNumber: 4,
         putUrls: {
-          engineSource: target("engine"),
-          frontendSource: target("frontend"),
+          projectSource: target("project"),
         },
         expiresAt: "t",
       };
@@ -146,7 +146,7 @@ function harness(
 }
 
 describe("tvk upload", () => {
-  it("packages, uploads both tarballs, and reports the published version", async () => {
+  it("packages and uploads the project source with its build config", async () => {
     const root = await setupProject();
     const h = harness(root);
 
@@ -157,26 +157,28 @@ describe("tvk upload", () => {
       "https://dev.tableverse.io/studio/games/game-123/deployments/b1?v=4",
     );
 
-    // Uploads run concurrently, so match by url rather than array order.
-    expect(h.uploads).toHaveLength(2);
-    const byUrl = new Map(h.uploads.map((u) => [u.url, u.size]));
+    expect(h.uploads).toHaveLength(1);
 
     const input = h.versionInput()!;
     expect(input.gameId).toBe("game-123");
-    expect(input.engineSourceSha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(input.frontendSourceSha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(input.projectSourceSha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(input.buildConfig).toEqual({
+      engine: { root: "engine" },
+      frontend: {
+        root: "web",
+        buildCommand: "npm run build",
+        outDir: "dist",
+      },
+    });
     expect(input.metadata).toEqual({
       setupInputSchema: null,
       minPlayers: 2,
       maxPlayers: 5,
     });
-    // The bytes PUT are exactly the sizes declared to /versions.
-    expect(byUrl.get("https://sink.example/engine")).toBe(
-      input.engineSourceSizeBytes,
-    );
-    expect(byUrl.get("https://sink.example/frontend")).toBe(
-      input.frontendSourceSizeBytes,
-    );
+    expect(h.uploads[0]).toEqual({
+      url: "https://sink.example/project",
+      size: input.projectSourceSizeBytes,
+    });
   });
 
   it("shows the resolved target before packaging", async () => {
@@ -197,7 +199,6 @@ describe("tvk upload", () => {
     const dashboardUrl =
       "https://dev.tableverse.io/studio/games/game-123/deployments/b1?v=4";
     expect(result.exitCode).toBe(0);
-    // The browser is opened at the same URL that is printed to stdout.
     expect(h.opened).toEqual([dashboardUrl]);
     expect(result.stdout).toContain(dashboardUrl);
   });
@@ -205,15 +206,12 @@ describe("tvk upload", () => {
   it("prints the dashboard URL without opening a browser when non-interactive", async () => {
     const root = await setupProject();
     const h = harness(root, {
-      // Linked via the env override, so a non-interactive run still resolves a
-      // game and reaches the hand-off.
       context: { interactive: false },
     });
 
     const result = await runUploadCommand([], h.ctx);
 
     expect(result.exitCode).toBe(0);
-    // No terminal to see a browser: don't spawn one, just print the URL.
     expect(h.opened).toEqual([]);
     expect(result.stdout).toContain(
       "https://dev.tableverse.io/studio/games/game-123/deployments/b1?v=4",
@@ -235,7 +233,6 @@ describe("tvk upload", () => {
 
     const result = await runUploadCommand([], h.ctx);
 
-    // The printed URL is the real deliverable, so a headless box is not a failure.
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain(
       "https://dev.tableverse.io/studio/games/game-123/deployments/b1?v=4",
@@ -260,7 +257,6 @@ describe("tvk upload", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("TABLEVERSE_GAME_ID");
-    // The crux: a missing link must not silently mint a game.
     expect(created).toHaveLength(0);
     expect(h.uploads).toHaveLength(0);
   });
@@ -291,7 +287,6 @@ describe("tvk upload", () => {
       "https://dev.tableverse.io/studio/games/new-game/deployments/b1?v=4",
     );
     expect(created).toEqual(["Splendor"]);
-    // The choice is persisted so the next upload skips the prompt.
     const link = JSON.parse(
       await readFile(join(root, ".tableverse", "game.json"), "utf8"),
     );
@@ -352,17 +347,14 @@ describe("tvk upload", () => {
         },
       });
 
-      // Read-only cwd: the directory still reads as unlinked (game.json is
-      // absent), but writeGameLink's mkdir fails after createGame has run.
+      // The project reads as unlinked before its read-only root rejects mkdir.
       await chmod(root, 0o500);
       const result = await runUploadCommand([], h.ctx);
-      await chmod(root, 0o700); // restore so afterEach can clean up
+      await chmod(root, 0o700);
 
       expect(result.exitCode).toBe(1);
-      // Points at the created id so a retry targets it instead of duplicating.
       expect(result.stderr).toContain("TABLEVERSE_GAME_ID=new-game");
       expect(result.stderr).toContain("duplicate game");
-      // The publish did not proceed to upload.
       expect(h.uploads).toHaveLength(0);
     },
   );
@@ -379,15 +371,27 @@ describe("tvk upload", () => {
     expect(result.stderr).toContain("publish");
   });
 
-  it("fails before any network call when a source root has no lockfile", async () => {
+  it("fails before any network call when the project root has no lockfile", async () => {
     const root = await setupProject();
-    await rm(join(root, "engine", "pnpm-lock.yaml"));
+    await rm(join(root, "package-lock.json"));
     const h = harness(root);
 
     const result = await runUploadCommand([], h.ctx);
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("lockfile");
+    expect(h.versionInput()).toBeUndefined();
+  });
+
+  it("fails before any network call when the project root has no package.json", async () => {
+    const root = await setupProject();
+    await rm(join(root, "package.json"));
+    const h = harness(root);
+
+    const result = await runUploadCommand([], h.ctx);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("package.json");
     expect(h.versionInput()).toBeUndefined();
   });
 
@@ -411,8 +415,37 @@ describe("tvk upload", () => {
     const result = await runUploadCommand([], h.ctx);
 
     expect(result.exitCode).toBe(0);
-    expect(h.uploads).toHaveLength(2);
+    expect(h.uploads).toHaveLength(1);
     expect(h.emitted).toContain("Skipped local env files: engine/.env");
+  });
+
+  it("uses the config directory as the project root from a child directory", async () => {
+    const root = await setupProject();
+    const h = harness(root, {
+      context: {
+        cwd: join(root, "web"),
+        env: {},
+        interactive: true,
+        linkPrompt: async () => ({ action: "create", name: "Nested" }),
+      },
+      client: {
+        listGames: async () => ({ games: [] }),
+        createGame: async ({ name }) => ({
+          ...game(),
+          id: "nested-game",
+          name,
+        }),
+      },
+    });
+
+    const result = await runUploadCommand([], h.ctx);
+
+    expect(result.exitCode).toBe(0);
+    expect(
+      JSON.parse(
+        await readFile(join(root, ".tableverse", "game.json"), "utf8"),
+      ),
+    ).toEqual({ gameId: "nested-game" });
   });
 
   it("tells a file-linked project to delete game.json on a 403", async () => {
@@ -423,7 +456,7 @@ describe("tvk upload", () => {
       JSON.stringify({ gameId: "game-123" }),
     );
     const h = harness(root, {
-      context: { env: {} }, // resolve via the file, not the env override
+      context: { env: {} },
       client: {
         getGame: async () => {
           throw new PlatformRequestError(403, "/games/game-123");

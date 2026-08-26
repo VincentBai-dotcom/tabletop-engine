@@ -8,7 +8,7 @@ The `tvk` command runs your game locally and hands finished source to Tableverse
 From the project root, invoke it with:
 
 ```bash
-pnpm exec tvk --help
+npx tvk --help
 ```
 
 ## Commands
@@ -20,17 +20,17 @@ pnpm exec tvk --help
 | `tvk login` | Sign in to Tableverse in your browser. |
 | `tvk whoami` | Print the signed-in account. |
 | `tvk logout` | Revoke and remove the saved login. |
-| `tvk upload` | Package engine and frontend source and start a platform build. |
+| `tvk upload` | Package the project source and start a platform build. |
 
 Use `--help` after any command to see its current options:
 
 ```bash
-pnpm exec tvk upload --help
+npx tvk upload --help
 ```
 
 ## Config file
 
-`tvk validate`, `tvk dev`, and `tvk upload` load `tableverse.config.ts` from the current working directory by default.
+`tvk validate`, `tvk dev`, and `tvk upload` search the current directory and its parents for `tableverse.config.ts`.
 
 ```ts
 import { defineConfig } from "@tableverse-kit/config";
@@ -42,26 +42,29 @@ export default defineConfig({
     engine: { root: "./engine" },
     frontend: {
       root: "./client",
-      buildCommand: "pnpm build",
+      buildCommand: "npm run build",
       outDir: "dist",
     },
   },
 });
 ```
 
-Pass a different path with `--config`:
+Run commands from the project root or any directory below it:
 
 ```bash
-pnpm exec tvk validate --config configs/demo.tableverse.config.ts
+cd client
+npx tvk validate
 ```
+
+The CLI walks upward to the nearest `tableverse.config.ts`.
 
 ## Recommended checks
 
 Run TypeScript before CLI validation. The CLI loads the built definition, while TypeScript catches mistakes in code paths that may not run during definition assembly.
 
 ```bash
-pnpm typecheck
-pnpm exec tvk validate
+npm run typecheck
+npx tvk validate
 ```
 
 <CardGroup cols={2}>

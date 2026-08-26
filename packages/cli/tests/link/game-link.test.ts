@@ -17,9 +17,9 @@ async function tempProject(): Promise<string> {
   return dir;
 }
 
-async function writeLink(cwd: string, contents: string): Promise<void> {
-  await mkdir(join(cwd, ".tableverse"), { recursive: true });
-  await writeFile(join(cwd, ".tableverse", "game.json"), contents);
+async function writeLink(projectRoot: string, contents: string): Promise<void> {
+  await mkdir(join(projectRoot, ".tableverse"), { recursive: true });
+  await writeFile(join(projectRoot, ".tableverse", "game.json"), contents);
 }
 
 afterEach(async () => {
@@ -28,75 +28,81 @@ afterEach(async () => {
 
 describe("resolveGameLink", () => {
   it("returns null for a directory with no link and no override", async () => {
-    const cwd = await tempProject();
+    const projectRoot = await tempProject();
 
-    expect(await resolveGameLink({ cwd, env: {} })).toBeNull();
+    expect(await resolveGameLink({ projectRoot, env: {} })).toBeNull();
   });
 
   it("reads the gameId from .tableverse/game.json", async () => {
-    const cwd = await tempProject();
-    await writeLink(cwd, JSON.stringify({ gameId: "game-123" }));
+    const projectRoot = await tempProject();
+    await writeLink(projectRoot, JSON.stringify({ gameId: "game-123" }));
 
-    expect(await resolveGameLink({ cwd, env: {} })).toEqual({
+    expect(await resolveGameLink({ projectRoot, env: {} })).toEqual({
       gameId: "game-123",
       source: "file",
     });
   });
 
   it("lets TABLEVERSE_GAME_ID override the file", async () => {
-    const cwd = await tempProject();
-    await writeLink(cwd, JSON.stringify({ gameId: "from-file" }));
+    const projectRoot = await tempProject();
+    await writeLink(projectRoot, JSON.stringify({ gameId: "from-file" }));
 
     expect(
-      await resolveGameLink({ cwd, env: { TABLEVERSE_GAME_ID: "from-env" } }),
+      await resolveGameLink({
+        projectRoot,
+        env: { TABLEVERSE_GAME_ID: "from-env" },
+      }),
     ).toEqual({ gameId: "from-env", source: "env" });
   });
 
   it("uses the override when there is no file at all", async () => {
-    const cwd = await tempProject();
+    const projectRoot = await tempProject();
 
     expect(
-      await resolveGameLink({ cwd, env: { TABLEVERSE_GAME_ID: "from-env" } }),
+      await resolveGameLink({
+        projectRoot,
+        env: { TABLEVERSE_GAME_ID: "from-env" },
+      }),
     ).toEqual({ gameId: "from-env", source: "env" });
   });
 
   it("treats a malformed link file as an error, not an unlinked directory", async () => {
-    const cwd = await tempProject();
-    await writeLink(cwd, "{ not json");
+    const projectRoot = await tempProject();
+    await writeLink(projectRoot, "{ not json");
 
-    await expect(resolveGameLink({ cwd, env: {} })).rejects.toBeInstanceOf(
-      GameLinkError,
-    );
+    await expect(
+      resolveGameLink({ projectRoot, env: {} }),
+    ).rejects.toBeInstanceOf(GameLinkError);
   });
 
   it("errors when the link file has no gameId", async () => {
-    const cwd = await tempProject();
-    await writeLink(cwd, JSON.stringify({ notGameId: "x" }));
+    const projectRoot = await tempProject();
+    await writeLink(projectRoot, JSON.stringify({ notGameId: "x" }));
 
-    await expect(resolveGameLink({ cwd, env: {} })).rejects.toBeInstanceOf(
-      GameLinkError,
-    );
+    await expect(
+      resolveGameLink({ projectRoot, env: {} }),
+    ).rejects.toBeInstanceOf(GameLinkError);
   });
 });
 
 describe("writeGameLink", () => {
   it("writes a link resolveGameLink reads back, creating .tableverse", async () => {
-    const cwd = await tempProject();
+    const projectRoot = await tempProject();
 
-    await writeGameLink({ cwd, gameId: "game-xyz" });
+    await writeGameLink({ projectRoot, gameId: "game-xyz" });
 
-    expect(await resolveGameLink({ cwd, env: {} })).toEqual({
+    expect(await resolveGameLink({ projectRoot, env: {} })).toEqual({
       gameId: "game-xyz",
       source: "file",
     });
   });
 
   it("overwrites an existing link on re-link", async () => {
-    const cwd = await tempProject();
-    await writeGameLink({ cwd, gameId: "first" });
-    await writeGameLink({ cwd, gameId: "second" });
+    const projectRoot = await tempProject();
+    await writeGameLink({ projectRoot, gameId: "first" });
+    await writeGameLink({ projectRoot, gameId: "second" });
 
-    expect(await resolveGameLink({ cwd, env: {} })).toMatchObject({
+    expect(await resolveGameLink({ projectRoot, env: {} })).toMatchObject({
       gameId: "second",
     });
   });

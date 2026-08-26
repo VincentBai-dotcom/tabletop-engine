@@ -17,9 +17,16 @@ export interface DevCommandRuntime {
 }
 
 interface ParsedDevArgs {
-  configPath?: string;
   port?: number;
 }
+
+export const FRONTEND_DEV_COMMAND: Readonly<{
+  executable: string;
+  args: readonly string[];
+}> = {
+  executable: "npm",
+  args: ["run", "dev"],
+};
 
 export async function runDevCommand(
   args: string[],
@@ -32,10 +39,7 @@ export async function runDevCommand(
 
   try {
     const parsed = parseDevArgs(args);
-    const config = await loadConfig({
-      cwd: options.cwd,
-      configPath: parsed.configPath,
-    });
+    const config = await loadConfig({ cwd: options.cwd });
     if (!config.publish) {
       return failure(
         "tvk dev needs publish.frontend.root in tableverse.config.ts.",
@@ -74,10 +78,7 @@ function parseDevArgs(args: string[]): ParsedDevArgs {
     const flag = args[index];
     const value = args[index + 1];
 
-    if (flag === "--config" && value) {
-      parsed.configPath = value;
-      index += 1;
-    } else if (flag === "--port" && value) {
+    if (flag === "--port" && value) {
       const port = Number.parseInt(value, 10);
       if (Number.isNaN(port)) {
         throw new Error(`invalid_port:${value}`);
@@ -96,10 +97,14 @@ const defaultRuntime: DevCommandRuntime = {
   startServer: startDevServer,
   runFrontend: (root) =>
     new Promise<number>((resolveExit, reject) => {
-      const child = spawn("pnpm", ["dev"], {
-        cwd: root,
-        stdio: "inherit",
-      });
+      const child = spawn(
+        FRONTEND_DEV_COMMAND.executable,
+        FRONTEND_DEV_COMMAND.args,
+        {
+          cwd: root,
+          stdio: "inherit",
+        },
+      );
       child.once("error", reject);
       child.once("exit", (code, signal) => {
         resolveExit(code ?? (signal ? 1 : 0));

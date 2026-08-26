@@ -6,10 +6,10 @@ description: "Run your rules locally and connect your frontend."
 Start the rules server and frontend:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
-`pnpm dev` loads `tableverse.config.ts`, starts the rules server at `http://localhost:5100`, and runs the frontend's `dev` script from `publish.frontend.root`.
+`npm run dev` loads `tableverse.config.ts`, starts the rules server at `http://localhost:5100`, and runs the frontend's `dev` script from `publish.frontend.root`.
 
 The scaffold creates one client for local previews and published games:
 
@@ -58,7 +58,7 @@ const client = createTableverseClient<Game>({
 ## Change the port
 
 ```bash
-pnpm exec tvk dev --port 5200
+npx tvk dev --port 5200
 ```
 
 Pass the same URL when you create the client:

@@ -1,4 +1,5 @@
 import type { TSchema, Static } from "@sinclair/typebox";
+import type { PublishConfig } from "@tableverse-kit/config";
 import type { SerializedSetupSchema } from "@tableverse-kit/engine";
 import { Value } from "@sinclair/typebox/value";
 import { MeResponseSchema, type MeResponse } from "./api/me.ts";
@@ -20,17 +21,15 @@ import {
 export interface TokenResponse {
   accessToken: string;
   refreshToken: string;
-  /** Lifetime of the access token in seconds. */
   expiresIn: number;
 }
 
 export interface CreateVersionInput {
   accessToken: string;
   gameId: string;
-  engineSourceSha256: string;
-  engineSourceSizeBytes: number;
-  frontendSourceSha256: string;
-  frontendSourceSizeBytes: number;
+  projectSourceSha256: string;
+  projectSourceSizeBytes: number;
+  buildConfig: PublishConfig;
   metadata: {
     setupInputSchema: SerializedSetupSchema | null;
     minPlayers: number;
@@ -61,11 +60,6 @@ export interface PlatformClient {
     accessToken: string;
     versionId: string;
   }): Promise<StartBuildResponse>;
-  /**
-   * Uploads one tarball straight to its presigned target. Not a platform-api
-   * call — the URL points at object storage — so it is separate from the
-   * authenticated methods above and carries no bearer token.
-   */
   uploadArtifact(input: {
     target: PresignedUpload;
     body: Uint8Array;
@@ -74,12 +68,6 @@ export interface PlatformClient {
 
 export type FetchLike = typeof fetch;
 
-/**
- * A presigned upload was rejected by object storage. Distinct from
- * `PlatformRequestError` (which names a platform-api endpoint): the failing
- * request went to storage, and a 403 here typically means the upload window
- * expired rather than that the session is bad.
- */
 export class ArtifactUploadError extends Error {
   readonly status: number;
 
@@ -94,9 +82,6 @@ export class PlatformRequestError extends Error {
   readonly status: number;
   readonly endpoint: string;
 
-  // Fields are assigned rather than declared as constructor parameter
-  // properties: those are TypeScript-only syntax that Node's type stripping
-  // cannot transform, and `bin` points straight at the TypeScript entry.
   constructor(status: number, endpoint: string) {
     super(`platform_request_failed:${endpoint}:${status}`);
     this.name = "PlatformRequestError";
@@ -105,12 +90,6 @@ export class PlatformRequestError extends Error {
   }
 }
 
-/**
- * The platform answered, but not with anything this CLI recognises. Distinct
- * from `PlatformRequestError` (the platform said no, and we understood it):
- * this means the CLI and the platform disagree about the wire format, which is
- * ours to report, not the user's to fix.
- */
 export class PlatformResponseError extends Error {
   readonly endpoint: string;
   readonly at?: string;
@@ -123,19 +102,12 @@ export class PlatformResponseError extends Error {
   }
 }
 
-/**
- * Checks a decoded response body against what the CLI requires of it. Without
- * this a bad field would be cast away silently and only surface much later —
- * an unreadable credentials file, or `undefined` somewhere far from the cause.
- */
 function parseResponse<T extends TSchema>(
   schema: T,
   body: unknown,
   endpoint: string,
 ): Static<T> {
   if (!Value.Check(schema, body)) {
-    // A JSON pointer to the first offending field; empty at the root, where it
-    // reads as punctuation rather than a location.
     const at = Value.Errors(schema, body).First()?.path;
 
     throw new PlatformResponseError(endpoint, at === "" ? undefined : at);
@@ -312,9 +284,6 @@ export function createPlatformClient(options: {
     },
 
     async uploadArtifact({ target, body }) {
-      // Headers must be sent exactly as issued: the declared digest is bound
-      // into the signature. The body is a Buffer so fetch sets Content-Length
-      // to the exact size the presigned URL was minted for.
       const response = await fetchImpl(target.url, {
         method: "PUT",
         headers: target.headers,

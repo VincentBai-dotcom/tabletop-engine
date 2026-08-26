@@ -3,16 +3,12 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGenerationContext } from "../src/lib/generation-context.ts";
 import { loadConfig } from "../src/lib/load-config.ts";
-import { parseCommandArguments } from "../src/lib/parse-args.ts";
 
 const currentDir = fileURLToPath(new URL(".", import.meta.url));
-const repoRoot = resolve(currentDir, "..", "..", "..");
 
 describe("createGenerationContext", () => {
   it("resolves the output directory from a default config file", async () => {
-    const parsed = parseCommandArguments([]);
-
-    const context = await createGenerationContext(parsed, {
+    const context = await createGenerationContext({
       cwd: resolve(currentDir, "fixtures"),
     });
 
@@ -22,19 +18,14 @@ describe("createGenerationContext", () => {
     );
   });
 
-  it("resolves the output directory from an explicit config file", async () => {
-    const parsed = parseCommandArguments([
-      "--config",
-      resolve(currentDir, "fixtures", "tableverse.custom.config.ts"),
-    ]);
-
-    const context = await createGenerationContext(parsed, {
-      cwd: repoRoot,
+  it("resolves the output directory from a child directory", async () => {
+    const context = await createGenerationContext({
+      cwd: resolve(currentDir, "fixtures", "nested"),
     });
 
-    expect(context.game.name).toBe("fixture-named");
+    expect(context.game.name).toBe("fixture-default");
     expect(context.outputDirectory).toBe(
-      resolve(currentDir, "fixtures", "custom-generated"),
+      resolve(currentDir, "fixtures", "generated-from-config"),
     );
   });
 });
@@ -48,28 +39,34 @@ describe("loadConfig", () => {
     expect(config.game.name).toBe("fixture-default");
   });
 
-  it("loads an explicit config file from --config", async () => {
+  it("finds tableverse.config.ts from a child directory", async () => {
     const config = await loadConfig({
-      cwd: repoRoot,
-      configPath: resolve(
-        currentDir,
-        "fixtures",
-        "tableverse.custom.config.ts",
-      ),
+      cwd: resolve(currentDir, "fixtures", "nested"),
     });
 
-    expect(config.game.name).toBe("fixture-named");
+    expect(config.game.name).toBe("fixture-default");
+    expect(config.configDirectory).toBe(resolve(currentDir, "fixtures"));
+  });
+
+  it("normalizes publish settings for the platform build", async () => {
+    const config = await loadConfig({
+      cwd: resolve(currentDir, "fixtures", "publish", "nested"),
+    });
+
+    expect(config.publish).toEqual({
+      engine: { root: "./engine" },
+      frontend: {
+        root: "./client",
+        buildCommand: "npm run build",
+        outDir: "dist",
+      },
+    });
   });
 
   it("rejects invalid config files", async () => {
     await expect(
       loadConfig({
-        cwd: repoRoot,
-        configPath: resolve(
-          currentDir,
-          "fixtures",
-          "tabletop.invalid.config.ts",
-        ),
+        cwd: resolve(currentDir, "fixtures", "invalid"),
       }),
     ).rejects.toThrow("invalid_cli_config");
   });

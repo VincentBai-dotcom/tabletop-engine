@@ -1,6 +1,6 @@
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import type { UploadContext } from "../lib/upload/context.ts";
 import type { GameResponse } from "../lib/api/games.ts";
 import { loadSession } from "../lib/auth/session.ts";
@@ -9,12 +9,13 @@ import {
   writeGameLink,
   type ResolvedGameLink,
 } from "../lib/link/game-link.ts";
-import { findLockfile } from "../lib/packaging/lockfile.ts";
+import { hasPackageLock } from "../lib/packaging/lockfile.ts";
 import { packSource } from "../lib/packaging/tarball.ts";
 import { buildDeploymentUrl } from "../lib/upload/deployment-url.ts";
 import {
   InaccessibleGameError,
   MissingLockfileError,
+  MissingProjectManifestError,
   MissingSourceRootError,
   describeUploadError,
   type SourceLabel,
@@ -22,7 +23,7 @@ import {
 import { PlatformRequestError } from "../lib/platform-client.ts";
 import { failure, success, type RunResult } from "../lib/command-result.ts";
 import { createUploadHelpText } from "../lib/help-text.ts";
-import { isHelpFlag, parseCommandArguments } from "../lib/parse-args.ts";
+import { isHelpFlag, rejectCommandArguments } from "../lib/parse-args.ts";
 import type { PublishConfig } from "@tableverse-kit/config";
 import { serializeSetupSchema } from "@tableverse-kit/engine";
 
@@ -37,7 +38,14 @@ async function directoryExists(path: string): Promise<boolean> {
   }
 }
 
-/** Resolves one source root to an absolute path and proves it is rebuildable. */
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isFile();
+  } catch {
+    return false;
+  }
+}
+
 async function resolveSourceRoot(
   label: SourceLabel,
   root: string,
@@ -48,14 +56,10 @@ async function resolveSourceRoot(
   if (!(await directoryExists(absolute))) {
     throw new MissingSourceRootError(label, absolute);
   }
-  if (!(await findLockfile(absolute))) {
-    throw new MissingLockfileError(label, absolute);
-  }
 
   return absolute;
 }
 
-/** Confirms a linked id resolves and the account can reach it. */
 async function resolveLinkedGame(
   ctx: UploadContext,
   accessToken: string,
@@ -74,16 +78,11 @@ async function resolveLinkedGame(
   }
 }
 
-/**
- * First-run link: on an unlinked project, offer the account's games to pick from
- * or create a new one, then write the binding. Never silent — a missing link is
- * indistinguishable from a copy whose binding was lost, so creating one is only
- * ever an explicit choice made here.
- */
 async function establishFirstRunLink(
   ctx: UploadContext,
   accessToken: string,
   defaultName: string,
+  projectRoot: string,
 ): Promise<GameResponse> {
   const { games } = await ctx.client.listGames({ accessToken });
   const decision = await ctx.linkPrompt({ games, defaultName });
@@ -98,12 +97,9 @@ async function establishFirstRunLink(
   }
 
   try {
-    await writeGameLink({ cwd: ctx.cwd, gameId: game.id });
+    await writeGameLink({ projectRoot, gameId: game.id });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    // The game now exists on the platform but the link was not saved. Point at
-    // TABLEVERSE_GAME_ID so a retry targets it instead of prompting to create a
-    // second game — the duplicate the first-run design exists to prevent.
     throw new Error(
       decision.action === "create"
         ? `Created game ${game.name} (${game.id}), but saving the link failed: ${detail}\n` +
@@ -128,9 +124,8 @@ export async function runUploadCommand(
     return success(createUploadHelpText());
   }
 
-  let configPath: string | undefined;
   try {
-    configPath = parseCommandArguments(args).configPath;
+    rejectCommandArguments(args);
   } catch (error) {
     return failure(error instanceof Error ? error.message : String(error));
   }
@@ -151,7 +146,7 @@ export async function runUploadCommand(
     }
     const { accessToken } = session;
 
-    const config = await ctx.loadConfig({ cwd: ctx.cwd, configPath });
+    const config = await ctx.loadConfig({ cwd: ctx.cwd });
     const publish: PublishConfig | undefined = config.publish;
     if (!publish) {
       return failure(
@@ -159,24 +154,17 @@ export async function runUploadCommand(
       );
     }
 
-    // Pre-flight the filesystem before any network call: a missing source root
-    // or lockfile is the developer's to fix, and failing here spends nothing.
-    const engineRoot = await resolveSourceRoot(
-      "engine",
-      publish.engine.root,
-      config.configDirectory,
-    );
-    const frontendRoot = await resolveSourceRoot(
-      "frontend",
-      publish.frontend.root,
-      config.configDirectory,
-    );
+    const projectRoot = config.configDirectory;
+    await resolveSourceRoot("engine", publish.engine.root, projectRoot);
+    await resolveSourceRoot("frontend", publish.frontend.root, projectRoot);
+    if (!(await fileExists(join(projectRoot, "package.json")))) {
+      throw new MissingProjectManifestError(projectRoot);
+    }
+    if (!(await hasPackageLock(projectRoot))) {
+      throw new MissingLockfileError(projectRoot);
+    }
 
-    // Resolve which game this publishes to. A linked project confirms access to
-    // its id; an unlinked one prompts to create or pick on its first upload —
-    // or, with no terminal to prompt at, stops and asks for an explicit id
-    // rather than silently creating a duplicate game.
-    const link = await resolveGameLink({ cwd: ctx.cwd, env: ctx.env });
+    const link = await resolveGameLink({ projectRoot, env: ctx.env });
     let game: GameResponse;
     if (link) {
       game = await resolveLinkedGame(ctx, accessToken, link);
@@ -188,42 +176,40 @@ export async function runUploadCommand(
         ].join("\n"),
       );
     } else {
-      game = await establishFirstRunLink(ctx, accessToken, config.game.name);
+      game = await establishFirstRunLink(
+        ctx,
+        accessToken,
+        config.game.name,
+        projectRoot,
+      );
     }
 
-    // Show the target before packaging: for a linked project this is the check
-    // that catches a copied directory, which authorization cannot see.
     ctx.emit(`Publishing to ${game.name} (${game.id})`);
 
     tempDir = await mkdtemp(join(tmpdir(), "tvk-upload-"));
     ctx.emit("Packaging source…");
-    const engineSource = await packSource({
-      root: engineRoot,
-      outFile: join(tempDir, "engine-source.tar.gz"),
-    });
-    const frontendSource = await packSource({
-      root: frontendRoot,
-      outFile: join(tempDir, "frontend-source.tar.gz"),
-      excludeDirs: [publish.frontend.outDir],
+    const frontendOutDir = relative(
+      projectRoot,
+      resolve(projectRoot, publish.frontend.root, publish.frontend.outDir),
+    );
+    const projectSource = await packSource({
+      root: projectRoot,
+      outFile: join(tempDir, "project-source.tar.gz"),
+      excludeDirs: [frontendOutDir],
     });
 
-    // Local env files never leave the machine; name them so a skipped `.env`
-    // reads as intended rather than as a silently lost file.
-    const dropped = [
-      ...engineSource.droppedFiles.map((file) => `engine/${file}`),
-      ...frontendSource.droppedFiles.map((file) => `frontend/${file}`),
-    ];
-    if (dropped.length > 0) {
-      ctx.emit(`Skipped local env files: ${dropped.join(", ")}`);
+    if (projectSource.droppedFiles.length > 0) {
+      ctx.emit(
+        `Skipped local env files: ${projectSource.droppedFiles.join(", ")}`,
+      );
     }
 
     const version = await ctx.client.createVersion({
       accessToken,
       gameId: game.id,
-      engineSourceSha256: engineSource.sha256,
-      engineSourceSizeBytes: engineSource.sizeBytes,
-      frontendSourceSha256: frontendSource.sha256,
-      frontendSourceSizeBytes: frontendSource.sizeBytes,
+      projectSourceSha256: projectSource.sha256,
+      projectSourceSizeBytes: projectSource.sizeBytes,
+      buildConfig: publish,
       metadata: {
         setupInputSchema: serializeSetupSchema(config.game.setupInputSchema),
         minPlayers: config.game.playerBounds.min,
@@ -231,41 +217,27 @@ export async function runUploadCommand(
       },
     });
 
-    // The two uploads are independent, so run them together: it roughly halves
-    // upload time and narrows the window against the presigned URLs' expiry.
     ctx.emit("Uploading source…");
-    const uploadArtifact = async (
-      target: (typeof version.putUrls)["engineSource"],
-      path: string,
-    ) => ctx.client.uploadArtifact({ target, body: await readFile(path) });
-    await Promise.all([
-      uploadArtifact(version.putUrls.engineSource, engineSource.path),
-      uploadArtifact(version.putUrls.frontendSource, frontendSource.path),
-    ]);
+    await ctx.client.uploadArtifact({
+      target: version.putUrls.projectSource,
+      body: await readFile(projectSource.path),
+    });
 
     const { buildId } = await ctx.client.startBuild({
       accessToken,
       versionId: version.versionId,
     });
 
-    // Hand the build off to the web dashboard rather than polling here: the
-    // build runs for minutes, and the page renders live status far better than a
-    // pinned terminal. The URL carries identifiers only — the browser
-    // authenticates through its own platform-web session, never the CLI's token.
     const dashboardUrl = buildDeploymentUrl({
       webBaseUrl: ctx.config.webBaseUrl,
       gameId: game.id,
       buildId,
       versionNumber: version.versionNumber,
     });
-    // Only reach for a browser when there is a user at a terminal: in CI or a
-    // piped run there is nothing to open, and the printed URL is the hand-off.
     if (ctx.interactive) {
       ctx.emit(
         "Build started — opening the deployment dashboard in your browser…",
       );
-      // Best-effort: on a headless box `openBrowser` may find no handler, so the
-      // printed URL is the real deliverable and the failure is swallowed.
       await ctx.openBrowser(dashboardUrl).catch(() => {});
     }
 

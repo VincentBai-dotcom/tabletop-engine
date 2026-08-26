@@ -6,20 +6,13 @@ import { create as tarCreate } from "tar";
 import { ALWAYS_EXCLUDED_DIRS, classifyFile } from "./secrets.ts";
 
 export interface PackagedSource {
-  /** Path to the written `.tar.gz`. */
   path: string;
-  /** Lowercase hex sha256 of the gzipped bytes, as the platform verifies. */
   sha256: string;
   sizeBytes: number;
   fileCount: number;
-  /**
-   * Local env files left out of the tarball (`.env`, `.env.local`, …). Reported
-   * so the CLI can name what it skipped rather than dropping bytes silently.
-   */
   droppedFiles: string[];
 }
 
-/** Packaging refused before anything was uploaded. */
 export class SourcePackagingError extends Error {
   readonly root: string;
   readonly reason: "secret_files" | "empty_source";
@@ -91,8 +84,6 @@ export async function packSource(options: {
   excludeDirs?: string[];
 }): Promise<PackagedSource> {
   const { root, outFile } = options;
-  // Normalize each exclude to the same canonical relative form the walk emits
-  // (no leading `./`, no trailing slash), so `./dist` and `dist/` match `dist`.
   const excluded = new Set(
     (options.excludeDirs ?? []).map((dir) =>
       toPosix(relative(root, resolve(root, dir))),

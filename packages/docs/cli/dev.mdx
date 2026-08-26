@@ -6,7 +6,7 @@ description: "Start the local rules server and frontend."
 Start the complete development environment from the generated project root:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 This loads `tableverse.config.ts`, starts the rules server at `http://localhost:5100`, and runs the frontend's `dev` script from `publish.frontend.root`.
@@ -29,20 +29,13 @@ const client = createTableverseClient<typeof executor>({
 tvk dev
 
 Optional flags:
-  --config <path>
   --port <number>
 ```
 
 Use another port when `5100` is busy:
 
 ```bash
-pnpm exec tvk dev --port 5200
-```
-
-`--config` is resolved from your current directory:
-
-```bash
-pnpm exec tvk dev --config configs/demo.tableverse.config.ts
+npx tvk dev --port 5200
 ```
 
 ## Local session behavior
@@ -69,7 +62,7 @@ If the client remains on `connecting`:
 3. Check that setup input matches the schema in your game definition.
 4. Restart the server to clear a session initialized with old input.
 
-If config loading fails, run `tvk validate` from the same directory. Pass the same `--config` value to both commands.
+If config loading fails, confirm the project root contains `tableverse.config.ts`. Run `tvk validate` from the same directory to check the game definition.
 
 <Card title="Local sessions" icon="arrow-right" href="/client/local-sessions">
   Configure viewers, the roster, and setup input in the frontend.

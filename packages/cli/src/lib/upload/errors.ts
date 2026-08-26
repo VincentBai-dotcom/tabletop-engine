@@ -1,6 +1,6 @@
 import { GameLinkError, type GameLinkSource } from "../link/game-link.ts";
 import { SourcePackagingError } from "../packaging/tarball.ts";
-import { KNOWN_LOCKFILES } from "../packaging/lockfile.ts";
+import { PACKAGE_LOCKFILE } from "../packaging/lockfile.ts";
 import type { PlatformConfig } from "../platform-config.ts";
 import {
   ArtifactUploadError,
@@ -8,10 +8,8 @@ import {
   PlatformResponseError,
 } from "../platform-client.ts";
 
-/** Which half of the publish a pre-flight check was about. */
 export type SourceLabel = "engine" | "frontend";
 
-/** A configured source directory does not exist. */
 export class MissingSourceRootError extends Error {
   constructor(
     readonly label: SourceLabel,
@@ -22,23 +20,20 @@ export class MissingSourceRootError extends Error {
   }
 }
 
-/** A source directory has no lockfile, so its version could not be rebuilt. */
 export class MissingLockfileError extends Error {
-  constructor(
-    readonly label: SourceLabel,
-    readonly root: string,
-  ) {
-    super(`missing_lockfile:${label}:${root}`);
+  constructor(readonly root: string) {
+    super(`missing_lockfile:${root}`);
     this.name = "MissingLockfileError";
   }
 }
 
-/**
- * The linked game exists behind an account this one cannot reach — the usual
- * cause is a copied directory carrying someone else's `game.json`, or a stale
- * `TABLEVERSE_GAME_ID`. Raised from a 403/404 on `GET /games/:id` so it reads as
- * "re-link", not a raw status. `source` says which of the two to advise fixing.
- */
+export class MissingProjectManifestError extends Error {
+  constructor(readonly root: string) {
+    super(`missing_project_manifest:${root}`);
+    this.name = "MissingProjectManifestError";
+  }
+}
+
 export class InaccessibleGameError extends Error {
   constructor(
     readonly gameId: string,
@@ -49,11 +44,6 @@ export class InaccessibleGameError extends Error {
   }
 }
 
-/**
- * Turns the errors `tvk upload` can fail with into a printable sentence. The
- * internal identifiers these carry (`missing_lockfile:engine:…`,
- * `artifact_upload_failed:403`) are for us; the developer gets the next action.
- */
 export function describeUploadError(
   error: unknown,
   config: PlatformConfig,
@@ -68,9 +58,15 @@ export function describeUploadError(
 
   if (error instanceof MissingLockfileError) {
     return [
-      `The ${error.label} source at ${error.root} has no lockfile.`,
-      `A version must be rebuildable, so one of ${KNOWN_LOCKFILES.join(", ")} is required.`,
-      "Install dependencies to generate one, then run `tvk upload` again.",
+      `The project root at ${error.root} has no lockfile.`,
+      `Run npm install to create ${PACKAGE_LOCKFILE}, then run tvk upload again.`,
+    ].join("\n");
+  }
+
+  if (error instanceof MissingProjectManifestError) {
+    return [
+      `The project root at ${error.root} has no package.json.`,
+      "Create the npm workspace manifest, then run tvk upload again.",
     ].join("\n");
   }
 

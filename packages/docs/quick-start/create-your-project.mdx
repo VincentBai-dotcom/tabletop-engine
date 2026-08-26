@@ -6,9 +6,9 @@ description: "Scaffold a game with a working engine and frontend."
 Create a project and install its dependencies:
 
 ```bash
-pnpm create tableverse@beta token-race
+npm create tableverse@beta token-race
 cd token-race
-pnpm install
+npm install
 ```
 
 The target directory must be empty. The scaffolder uses the directory name as the package and game name.
@@ -26,14 +26,14 @@ token-race/
 ├── client/
 │   └── src/main.ts
 ├── package.json
-├── pnpm-workspace.yaml
+├── package-lock.json
 └── tableverse.config.ts
 ```
 
 The scaffold already contains a playable scoring command and a plain TypeScript frontend. Start it before changing anything:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 Open the URL printed by Vite, usually `http://localhost:5173`, and click **Score a point**. The displayed view should update.
