@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "tvk": "node --env-file=.env ../../packages/cli/bin/tvk.js",
     "dev": "tvk dev",
     "validate": "tvk validate",
     "upload": "tvk upload"
