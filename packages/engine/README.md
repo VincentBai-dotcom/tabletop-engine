@@ -1,92 +1,122 @@
 # @tableverse-kit/engine
 
-Reusable runtime engine package for tabletop and board-game rules engines.
+The rules package for a [Tableverse](https://github.com/tableversehq) game. It
+turns your game definition into one `GameExecutor` that Tableverse runs.
 
-## Current scope
-
-This package currently provides:
-
-- canonical `{ game, runtime }` state types
-- command definitions with `validate` and `execute`
-- state metadata via `defineGameState(...)`, plain state classes, and `t`
-- `.state(...)` authoring on `GameDefinitionBuilder`
-- hydrated state facades for command execution, validation, availability, and discovery
-- transactional command execution
-- nested progression definitions with engine-managed lifecycle resolution
-- semantic event collection
-- deterministic RNG primitives
-- snapshot and replay helpers
-- a small scenario-style test harness
-- viewer-specific visible state projection
-
-## Intentional deferrals
-
-The current package does **not** yet implement:
-
-- a first-class public internal-step abstraction
-- rich trigger resolution beyond the current skeleton
-- richer stack / queue resolution models
-- persistence adapters
-
-## Scripts
+Your frontend never imports these rules. It talks to the executor through
+[`@tableverse-kit/client`](https://github.com/tableversehq/tableverse-kit/tree/main/packages/client).
 
 ```bash
-bun run test
-bun run typecheck
+npm install @tableverse-kit/engine@beta
 ```
 
-## State facade authoring
+## The four parts of a game
 
-Games can continue to persist and execute against plain canonical state while
-authoring against a root facade class.
+- **State** — the saved facts of the game: scores, pieces, decks, player order.
+- **Commands** — the actions players attempt, with input validation and execution.
+- **Stages** — the current phase, its allowed commands, its active players, and what comes next.
+- **Game definition** — state, events, setup, and the initial stage assembled into one game.
+
+## Example
 
 ```ts
 import {
   createCommandFactory,
+  createGameExecutor,
   createStageFactory,
+  defineEvents,
   defineGameState,
   GameDefinitionBuilder,
   t,
 } from "@tableverse-kit/engine";
 
-class CounterState {
-  value!: number;
-
-  increment() {
-    this.value += 1;
-  }
+class GameState {
+  players: string[] = [];
+  scores: Record<string, number> = {};
 }
 
-const Counter = defineGameState()
+const gameState = defineGameState()
   .model({
-    value: t.number(),
+    players: t.array(t.string()),
+    scores: t.record(t.string(), t.number()),
   })
-  .stateClass(CounterState)
+  .stateClass(GameState)
   .build();
 
-const defineCommand = createCommandFactory<CounterState>();
-const increment = defineCommand({
-  commandId: "increment",
-  commandSchema: t.object({}),
+const events = defineEvents({
+  scored: t.object({ points: t.number() }),
+});
+
+const defineCommand = createCommandFactory<GameState, typeof events>();
+
+const score = defineCommand({
+  commandId: "score",
+  commandSchema: t.object({ points: t.number() }),
 })
-  .validate(() => ({ ok: true }))
-  .execute(({ game }) => {
-    game.increment();
+  .validate(({ command }) =>
+    command.input.points > 0
+      ? { ok: true as const }
+      : { ok: false as const, reason: "points_must_be_positive" },
+  )
+  .execute(({ game, command, emitEvent }) => {
+    game.scores[command.actorId] =
+      (game.scores[command.actorId] ?? 0) + command.input.points;
+    emitEvent({ type: "scored", payload: { points: command.input.points } });
   })
   .build();
-const turnStage = createStageFactory<CounterState>()("turn")
+
+const defineStage = createStageFactory<GameState, typeof events>();
+
+const turn = defineStage("turn")
   .singleActivePlayer()
-  .activePlayer(() => "player-1")
-  .commands([increment])
-  .nextStages(() => ({ turnStage }))
-  .transition(({ nextStages }) => nextStages.turnStage)
+  .activePlayer(({ runtime }) => runtime.players[0]!)
+  .commands([score])
+  .nextStages(() => ({ turn }))
+  .transition(({ nextStages }) => nextStages.turn)
   .build();
 
-const game = new GameDefinitionBuilder("counter")
-  .state(Counter)
-  .initialStage(turnStage)
+const game = new GameDefinitionBuilder("token-race")
+  .state(gameState)
+  .events(events)
+  .players({ min: 2, max: 4 })
+  .setup(({ game, players }) => {
+    game.players = [...players];
+    game.scores = Object.fromEntries(players.map((id) => [id, 0]));
+  })
+  .initialStage(turn)
   .build();
+
+export const executor = createGameExecutor(game);
 ```
 
-The executor still returns plain canonical state. The facade is a temporary
-execution-time authoring layer over a cloned working copy.
+## Main exports
+
+- `t` — serializable field and command input schemas.
+- `defineGameState` — pairs saved fields with a state class.
+- `createCommandFactory` — creates commands for that class.
+- `createStageFactory` — creates the flow between player actions.
+- `defineEvents` — declares player-facing event payloads.
+- `GameDefinitionBuilder` — assembles the game.
+- `createGameExecutor` — produces the finished runtime surface.
+- `createSnapshot` / `restoreSnapshot`, `createReplayRecord` / `replayRecord` — snapshots and replay.
+- `runScenario` — a scenario-style test harness.
+
+## Rules to keep in mind
+
+- Use the provided `rng` for every random choice. `Math.random()` cannot be replayed.
+- Store only values described by `t` schemas.
+- Put rule changes inside command execution, automatic stages, or setup.
+- Treat `game` as read-only in validation, availability, and transition callbacks.
+- Use hidden-information rules for secrets, and send each player their own view.
+
+The package runs inside the platform's `isolated-vm` sandbox, so it stays free
+of Node and browser globals.
+
+## Documentation
+
+[Engine documentation](https://github.com/tableversehq/tableverse-kit/tree/main/packages/docs/engine) covers state, commands,
+stages, game definitions, hidden information, the executor, and testing.
+
+## License
+
+MIT
