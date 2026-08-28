@@ -1,7 +1,14 @@
 {
   "name": "@tableverse-kit/cli",
   "version": "0.1.0-beta.0",
+  "description": "The tvk command: validate, preview, and upload Tableverse games.",
   "license": "Apache-2.0",
+  "homepage": "https://docs.tableverse.io/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tableversehq/tableverse-kit.git",
+    "directory": "packages/cli"
+  },
   "type": "module",
   "private": false,
   "exports": {
