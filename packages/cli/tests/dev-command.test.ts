@@ -8,8 +8,7 @@ import {
 } from "../src/commands/dev.ts";
 
 const currentDir = fileURLToPath(new URL(".", import.meta.url));
-const repoRoot = join(currentDir, "..", "..", "..");
-const projectRoot = join(repoRoot, "examples", "splendor");
+const projectRoot = join(currentDir, "fixtures", "project");
 
 describe("tvk dev", () => {
   it("starts the frontend through npm", () => {

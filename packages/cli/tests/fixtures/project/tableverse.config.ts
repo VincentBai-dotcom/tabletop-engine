@@ -1,9 +1,8 @@
 import { defineConfig } from "@tableverse-kit/config";
-import { createSplendorGame } from "./engine/src/game.ts";
+import createFixtureGame from "../game-default.ts";
 
 export default defineConfig({
-  game: createSplendorGame(),
-  outDir: "./engine/generated",
+  game: createFixtureGame(),
   publish: {
     engine: { root: "./engine" },
     frontend: {

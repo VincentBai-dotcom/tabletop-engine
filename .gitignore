@@ -17,7 +17,6 @@ coverage
 
 # logs
 logs
-examples/splendor/server/logs/
 _.log
 *.log
 npm-debug.log*
@@ -61,13 +60,7 @@ package-lock.json
 *.sln
 *.sw?
 
-# local splendor reference files
-examples/splendor/engine/Splendor Cards.csv
-examples/splendor/engine/Splendor.md
-examples/splendor/engine/nobile tiles.md
-examples/splendor/vendor/
-
-# local tvk link state (binds an example dir to a game on a dev platform)
+# local tvk link state (binds a project dir to a game on a dev platform)
 .tableverse/
 
 # local codex state

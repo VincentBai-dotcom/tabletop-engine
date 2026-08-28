@@ -1,10 +1,4 @@
 packages:
   - "packages/*"
-  - "examples/*"
-  - "examples/*/*"
-  - "!examples/splendor"
-  - "!examples/splendor/engine"
-  - "!examples/splendor/terminal"
-  - "!examples/splendor/web"
 allowBuilds:
   esbuild: true

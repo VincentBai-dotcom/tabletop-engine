@@ -15,12 +15,6 @@
     },
     {
       "path": "./packages/engine"
-    },
-    {
-      "path": "./examples/splendor/engine"
-    },
-    {
-      "path": "./examples/splendor/terminal"
     }
   ],
   "compilerOptions": {

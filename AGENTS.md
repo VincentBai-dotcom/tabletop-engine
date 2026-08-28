@@ -24,8 +24,8 @@ own transport, but the repo does not document or build toward that.
 
 ## Packages
 
-Workspaces are `packages/*` and `examples/*/*` (see `pnpm-workspace.yaml`).
-Cross-package deps use `workspace:*`.
+Workspaces are `packages/*` (see `pnpm-workspace.yaml`). Cross-package deps use
+`workspace:*`.
 
 Published `@tableverse-kit/*` family:
 
@@ -58,14 +58,10 @@ Published `@tableverse-kit/*` family:
   (install globally: `npm i -g mint`). MDX is `.prettierignore`d — Prettier
   corrupts fenced code inside Mintlify components. See `packages/docs/AGENTS.md`.
 
-Examples (real consumer documentation, not throwaway):
-
-- `examples/splendor` — the project root: CLI/config ownership and publish
-  layout for the engine and frontend packages.
-- `examples/splendor/engine` — a reference game built on the engine.
-- `examples/splendor/terminal` — terminal client exercising discovery and
-  hosted-style gameplay locally (`pnpm start:splendor`).
-- `examples/splendor/web` — web frontend example.
+A generated project is the reference consumer layout: `create-tableverse`
+scaffolds the project root (CLI and config ownership, publish settings), an
+engine workspace, and a client workspace. `packages/create/templates/default` is
+that layout in source form.
 
 ## Toolchain
 
@@ -180,5 +176,4 @@ pnpm install
 pnpm exec tsc -b
 pnpm lint
 pnpm test                 # every package, via Vitest
-pnpm start:splendor       # decorator-using entry, runs under tsx
 ```
