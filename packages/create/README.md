@@ -44,4 +44,4 @@ walks through the scaffold, the first rule change, local preview, and upload.
 
 ## License
 
-MIT
+[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)

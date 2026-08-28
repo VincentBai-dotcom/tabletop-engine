@@ -1,6 +1,7 @@
 {
   "name": "tableverse-kit",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "test": "vitest run",

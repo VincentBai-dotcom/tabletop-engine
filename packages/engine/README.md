@@ -119,4 +119,4 @@ stages, game definitions, hidden information, the executor, and testing.
 
 ## License
 
-MIT
+[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)
