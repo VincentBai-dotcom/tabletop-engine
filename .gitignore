@@ -65,6 +65,7 @@ package-lock.json
 examples/splendor/engine/Splendor Cards.csv
 examples/splendor/engine/Splendor.md
 examples/splendor/engine/nobile tiles.md
+examples/splendor/vendor/
 
 # local tvk link state (binds an example dir to a game on a dev platform)
 .tableverse/

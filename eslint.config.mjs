@@ -73,6 +73,7 @@ export default defineConfig([
     "nobile tiles.md",
     "docs/**",
     "packages/create/templates/**",
+    "**/package-lock.json",
     "**/dist",
     "**/coverage",
     "**/tsconfig.tsbuildinfo",
